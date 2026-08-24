@@ -18,6 +18,13 @@ Import "waitpid.c"
 Import "bmk_config.bmx"
 Import "bmk_ng_utils.bmx"
 Import "bmk_progress.bmx"
+Import "file_util.c"
+
+Extern
+	Function bmk_atomic_replace:Int(temporaryPath:String, publishedPath:String)
+	Function bmk_temporary_output_path:String(publishedPath:String)
+	Function bmk_temporary_staging_path:String(buildRoot:String)
+End Extern
 
 
 Global processor:TBMK = New TBMK
@@ -450,36 +457,100 @@ Type TBMK
 		EndIf
 
 		If opt_standalone And Not opt_nolog PushLog(cmd)
-		
-		If Not opt_standalone Or (opt_standalone And opt_nolog) Then
-			Local threaded:Int
-?threaded
-			threaded = True
 
-			If threaded And Not opt_single Then
-				processManager.DoSystem(cmd, src, obj, supp)
-			Else
-?
-					If obj Then
-						DeleteFile obj
-					End If
-					
-					If supp Then
-						DeleteFile supp
-					End If
-	
-					Local res:Int = system_( cmd )
-					If Not res Then
-						If src.EndsWith(".bmx") Then
-							processor.DoCallback(src)
-						End If
-					End If
-					
-					Return res
+		If Not opt_standalone Or (opt_standalone And opt_nolog) Then
 ?threaded
+			If Not opt_single Then
+				processManager.DoSystem(cmd, src, obj, supp)
+				Return 0
 			End If
 ?
+			If obj Then
+				DeleteFile obj
+			End If
+
+			If supp Then
+				DeleteFile supp
+			End If
+
+			Local res:Int = system_( cmd )
+			If Not res Then
+				If src.EndsWith(".bmx") Then
+					processor.DoCallback(src)
+				End If
+			End If
+
+			Return res
 		End If
+	End Method
+
+	' Runs a native build command against a private output and publishes it only
+	' after the command has completed successfully.
+	Method MultiSysPublish:Int(cmd:String, src:String, temporaryPath:String, publishedPath:String)
+		If Int(globals.Get("verbose")) Or opt_verbose
+			Print cmd
+		Else If Int(globals.Get("dumpbuild"))
+			Local p:String = cmd.Replace(BlitzMaxPath() + "/", "./")
+			WriteStdout p + "~n"
+		End If
+
+		If opt_standalone And Not opt_nolog Then
+			PushLog(cmd)
+			PushLog(PublishCommand(temporaryPath, publishedPath))
+		End If
+
+		If Not opt_standalone Or (opt_standalone And opt_nolog) Then
+?threaded
+			If Not opt_single Then
+				processManager.DoSystem(cmd, src, temporaryPath, "", publishedPath)
+				Return 0
+			End If
+?
+			DeleteFile temporaryPath
+			Local res:Int = system_(cmd)
+			If res Then Return res
+			If Not PublishOutput(temporaryPath, publishedPath) Then Return -1
+			If src.EndsWith(".bmx") Then processor.DoCallback(src)
+		End If
+		Return 0
+	End Method
+
+	Method PublishCommand:String(temporaryPath:String, publishedPath:String)
+		If Platform() = "win32" Then
+			Return "move /Y " + CQuote(temporaryPath) + " " + CQuote(publishedPath)
+		End If
+		Return "mv -f " + CQuote(temporaryPath) + " " + CQuote(publishedPath)
+	End Method
+
+	Method PublishOutput:Int(temporaryPath:String, publishedPath:String)
+		If opt_standalone And Not opt_nolog Then
+			PushLog(PublishCommand(temporaryPath, publishedPath))
+			Return True
+		End If
+		Return bmk_atomic_replace(temporaryPath, publishedPath)
+	End Method
+
+	Method TemporaryOutputPath:String(publishedPath:String)
+		Return bmk_temporary_output_path(publishedPath)
+	End Method
+
+	Method TemporaryStagingPath:String(buildRoot:String)
+		Return bmk_temporary_staging_path(buildRoot)
+	End Method
+
+	Method PublishText:Int(content:String, publishedPath:String)
+		Local temporaryPath:String = TemporaryOutputPath(publishedPath)
+		DeleteFile temporaryPath
+		If Not SaveText(content, temporaryPath) Then Return False
+		If PublishOutput(temporaryPath, publishedPath) Then Return True
+		DeleteFile temporaryPath
+		Return False
+	End Method
+
+	' Compiler staging already resides beside the final build tree, so publish by
+	' atomic rename rather than reading and rewriting every generated file.
+	Method PublishCompilerOutput:Int(stagedPath:String, publishedPath:String)
+		Return bmk_atomic_replace(stagedPath, publishedPath)
 	End Method
 
 	Method ThrowNew(e:String)
@@ -770,46 +841,10 @@ Type TBMK
 	End Method
 
 	Method BCCVersion:String()
-
-		Global bcc:String
-		
-		If bcc Then
-			Return bcc
-		End If
-
-		Local exe:String = "bcc"
-		If OSPlatform() = "win32" Then
-			exe :+ ".exe"
-		End If
-
-		Local process:TProcess = CreateProcess(CQuote(BlitzMaxPath() + "/bin/" + exe), HIDECONSOLE)
-		Local s:String
-		
-		If Not process Then
-			Throw "Cannot find a valid bcc. I am looking for it here : " + BlitzMaxPath() + "/bin/" + exe
-		End If
-		
-		While True
-			Delay 10
-			
-			Local line:String = process.pipe.ReadLine()
-		
-			If Not process.Status() And Not line Then
-				Exit
-			End If
-			
-			If line.startswith("BlitzMax") Then
-				bcc = "BlitzMax"
-			Else
-				bcc = line[..line.Find(" ")]
-			End If
-			
-		Wend
-		If process Then
-			process.Close()
-		End If
-
-		Return bcc
+		' Compiler selection is part of this bmk build, not inferred by running
+		' bin/bcc. This internal non-BlitzMax identifier retains the established
+		' NG native-toolchain branches while bcc 1.00 owns BlitzMax compilation.
+		Return "bcc2"
 	End Method
 
 	Method MinGWBinPath:String()
@@ -1021,7 +1056,9 @@ Type TBMK
 	End Method
 
 	Method IsQuickscanBuild:Int()
-		Return opt_quickscan
+		' The legacy interface-only module scan is retired. Keep the query for
+		' compatibility with build extensions, but report the effective mode.
+		Return False
 	End Method
 
 	Method IsUniversalBuild:Int()
@@ -1089,8 +1126,22 @@ Type TBMK
 		If Platform() = "win32" Then
 			appRoot = "%APP_ROOT%"
 		End If
+		If Platform() = "win32" Then
+			Local toolExtension:String
+			If OSPlatform() = "win32" Then toolExtension = ".exe"
+			Local toolPrefix:String = MinGWExePrefix()
+			Local minGWBin:String = MinGWBinPath() + "/"
+			p = p.Replace(minGWBin + toolPrefix + "gcc" + toolExtension, "%MINGW_BIN%/gcc.exe")
+			p = p.Replace(minGWBin + toolPrefix + "g++" + toolExtension, "%MINGW_BIN%/g++.exe")
+			p = p.Replace(minGWBin + toolPrefix + "ar" + toolExtension, "%MINGW_BIN%/ar.exe")
+		End If
 		p = p.Replace(BlitzMaxPath()+"/", bmxRoot + "/")
 		p = p.Replace(String(globals.GetRawVar("EXEPATH")), appRoot)
+		If Platform() = "win32" Then
+			p = p.Replace("/", "\")
+			' Keep cmd.exe switches distinct from paths when normalising separators.
+			p = p.Replace("move \Y ", "move /Y ")
+		End If
 		Return p
 	End Method
 	
@@ -1368,8 +1419,8 @@ Type TOptionVariable
 	' finds and removes a matching value
 	Method RemoveVar(name:String)
 		Local opt:TOpt = TOpt(options.ValueForKey(name))
-		options.Remove(opt)
-		orderedOptions.Remove(opt)
+		options.Remove(name)
+		If opt Then orderedOptions.Remove(opt)
 	End Method
 	
 	Method ToString:String()
@@ -1642,8 +1693,8 @@ End Extern
 ?
 
 Type TProcessTaskFactoryImpl Extends TProcessTaskFactory
-	Method Create:TProcessTask( cmd:String, src:String, obj:String, supp:String )
-		Return new TProcessTaskImpl.Create(cmd, src, obj, supp)
+	Method Create:TProcessTask( cmd:String, src:String, obj:String, supp:String, publish:String )
+		Return new TProcessTaskImpl.Create(cmd, src, obj, supp, publish)
 	End Method
 End Type
 
@@ -1656,17 +1707,21 @@ Type TProcessTaskImpl Extends TProcessTask
 	
 	Field obj:String
 	Field supp:String
-	
-	Method Create:TProcessTask(cmd:String, src:String, obj:String, supp:String)
+	Field publish:String
+
+	Method Create:TProcessTask(cmd:String, src:String, obj:String, supp:String, publish:String)
 		command = cmd
 		source = src
 		Self.obj = obj
 		Self.supp = supp
+		Self.publish = publish
 		Return Self
 	End Method
 	
 	Method DoTasks:Object()
 		Local res:Int
+		Local started:Int = MilliSecs()
+		TraceBuild("native task begin: " + source)
 		
 		If obj Then
 			DeleteFile(obj)
@@ -1683,14 +1738,20 @@ Type TProcessTaskImpl Extends TProcessTask
 ?win32
 		res = system_(command)
 ?
+		TraceBuild("native task process end: " + source + ", result=" + res + ", elapsed=" + (MilliSecs() - started) + " ms")
 		If res Then
 			Local s:String = "Build Error: failed to compile (" + res + ") " + source
 			Throw s
+		End If
+
+		If publish And Not processor.PublishOutput(obj, publish) Then
+			Throw "Build Error: failed to publish " + publish
 		End If
 		
 		If source.EndsWith(".bmx") Then
 			processor.DoCallback(source)
 		End If
+		TraceBuild("native task complete: " + source + ", elapsed=" + (MilliSecs() - started) + " ms")
 	End Method
 
 End Type

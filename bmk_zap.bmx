@@ -5,7 +5,7 @@ Import "bmk_modutil.bmx"
 Import "bmk_bank.bmx"
 Import "bmk_modinfo.bmx"
 
-Function Zap( path$,stream:TStream )
+Function Zap( path$,stream:TStream,skipNestedModules:Int=False )
 
 	If Not path Return False
 
@@ -14,6 +14,8 @@ Function Zap( path$,stream:TStream )
 	Local skip=False
 	
 	If name[..1]="."
+		skip=True
+	Else If skipNestedModules And name.ToLower().EndsWith(".mod") And FileType(path)=FILETYPE_DIR
 		skip=True
 	Else If name.ToLower().EndsWith( ".bak" )
 		skip=True
@@ -45,7 +47,7 @@ Function Zap( path$,stream:TStream )
 		stream.WriteLine -Mode
 		stream.WriteLine size
 		For Local t$=EachIn dir
-			If Not Zap( path+"/"+t,stream ) Return
+			If Not Zap( path+"/"+t,stream,True ) Return
 		Next
 	End Select
 	
@@ -83,11 +85,11 @@ End Function
 
 Function ZapMod( name$,stream:TStream )
 
-	Local path$=ModuleInterface( name,"release."+opt_target_platform+"."+opt_arch )
+	Local moduleDirectory:String = InstalledModulePath(name)
+	Local path$=moduleDirectory+"/"+ModuleIdent(name)+".release."+opt_target_platform+"."+opt_arch+".i"
 
-	If FileType(path)<>FILETYPE_FILE 
-		Print "Failed to find module"
-		Return
+	If FileType(path)<>FILETYPE_FILE
+		Throw "Failed to find module interface '"+path+"'"
 	EndIf
 	
 	Local src:TSourceFile=ParseSourceFile( path )
@@ -99,7 +101,7 @@ Function ZapMod( name$,stream:TStream )
 
 	Local bank:TBank=TBank.Create(0)
 	Local bank_stream:TStream=TBankStream.Create( bank ) 
-	If Not Zap( ModulePath(name),bank_stream ) Throw "Failed to publish module"
+	If Not Zap( moduleDirectory,bank_stream ) Throw "Failed to publish module"
 	bank_stream.Close
 	
 	bank=CompressBank( bank )

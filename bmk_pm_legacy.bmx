@@ -29,10 +29,10 @@ Type TProcessManager
 		Wend
 	End Method
 	
-	Method DoSystem(cmd:String, src:String, obj:String, supp:String)
+	Method DoSystem(cmd:String, src:String, obj:String, supp:String, publish:String = "")
 		CheckTasks()
 
-		pool.AddTask(TProcessTask._DoTasks, CreateProcessTask(cmd, src, obj, supp))
+		pool.AddTask(TProcessTask._DoTasks, CreateProcessTask(cmd, src, obj, supp, publish))
 
 	End Method
 

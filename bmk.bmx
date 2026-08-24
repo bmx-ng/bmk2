@@ -13,8 +13,13 @@ Incbin "macos.icns"
 If AppArgs.length<2 CmdError "Not enough parameters", True
 
 Local cmd$=AppArgs[1],args$[]
+Local startupStartMillis:Int = MilliSecs()
 
 args=ParseConfigArgs( AppArgs[2..], processor.BCCVersion() = "BlitzMax" )
+
+If opt_clean And cmd.ToLower() <> "makeapp" Then
+	CmdError "The -clean option is available only for makeapp"
+End If
 
 ' validate the platform configuration
 ValidatePlatformArchitecture()
@@ -28,6 +33,10 @@ LoadOptions
 ' pre-init gcc version cache
 processor.GCCVersion(False, False, True)
 
+If opt_verbose Then
+	Print "bmk: startup/configuration: " + (MilliSecs() - startupStartMillis) + " ms"
+End If
+
 CreateDir BlitzMaxPath()+"/tmp"
 
 Select cmd.ToLower()
@@ -39,8 +48,7 @@ Case "makeapp"
 	SetConfigMung
 	MakeApplication args,False
 Case "makelib"
-	SetConfigMung
-	MakeApplication args,True
+	CmdError "makelib is not yet supported by canonical-only bcc2"
 Case "makemods"
 	If opt_universal And processor.Platform() = "macos" And Float(processor.XCodeVersion()) < 12 Then
 		Throw "XCode 12+ required for universal macOS build"
@@ -128,10 +136,6 @@ Function SetConfigMung()
 		If processor.BCCVersion() = "BlitzMax" Then
 			If opt_threaded opt_configmung:+".mt"
 		End If
-		If opt_coverage Then
-			opt_configmung :+ ".cov"
-		End If
-		opt_configmung="."+opt_configmung+"."+processor.Platform()+"."'+opt_arch
 	Else
 		opt_debug=True
 		opt_release=False
@@ -139,8 +143,13 @@ Function SetConfigMung()
 		If processor.BCCVersion() = "BlitzMax" Then
 			If opt_threaded opt_configmung:+".mt"
 		End If
-		opt_configmung="."+opt_configmung+"."+processor.Platform()+"."'+opt_arch
 	EndIf
+	' Coverage changes both generated BlitzMax and native C objects, so it must
+	' be part of debug as well as release configuration identities.
+	If opt_coverage Then
+		opt_configmung :+ ".cov"
+	End If
+	opt_configmung="."+opt_configmung+"."+processor.Platform()+"."'+opt_arch
 End Function
 
 Function SetModfilter( t$ )
@@ -164,7 +173,7 @@ Function MakeModules( args$[] )
 	Local mods:TList
 
 	If args.length Then
-		Local m:String = args[0]
+		Local m:String = args[0].ToLower()
 		If m.find(".") > 0 And m[m.length-1]<>"." Then
 			' full module name?
 			mods = New TList
@@ -195,17 +204,29 @@ Function CleanModules( args$[] )
 	If args.length SetModfilter args[0] Else opt_modfilter=""
 
 	Local mods:TList=EnumModules()
+	Local cachePaths:TList = New TList
+	Local outputPaths:TList = New TList
 
 	Local name$
 	For name=EachIn mods
 
-		If (name+".").Find(opt_modfilter)<>0 Continue
+		If opt_modfilter Then
+			Local normalizedName:String = name.ToLower()
+			If opt_modfilter.EndsWith(".") Then
+				' A namespace filter includes every module below that namespace.
+				If (normalizedName + ".").Find(opt_modfilter) <> 0 Then Continue
+			Else
+				' A full module name must not match similarly prefixed modules.
+				If normalizedName <> opt_modfilter Then Continue
+			End If
+		End If
 
 		Print "Cleaning:"+name
 
-		Local path$=ModulePath(name)
+		Local path$=InstalledModulePath(name)
 
-		CleanBmxDirs(path)
+		CollectModuleCacheDirectories(path, cachePaths)
+		CollectModuleOutputFiles(path, ModuleIdent(name), outputPaths)
 		Rem
 		If Not opt_kill Continue
 		
@@ -230,27 +251,126 @@ Function CleanModules( args$[] )
 		End Rem
 	Next
 
+	' Inspect every selected cache before deleting any of them. A malformed cache
+	' or symbolic link therefore leaves the complete selected set untouched.
+	Local plans:TList = New TList
+	For Local cachePath:String = EachIn cachePaths
+		Local plan:TCompilerCachePlan = InspectCompilerCacheDirectory(cachePath, StripDir(cachePath), "module")
+		If plan Then plans.AddLast(plan)
+	Next
+	Local outputPlans:TList = New TList
+	For Local outputPath:String = EachIn outputPaths
+		Local outputPlan:TCompilerOutputFilePlan = InspectCompilerOutputFile(outputPath, "module")
+		If outputPlan Then outputPlans.AddLast(outputPlan)
+	Next
+	For Local plan:TCompilerCachePlan = EachIn plans
+		plan.Execute(opt_verbose)
+	Next
+	For Local outputPlan:TCompilerOutputFilePlan = EachIn outputPlans
+		outputPlan.Execute(opt_verbose)
+	Next
+
 End Function
 
-Function CleanBmxDirs(path:String)
+Function IsDecimalCleanSuffix:Int(value:String)
+	If Not value.length Then Return False
+	For Local index:Int = 0 Until value.length
+		If value[index] < Asc("0") Or value[index] > Asc("9") Then Return False
+	Next
+	Return True
+End Function
+
+Function IsModuleOutputPlatformArchitecture:Int(platform:String, architecture:String)
+	Select platform
+		Case "win32"
+			Return architecture = "x86" Or architecture = "x64" Or architecture = "armv7" Or architecture = "arm64"
+		Case "macos", "osx"
+			Return architecture = "x86" Or architecture = "x64" Or architecture = "ppc" Or architecture = "arm64"
+		Case "ios"
+			Return architecture = "x86" Or architecture = "x64" Or architecture = "armv7" Or architecture = "arm64" Or architecture = "sim" Or architecture = "dev"
+		Case "linux"
+			Return architecture = "x86" Or architecture = "x64" Or architecture = "arm" Or architecture = "arm64" Or architecture = "riscv32" Or architecture = "riscv64"
+		Case "android"
+			Return architecture = "x86" Or architecture = "x64" Or architecture = "arm" Or architecture = "armeabi" Or architecture = "armeabiv7a" Or architecture = "arm64v8a"
+		Case "raspberrypi"
+			Return architecture = "arm" Or architecture = "arm64"
+		Case "emscripten"
+			Return architecture = "js"
+		Case "nx"
+			Return architecture = "arm64"
+		Case "haiku"
+			Return architecture = "x86" Or architecture = "x64" Or architecture = "arm64"
+	End Select
+	Return False
+End Function
+
+Function IsGeneratedModuleOutput:Int(fileName:String, moduleIdent:String)
+	Local lowerName:String = fileName.ToLower()
+	Local lowerIdent:String = moduleIdent.ToLower()
+	If Not lowerName.StartsWith(lowerIdent + ".debug.") And Not lowerName.StartsWith(lowerIdent + ".release.") Then
+		Return False
+	End If
+
+	Local temporaryIndex:Int = lowerName.Find(".bmk-tmp-")
+	If temporaryIndex >= 0 Then
+		Local temporarySuffix:String = lowerName[temporaryIndex + 9..]
+		Local separator:Int = temporarySuffix.Find("-")
+		If separator <= 0 Or separator >= temporarySuffix.length - 1 Then Return False
+		If Not IsDecimalCleanSuffix(temporarySuffix[..separator]) Or Not IsDecimalCleanSuffix(temporarySuffix[separator + 1..]) Then Return False
+		lowerName = lowerName[..temporaryIndex]
+	End If
+
+	Local stem:String
+	If lowerName.EndsWith(".bmxbuild.stamp") Then
+		stem = lowerName[..lowerName.length - ".bmxbuild.stamp".length]
+	Else If lowerName.EndsWith(".bmxbuild") Then
+		stem = lowerName[..lowerName.length - ".bmxbuild".length]
+	Else If lowerName.EndsWith(".i2") Then
+		stem = lowerName[..lowerName.length - 3]
+	Else If lowerName.EndsWith(".i") Or lowerName.EndsWith(".a") Then
+		stem = lowerName[..lowerName.length - 2]
+	Else
+		Return False
+	End If
+
+	Local components:String[] = stem.Split(".")
+	If components.length < 4 Or components[0] <> lowerIdent Then Return False
+	If components[1] <> "debug" And components[1] <> "release" Then Return False
+	' The final two components are platform and architecture. Configuration
+	' qualifiers between them are restricted to the values emitted by bmk.
+	For Local index:Int = 2 Until components.length - 2
+		If components[index] <> "mt" And components[index] <> "cov" Then Return False
+	Next
+	Return IsModuleOutputPlatformArchitecture(components[components.length - 2], components[components.length - 1])
+End Function
+
+Function CollectModuleOutputFiles(path:String, moduleIdent:String, outputPaths:TList)
+	For Local fileName:String = EachIn LoadDir(path)
+		If IsGeneratedModuleOutput(fileName, moduleIdent) Then outputPaths.AddLast(path + "/" + fileName)
+	Next
+End Function
+
+Function CollectModuleCacheDirectories(path:String, cachePaths:TList)
 		Local bmx:String = path + "/.bmx"
-		If FileType(bmx) = FILETYPE_DIR Then
-			If opt_verbose Then
-				Print "  Deleting " + bmx
-			End If
-			DeleteDir bmx,True
-		End If
-		
+		If FileType(bmx) <> FILETYPE_NONE Then cachePaths.AddLast(bmx)
+
+		Local generatedGenerics:String = path + "/.generics"
+		If FileType(generatedGenerics) <> FILETYPE_NONE Then cachePaths.AddLast(generatedGenerics)
+
 		For Local f:String = EachIn LoadDir( path )
 			Local p:String = path + "/" + f
+			If p = bmx Or p = generatedGenerics Then Continue
 			Select FileType(p)
 				Case FILETYPE_DIR
-					CleanBmxDirs(p)
+					' Module source trees may intentionally contain directory links.
+					' They are not compiler-owned and must not broaden the clean scope.
+					If Not readlink_(p).length Then CollectModuleCacheDirectories(p, cachePaths)
 			End Select
 		Next
 End Function
 
 Function MakeApplication( args$[],makelib:Int,compileOnly:Int = False )
+	Local projectSetupStartMillis:Int = MilliSecs()
 
 	If opt_execute And Not compileOnly
 		If Len(args)=0 CmdError "Execute requires at least 1 argument"
@@ -355,11 +475,21 @@ Function MakeApplication( args$[],makelib:Int,compileOnly:Int = False )
 	End If
 
 
+	If opt_verbose Then
+		Print "bmk: project setup: " + (MilliSecs() - projectSetupStartMillis) + " ms"
+	End If
+
+	Local preBuildStartMillis:Int = MilliSecs()
+
 	' generic pre process
 	LoadBMK(ExtractDir(Main) + "/pre.bmk")
 
 	' project-specific pre process
 	LoadBMK(ExtractDir(Main) + "/" + StripDir( opt_outfile ) + ".pre.bmk")
+
+	If opt_verbose Then
+		Print "bmk: pre-build scripts: " + (MilliSecs() - preBuildStartMillis) + " ms"
+	End If
 
 	If processor.Platform() = "win32" Then
 		If makelib
@@ -456,6 +586,13 @@ Function MakeApplication( args$[],makelib:Int,compileOnly:Int = False )
 	End If
 
 	buildManager.MakeApp(Main, makelib, compileOnly)
+	If opt_clean Then
+		buildManager.CleanApplicationCaches()
+		buildManager.ShutdownBccCompilers()
+		BeginMake
+		buildManager = New TBuildManager
+		buildManager.MakeApp(Main, makelib, compileOnly)
+	End If
 	buildManager.DoBuild(makelib, Not compileOnly)
 
 	If opt_universal And processor.Platform() = "macos" Then
@@ -523,33 +660,46 @@ Function MakeApplication( args$[],makelib:Int,compileOnly:Int = False )
 
 			stream.WriteString("~n~n")
 		Else
-			Local ldScript:String = "%APP_ROOT%/ld." + processor.AppDet() + ".txt"
+			Local ldScript:String = "%APP_ROOT%\ld." + processor.AppDet() + ".txt"
+			Local minGWDirectory:String = "MinGW32"
+			Select processor.CPU()
+				Case "x86"
+					minGWDirectory = "MinGW32x86"
+				Case "x64"
+					minGWDirectory = "MinGW32x64"
+			End Select
 
 			stream.WriteString("@ECHO OFF~n")
 			stream.WriteString("SETLOCAL ENABLEEXTENSIONS~n")
-			stream.WriteString("SET PARENT=%~~dp0~n~n")
+			stream.WriteString("SET ~qPARENT=%~~dp0~q~n~n")
 
 			stream.WriteString("echo Building " + String(globals.GetRawVar("OUTFILE")) + "...~n")
 
 			stream.WriteString("If Not DEFINED APP_ROOT (~n")
 			If opt_boot Then
-				stream.WriteString("~tSET APP_ROOT=%PARENT%~n")
+				stream.WriteString("~tSET ~qAPP_ROOT=%PARENT%.~q~n")
 			Else
-				stream.WriteString("~tSET APP_ROOT=" + String(globals.GetRawVar("EXEPATH")) + "~n")
+				stream.WriteString("~tSET ~qAPP_ROOT=" + String(globals.GetRawVar("EXEPATH")) + "~q~n")
 			End If
 			stream.WriteString(")~n~n")
+			stream.WriteString("FOR %%I IN (~q%APP_ROOT%~q) DO SET ~qAPP_ROOT=%%~~fI~q~n~n")
 
 			stream.WriteString("If Not DEFINED BMX_ROOT (~n")
 			If opt_boot Then
-				stream.WriteString("~tSET BMX_ROOT=%PARENT%..\..~n")
+				stream.WriteString("~tSET ~qBMX_ROOT=%PARENT%..\..~q~n")
 			Else
-				stream.WriteString("~tSET BMX_ROOT=" + BlitzMaxPath() + "~n")
+				stream.WriteString("~tSET ~qBMX_ROOT=" + BlitzMaxPath() + "~q~n")
 			End If
 			stream.WriteString(")~n~n")
+			stream.WriteString("FOR %%I IN (~q%BMX_ROOT%~q) DO SET ~qBMX_ROOT=%%~~fI~q~n~n")
 
-			stream.WriteString("set PATH=%PATH%;" + processor.FixPaths(processor.MinGWBinPath()) + "~n~n");
+			stream.WriteString("If Not DEFINED MINGW_BIN (~n")
+			stream.WriteString("~tSET ~qMINGW_BIN=%BMX_ROOT%\" + minGWDirectory + "\bin~q~n")
+			stream.WriteString(")~n~n")
+			stream.WriteString("FOR %%I IN (~q%MINGW_BIN%~q) DO SET ~qMINGW_BIN=%%~~fI~q~n~n")
+			stream.WriteString("set ~qPATH=%MINGW_BIN%;%PATH%~q~n~n")
 
-			stream.WriteString("%SYSTEMROOT%\System32\WindowsPowerShell\v1.0\powershell.exe -Command ~q((get-content \~q" + ldScript + "\~q) -replace '%%BMX_ROOT%%','%BMX_ROOT%') | set-content \~q" + ldScript + ".tmp\~q~q~n~n")
+			stream.WriteString("%SYSTEMROOT%\System32\WindowsPowerShell\v1.0\powershell.exe -Command ~q$bmxRoot = $env:BMX_ROOT.Replace('\','/'); ((get-content \~q" + ldScript + "\~q) -replace '%%BMX_ROOT%%',$bmxRoot) | set-content \~q" + ldScript + ".tmp\~q~q~n~n")
 		End If
 
 		If processor.buildLog Then
@@ -662,11 +812,12 @@ Function MakeBootstrap()
 				Continue
 			End If
 
-			Local appPath:String = BlitzMaxPath() + "/src/" + app.name + "/" + app.name + ".bmx"
+			Local appPath:String = BootstrapApplicationSource(app.name)
 
-			If Not FileType(appPath) Throw "App not found : " + app.name
-
-			opt_outfile = Null
+			' Keep the bootstrap executable and native build script at the
+			' traditional src/<app> boundary even when canonical sources use a
+			' nested implementation directory such as src/bcc/compiler.
+			opt_outfile = BlitzMaxPath() + "/src/" + app.name + "/" + app.name
 			opt_standalone = True
 			opt_warnover = True
 
@@ -688,4 +839,13 @@ Function MakeBootstrap()
 		Next
 	Next
 
+End Function
+
+Function BootstrapApplicationSource:String(appName:String)
+	Local sourceRoot:String = BlitzMaxPath() + "/src/" + appName
+	Local directPath:String = sourceRoot + "/" + appName + ".bmx"
+	If FileType(directPath) = FILETYPE_FILE Then Return directPath
+	Local compilerPath:String = sourceRoot + "/compiler/" + appName + ".bmx"
+	If FileType(compilerPath) = FILETYPE_FILE Then Return compilerPath
+	Throw "App not found : " + appName
 End Function

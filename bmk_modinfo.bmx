@@ -32,7 +32,8 @@ Type TModInfo Extends TInfo
 	Field serverinfo:Object
 
 	Function CreateFromModule:TModInfo( name$ )
-		Local path$=ModuleInterface( name,"release."+processor.Platform()+"."+processor.CPU() )
+		Local moduleDirectory:String = InstalledModulePath(name)
+		Local path$=moduleDirectory+"/"+ModuleIdent(name)+".release."+processor.Platform()+"."+processor.CPU()+".i"
 		If FileType(path)<>FILETYPE_FILE Return
 		Local src:TSourceFile=ParseSourceFile( path )
 		If Not src Return

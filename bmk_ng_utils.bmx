@@ -7,6 +7,7 @@ Import BRL.System
 ?
 Import BRL.MaxLua
 Import BRL.TextStream
+Import Pub.StdC
 
 ?linux
 Import "bmk_cores_linux.bmx"
@@ -139,11 +140,11 @@ Type TSystem
 ?Not linux	
 	' System
 	Method CurrentDate:String()
-		Return BRL.System.CurrentDate()
+		Return Pub.StdC.CurrentDate()
 	End Method
-	
+
 	Method CurrentTime:String()
-		Return BRL.System.CurrentTime()
+		Return Pub.StdC.CurrentTime()
 	End Method
 
 	Method Notify(text:String, serious:Int = False)
@@ -215,11 +216,11 @@ Type TProcessTaskFactory
 		factories=Self
 	End Method
 	
-	Method Create:TProcessTask( cmd:String, src:String, obj:String, supp:String ) Abstract
+	Method Create:TProcessTask( cmd:String, src:String, obj:String, supp:String, publish:String ) Abstract
 	
 End Type
 
-Function CreateProcessTask:TProcessTask(cmd:String, src:String, obj:String, supp:String)
+Function CreateProcessTask:TProcessTask(cmd:String, src:String, obj:String, supp:String, publish:String = "")
 	Local factory:TProcessTaskFactory=factories
-	Return factory.Create(cmd, src, obj, supp)
+	Return factory.Create(cmd, src, obj, supp, publish)
 End Function

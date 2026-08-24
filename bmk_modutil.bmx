@@ -2,10 +2,36 @@
 Strict
 
 Import BRL.MaxUtil
+Import BRL.Map
 Import BRL.TextStream
 
 Import "bmk_util.bmx"
 Import "options_parser.bmx"
+Import "bmk_bcc2_manifest.bmx"
+
+Global installedModulePaths:TMap
+
+Function InitializeInstalledModuleCatalogue()
+	If installedModulePaths Then Return
+	installedModulePaths = New TMap
+	Local moduleRoot:String = ModulePath("")
+	For Local item:TModuleDirectory = EachIn EnumModuleDirectories(moduleRoot)
+		If FileType(item.SourcePath()) <> FILETYPE_FILE Then Continue
+		Local key:String = item.name.ToLower()
+		Local existing:String = String(installedModulePaths.ValueForKey(key))
+		If existing.length Then
+			Throw "Ambiguous module '" + item.name + "' maps to both '" + existing + "' and '" + item.path + "'"
+		End If
+		installedModulePaths.Insert(key, item.path)
+	Next
+End Function
+
+Function InstalledModulePath:String(moduleName:String)
+	InitializeInstalledModuleCatalogue()
+	Local path:String = String(installedModulePaths.ValueForKey(moduleName.ToLower()))
+	If path.length Then Return path
+	Return ModulePath(moduleName)
+End Function
 
 Const SOURCE_UNKNOWN:Int = 0
 Const SOURCE_BMX:Int = $01
@@ -26,6 +52,35 @@ Const STAGE_LINK:Int = 3
 Const STAGE_MERGE:Int = 4
 Const STAGE_APP_LINK:Int = 5
 
+Function FindBlitzMaxLineCommentStart:Int(line:String)
+	Local index:Int
+	Local inString:Int
+	Local inMultiline:Int
+	While index < line.length
+		If Not inString And index + 2 < line.length And line[index] = 34 And line[index + 1] = 34 And line[index + 2] = 34 Then
+			inMultiline = Not inMultiline
+			index :+ 3
+			Continue
+		End If
+		If inMultiline Then
+			index :+ 1
+			Continue
+		End If
+		If inString And line[index] = 126 And index + 1 < line.length Then
+			index :+ 2
+			Continue
+		End If
+		If line[index] = 34 Then
+			inString = Not inString
+			index :+ 1
+			Continue
+		End If
+		If Not inString And line[index] = 39 Then Return index
+		index :+ 1
+	Wend
+	Return -1
+End Function
+
 Type TSourceFile
 	Field ext$		'one of: "bmx", "i", "c", "cpp", "m", "s", "h"
 	Field exti:Int
@@ -37,6 +92,9 @@ Type TSourceFile
 	Field modimports:TList=New TList
 	
 	Field imports:TList=New TList
+	' Lexical native-option state at each quoted Import. This is parallel to
+	' imports so duplicate imports at different push/pop scopes remain distinct.
+	Field importOptions:TList=New TList
 	Field includes:TList=New TList
 	Field incbins:TList=New TList
 	Field hashes:TMap=New TMap
@@ -84,9 +142,19 @@ Type TSourceFile
 	'cache calculated MaxLinkTime()-value for faster lookups
 	Field maxLinkTimeCache:Int = -1
 	Field maxIfaceTimeCache:Int = -1
+	Field maxGeneratedHeaderTimeCache:Int = -1
 	
 	Field isInclude:Int
 	Field owner_path:String
+	Field bcc2BuildRoot:String
+	Field bcc2ManifestPath:String
+	Field bcc2Manifest:TBcc2BuildManifest
+	Field bcc2ManifestChecked:Int
+	Field bcc2FreshnessChecked:Int
+	Field bcc2OwnedSource:Int
+	Field bcc2ApplicationSource:Int
+	Field bcc2SourceModuleName:String
+	Field bcc2SourceUnitPath:String
 	
 	' add cc_opts or ld_opts
 	Method AddModOpt(opt:String)
@@ -97,10 +165,24 @@ Type TSourceFile
 	End Method
 	
 	Method MaxObjTime:Int()
+		' Dependency graphs converge heavily. Keep visitation local to this query so
+		' object timestamps can still change safely between build phases.
+		Return MaxObjTimeVisited(New TMap)
+	End Method
+
+	Method MaxObjTimeVisited:Int(visited:TMap)
+		If visited.Contains(Self) Then Return 0
+		visited.Insert(Self, Self)
+
 		Local t:Int = obj_time
+		If bcc2Manifest Then
+			For Local link:TBcc2BuildLink = EachIn bcc2Manifest.links
+				t = Max(t, FileTime(TBcc2BuildManifestCodec.Resolve(bcc2BuildRoot, link.objectPath)))
+			Next
+		End If
 		If depsList Then
 			For Local s:TSourceFile = EachIn depsList
-				Local st:Int = s.MaxObjTime()
+				Local st:Int = s.MaxObjTimeVisited(visited)
 				If st > t Then
 					t = st
 				End If
@@ -108,21 +190,36 @@ Type TSourceFile
 		End If
 		Return t
 	End Method
-	
-	Method GetObjs(list:TList)
-		If list Then
-			If Not stage Then
-				If Not list.Contains(obj_path) Then
-					list.AddLast(obj_path)
-				End If
-			End If
 
-			If depsList Then
-				For Local s:TSourceFile = EachIn depsList
-					s.GetObjs(list)
-				Next
+	Method GetObjs(list:TList)
+		' Avoid recursively expanding every distinct path to a shared dependency.
+		If list Then GetObjsVisited(list, New TMap)
+	End Method
+
+	Method GetObjsVisited(list:TList, visited:TMap)
+		If visited.Contains(Self) Then Return
+		visited.Insert(Self, Self)
+
+		If Not stage Then
+			If Not list.Contains(obj_path) Then
+				list.AddLast(obj_path)
 			End If
+			AddBcc2Objects(list)
 		End If
+
+		If depsList Then
+			For Local s:TSourceFile = EachIn depsList
+				s.GetObjsVisited(list, visited)
+			Next
+		End If
+	End Method
+
+	Method AddBcc2Objects(list:TList)
+		If Not list Or Not bcc2Manifest Then Return
+		For Local link:TBcc2BuildLink = EachIn bcc2Manifest.links
+			Local path:String = TBcc2BuildManifestCodec.Resolve(bcc2BuildRoot, link.objectPath)
+			If Not list.Contains(path) Then list.AddLast(path)
+		Next
 	End Method
 
 	Method SetRequiresBuild(enable:Int)
@@ -143,6 +240,11 @@ Type TSourceFile
 				t = arc_time
 			Else
 				t = obj_time
+			End If
+			If bcc2Manifest Then
+				For Local link:TBcc2BuildLink = EachIn bcc2Manifest.links
+					t = Max(t, FileTime(TBcc2BuildManifestCodec.Resolve(bcc2BuildRoot, link.objectPath)))
+				Next
 			End If
 			If depsList Then
 				For Local s:TSourceFile = EachIn depsList
@@ -227,7 +329,17 @@ Type TSourceFile
 					End If
 				End If
 			End If
-	
+
+			If list And Not stage And bcc2Manifest Then
+				For Local link:TBcc2BuildLink = EachIn bcc2Manifest.links
+					Local path:String = TBcc2BuildManifestCodec.Resolve(bcc2BuildRoot, link.objectPath)
+					If Not list.Contains(path) Then
+						list.AddLast(path)
+						linksCache.AddLast(path)
+					End If
+				Next
+			End If
+
 			If depsList And list Then
 				For Local s:TSourceFile = EachIn depsList
 					If Not modsOnly Or (modsOnly And s.modid) Then
@@ -352,6 +464,27 @@ Type TSourceFile
 		Return maxIfaceTimeCache
 	End Method
 
+	Method MaxGeneratedHeaderTime:Int()
+		If maxGeneratedHeaderTimeCache = -1 Then
+			Local t:Int
+			If ext.ToLower() = "bmx" And obj_path Then
+				t = FileTime(StripExt(obj_path) + ".h")
+			End If
+			If depsList Then
+				For Local source:TSourceFile = EachIn depsList
+					t = Max(t, source.MaxGeneratedHeaderTime())
+				Next
+			End If
+			If moddeps Then
+				For Local source:TSourceFile = EachIn moddeps.Values()
+					t = Max(t, source.MaxGeneratedHeaderTime())
+				Next
+			End If
+			maxGeneratedHeaderTimeCache = t
+		End If
+		Return maxGeneratedHeaderTimeCache
+	End Method
+
 	Method CopyInfo(source:TSourceFile)
 		source.ext = ext
 		source.exti = exti
@@ -378,9 +511,17 @@ Type TSourceFile
 		source.cpp_opts = cpp_opts
 		source.c_opts = c_opts
 		source.asm_opts = asm_opts
+		source.bcc2BuildRoot = bcc2BuildRoot
+		source.bcc2ManifestPath = bcc2ManifestPath
+		source.bcc2Manifest = bcc2Manifest
+		source.bcc2OwnedSource = bcc2OwnedSource
+		source.bcc2ApplicationSource = bcc2ApplicationSource
+		source.bcc2SourceModuleName = bcc2SourceModuleName
+		source.bcc2SourceUnitPath = bcc2SourceUnitPath
 		source.CopyIncludePaths(includePaths)
 		source.maxLinkTimeCache = maxLinkTimeCache
 		source.maxIfaceTimeCache = maxIfaceTimeCache
+		source.maxGeneratedHeaderTimeCache = maxGeneratedHeaderTimeCache
 	End Method
 	
 	Method GetSourcePath:String()
@@ -423,6 +564,94 @@ Type TSourceFile
 	
 End Type
 
+Type TSourceImportOptions
+	Field ccOpts:String
+	Field asmOpts:String
+End Type
+
+Function SourcePragmaWord:String(line:String, cursor:Int Var)
+	While cursor < line.length And (line[cursor] = 32 Or line[cursor] = 9)
+		cursor :+ 1
+	Wend
+	Local start:Int = cursor
+	While cursor < line.length And line[cursor] <> 32 And line[cursor] <> 9
+		cursor :+ 1
+	Wend
+	Return line[start..cursor]
+End Function
+
+Function PopSourceOptionState:TOptionVariable(stack:TList, current:TOptionVariable)
+	If stack And Not stack.IsEmpty() Then Return TOptionVariable(stack.RemoveLast())
+	Return current
+End Function
+
+' Model only the built-in native option pragmas needed while discovering the
+' import graph. Arbitrary bmk commands still execute once, at the source's
+' normal generation stage, and are deliberately not run during a read-only
+' dependency scan.
+Function ApplySourceImportPragma(line:String, ccState:TOptionVariable Var, asmState:TOptionVariable Var, ccStack:TList, asmStack:TList)
+	Local cursor:Int
+	Local command:String = SourcePragmaWord(line, cursor).ToLower()
+	Local key:String = SourcePragmaWord(line, cursor)
+	Local value:String = line[cursor..].Trim()
+	Select command
+		Case "push"
+			Select key.ToLower()
+				Case "cc_opts"
+					ccStack.AddLast(ccState.Clone())
+				Case "asm_opts"
+					asmStack.AddLast(asmState.Clone())
+			End Select
+		Case "pop"
+			Select key.ToLower()
+				Case "cc_opts"
+					ccState = PopSourceOptionState(ccStack, ccState)
+				Case "asm_opts"
+					asmState = PopSourceOptionState(asmStack, asmState)
+			End Select
+		Case "pushall"
+			ccStack.AddLast(ccState.Clone())
+			asmStack.AddLast(asmState.Clone())
+		Case "popall"
+			ccState = PopSourceOptionState(ccStack, ccState)
+			asmState = PopSourceOptionState(asmStack, asmState)
+		Case "addccopt"
+			ccState.AddVar(key, value)
+		Case "setccopt"
+			ccState.SetVar(key, value)
+		Case "rmccopt"
+			ccState.RemoveVar(key)
+		Case "addwin32ccopt"
+			If processor.Platform() = "win32" Then ccState.AddVar(key, value)
+		Case "setwin32ccopt"
+			If processor.Platform() = "win32" Then ccState.SetVar(key, value)
+		Case "setwin32x86ccopt"
+			If processor.Platform() = "win32" And processor.CPU() = "x86" Then ccState.SetVar(key, value)
+		Case "setwin32x64ccopt"
+			If processor.Platform() = "win32" And processor.CPU() = "x64" Then ccState.SetVar(key, value)
+		Case "addmacccopt"
+			If processor.Platform() = "macos" Then ccState.AddVar(key, value)
+		Case "setmacccopt"
+			If processor.Platform() = "macos" Then ccState.SetVar(key, value)
+		Case "addmacppcccopt"
+			If processor.Platform() = "macos" And processor.CPU() = "ppc" Then ccState.AddVar(key, value)
+		Case "setmacppcccopt"
+			If processor.Platform() = "macos" And processor.CPU() = "ppc" Then ccState.SetVar(key, value)
+		Case "addmacx86ccopt"
+			If processor.Platform() = "macos" And processor.CPU() = "x86" Then ccState.AddVar(key, value)
+		Case "setmacx86ccopt"
+			If processor.Platform() = "macos" And processor.CPU() = "x86" Then ccState.SetVar(key, value)
+		Case "addlinuxccopt"
+			If processor.Platform() = "linux" Or processor.Platform() = "android" Or processor.Platform() = "raspberrypi" Then ccState.AddVar(key, value)
+		Case "setlinuxccopt"
+			If processor.Platform() = "linux" Or processor.Platform() = "android" Or processor.Platform() = "raspberrypi" Then ccState.SetVar(key, value)
+		Case "addasmopt"
+			asmState.AddVar(key, value)
+		Case "rmasmopt"
+			asmState.RemoveVar(key)
+	End Select
+End Function
+
 Function ValidSourceExt( ext:Int )
 	If ext & $FFFF Then
 		Return True
@@ -432,7 +661,8 @@ End Function
 
 Function ParseSourceFile:TSourceFile( path$ )
 
-	If FileType(path)<>FILETYPE_FILE Return
+	Local info:SFileStat
+	If Not FileStat(path, info) Or info.fileType <> FILETYPE_FILE Then Return
 
 	Local ext$=ExtractExt( path ).ToLower()
 	Local exti:Int = String(processor.RunCommand("source_type", [ext])).ToInt()
@@ -446,7 +676,7 @@ Function ParseSourceFile:TSourceFile( path$ )
 	file.ext=ext
 	file.exti=exti
 	file.path=path
-	file.time = FileTime(path)
+	file.time = info.modifiedTime
 	
 	Local str$=LoadText( path )
 
@@ -456,6 +686,10 @@ Function ParseSourceFile:TSourceFile( path$ )
 	SetCompilerValues()
 	
 	Local lineCount:Int
+	Local importCcState:TOptionVariable = New TOptionVariable
+	Local importAsmState:TOptionVariable = New TOptionVariable
+	Local importCcStack:TList = New TList
+	Local importAsmStack:TList = New TList
 	
 	While pos<Len(str)
 
@@ -468,15 +702,17 @@ Function ParseSourceFile:TSourceFile( path$ )
 		pos=eol+1
 
 		Local pragmaLine:String
-		Local n:Int = line.Find("@")
-		If n <> -1 And line[n+1..n+4] = "bmk" Then
-			pragmaLine = line[n+4..]
+		Local n:Int = -1
+		If Not in_rem And Not in_multiline Then n = FindBlitzMaxLineCommentStart(line)
+		If n <> -1 Then
+			Local commentBody:String = line[n + 1..].Trim()
+			If commentBody.ToLower().StartsWith("@bmk") Then pragmaLine = commentBody[4..]
 		End If
 		
 		Select exti
 		Case SOURCE_BMX, SOURCE_IFACE
 
-			n=line.Find( "'" )
+			n = FindBlitzMaxLineCommentStart(line)
 			If n<>-1 line=line[..n]
 			
 			If Not line And Not pragmaLine Continue
@@ -542,6 +778,7 @@ Function ParseSourceFile:TSourceFile( path$ )
 					i:+1
 				Wend
 				file.pragmas.AddLast pragmaLine[i..]
+				ApplySourceImportPragma(pragmaLine[i..], importCcState, importAsmState, importCcStack, importAsmStack)
 			End If
 
 			If lline.length And Not CharIsAlpha( lline[0] ) Continue
@@ -567,6 +804,10 @@ Function ParseSourceFile:TSourceFile( path$ )
 			Case "import"
 				If qval
 					file.imports.AddLast ReQuote(qval)
+					Local importOptions:TSourceImportOptions = New TSourceImportOptions
+					importOptions.ccOpts = importCcState.ToString()
+					importOptions.asmOpts = importAsmState.ToString()
+					file.importOptions.AddLast(importOptions)
 				Else
 					file.modimports.AddLast val.ToLower()
 				EndIf
@@ -605,13 +846,14 @@ End Function
 
 Function ParseISourceFile:TSourceFile( path$ )
 
-	If FileType(path)<>FILETYPE_FILE Return
+	Local info:SFileStat
+	If Not FileStat(path, info) Or info.fileType <> FILETYPE_FILE Then Return
 
 	Local file:TSourceFile=New TSourceFile
 	file.ext="i"
 	file.exti=SOURCE_IFACE
 	file.path=path
-	file.time = FileTime(path)
+	file.time = info.modifiedTime
 	
 	Local str$=LoadText( path )
 
@@ -712,7 +954,7 @@ Function ValidatePlatformArchitecture()
 				valid = True
 			End If
 		Case "haiku"
-			If arch = "x86" Or arch = "x64" Then
+			If arch = "x86" Or arch = "x64" Or arch = "arm64" Then
 				valid = True
 			End If
 	End Select
@@ -800,6 +1042,7 @@ Function SetCompilerValues()
 	compilerOptions.Add("haiku", processor.Platform() = "haiku")
 	compilerOptions.Add("haikux86", processor.Platform() = "haiku" And processor.CPU()="x86")
 	compilerOptions.Add("haikux64", processor.Platform() = "haiku" And processor.CPU()="x64")
+	compilerOptions.Add("haikuarm64", processor.Platform() = "haiku" And processor.CPU()="arm64")
 	
 	compilerOptions.Add("emscripten", processor.Platform() = "emscripten")
 	compilerOptions.Add("emscriptenjs", processor.Platform() = "emscripten" And processor.CPU()="js")
@@ -807,6 +1050,7 @@ Function SetCompilerValues()
 	compilerOptions.Add("opengles", processor.Platform() = "android" Or processor.Platform() ="raspberrypi" Or processor.Platform() = "emscripten" Or processor.Platform() = "ios")
 
 	compilerOptions.Add("bmxng", processor.BCCVersion() <> "BlitzMax")
+	compilerOptions.Add("bmxng2", processor.BCCVersion() = "bcc2")
 	compilerOptions.Add("coverage", opt_coverage)
 
 	compilerOptions.Add("musl", processor.Platform() = "linux" Or processor.Platform() ="raspberrypi")

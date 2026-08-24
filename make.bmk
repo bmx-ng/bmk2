@@ -3,6 +3,7 @@
 @define assemble
 	local src = nvl(arg1, %infile%)
 	local obj = nvl(arg2, %outfile%)
+	local tmpobj = bmk.TemporaryOutputPath(obj)
 
 	if bmk.Platform() == "macos" then
 		if bmk.CPU() == "ppc" then
@@ -12,7 +13,7 @@
 		else
 			cmd = "as -arch x86_64"
 		end
-		cmd = cmd .. " -W -o " .. bmk.Quote(obj) .. " " .. bmk.Quote(src)
+		cmd = cmd .. " -W -o " .. bmk.Quote(tmpobj) .. " " .. bmk.Quote(src)
 	else
 		if bmk.Platform() == "win32" then
 			local prefix = bmk.Option("path_to_wine", "")
@@ -29,10 +30,10 @@
 			cmd = cmd .. " -m32768 "
 		end
 		
-		cmd = cmd .. bmk.Quote(src) .. " " .. bmk.Quote(obj)
+		cmd = cmd .. bmk.Quote(src) .. " " .. bmk.Quote(tmpobj)
 	end
 
-	if bmk.MultiSys(cmd, src, obj, "") ~= 0 then
+	if bmk.MultiSysPublish(cmd, src, tmpobj, obj) ~= 0 then
 		bmk.ThrowNew("Build Error: Failed to assemble " .. src)
 	end
 @end
@@ -40,6 +41,7 @@
 @define assembleNative
 	local src = nvl(arg1, %infile%)
 	local obj = nvl(arg2, %outfile%)
+	local tmpobj = bmk.TemporaryOutputPath(obj)
 
 	local nativeAssembler = bmk.Option("native.assembler", "as")
 	local asmPath = bmk.Option(bmk.BuildName(nativeAssembler), nativeAssembler)
@@ -85,14 +87,14 @@
 	end
 	
 	if nativeAssembler == "as" or nativeAssembler == "nasm" or nativeAssembler == "yasm" then
-		cmd = cmd .. " -o " .. bmk.Quote(obj) .. " " .. bmk.Quote(src)
+		cmd = cmd .. " -o " .. bmk.Quote(tmpobj) .. " " .. bmk.Quote(src)
 	end
 
 	if nativeAssembler == "fasm" then
-		cmd = cmd .. " " .. bmk.Quote(src) .. " " .. bmk.Quote(obj)
+		cmd = cmd .. " " .. bmk.Quote(src) .. " " .. bmk.Quote(tmpobj)
 	end
 
-	if bmk.MultiSys(cmd, src, obj, "") ~= 0 then
+	if bmk.MultiSysPublish(cmd, src, tmpobj, obj) ~= 0 then
 		bmk.ThrowNew("Build Error: Failed to assemble " .. src)
 	end
 @end
@@ -173,6 +175,7 @@
 	local src = nvl(arg1, %infile%)
 	local obj = nvl(arg2, %outfile%)
 	local opts = arg3
+	local tmpobj = bmk.TemporaryOutputPath(obj)
 
 	#opts = opts .. " " .. %cc_opts% .. " " .. %BMK_CC_OPTS%
 
@@ -255,11 +258,6 @@
 		cmd = cmd .. " -I" .. bmk.Option("nx.devkitpro", "") .. "/portlibs/switch/include"
 	end
 	
-	# disable warnings ?
-	if %CC_WARNINGS% == "" then
-		opts = opts .. " -w"
-	end
-
 	if bmk.BCCVersion() ~= "BlitzMax" then
 		opts = opts .. " -DBMX_NG"
 		if bmk.Platform() == "nx" then
@@ -283,9 +281,9 @@
 		cc_opts = cc_opts:gsub("%-fno%-exceptions", "")
 	end
 
-	cmd = cmd .. opts .. cc_opts .. %mod_ccopts% .. genDebug .. " -o " .. bmk.Quote(obj) .. " " .. bmk.Quote(src)
+	cmd = cmd .. opts .. cc_opts .. %mod_ccopts% .. genDebug .. " -o " .. bmk.Quote(tmpobj) .. " " .. bmk.Quote(src)
 
-	if bmk.MultiSys( cmd, src, obj, "" ) ~= 0 then
+	if bmk.MultiSysPublish( cmd, src, tmpobj, obj ) ~= 0 then
 		bmk.ThrowNew("Build Error: failed to compile " .. src)
 	end
 
@@ -394,11 +392,11 @@
 
 ## removes a cc_opt option
 @define rmccopt
-	globals.Remove("cc_opts", arg1)
+	globals.RemoveVar("cc_opts", arg1)
 @end
 
 @define rmasmopt
-	globals.Remove("asm_opts", arg1)
+	globals.RemoveVar("asm_opts", arg1)
 @end
 
 @define addldopt
@@ -487,6 +485,7 @@
 @define default_cc_opts
 
 	globals.Clear("cc_opts")
+	globals.Clear("ld_opts")
 
 	if bmk.Platform() == "macos" or bmk.Platform() == "osx" then
 		
@@ -576,7 +575,11 @@
 
 		if bmk.IsDebugBuild() == 0 then
 			if bmk.Platform() ~= "emscripten" then
-				globals.SetOption("cc_opts", "stripsymbols", "-s")
+				if bmk.Platform() == "macos" or bmk.Platform() == "osx" then
+					globals.SetOption("ld_opts", "stripsymbols", "-Wl,-S,-x")
+				else
+					globals.SetOption("ld_opts", "stripsymbols", "-s")
+				end
 			end
 		end
 	end

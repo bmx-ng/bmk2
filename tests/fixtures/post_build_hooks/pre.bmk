@@ -1,0 +1,7 @@
+@define RecordPreBuild
+	local output = io.open(%BUILDPATH% .. "/hooks.log", "a")
+	output:write("pre\n")
+	output:close()
+@end
+
+RecordPreBuild

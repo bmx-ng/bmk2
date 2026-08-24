@@ -1,105 +1,106 @@
-BMK (NG) INSTRUCTIONS
-=====================
+# bmk2
 
-Always backup before deploying a new BMK. (Better safe than sorry!)
+`bmk2` is the BlitzMax NG build manager for the `bcc2` compiler. It discovers
+source dependencies, invokes the compiler and native toolchain, builds modules,
+and links applications.
 
+Version 4 is developed separately from the production `bmk` 3.x series. It
+requires a matching `bcc2` installation; an older `bmk` cannot discover or
+build nested module namespaces introduced by bmk2.
 
-Compiling BMK
--------------
+## Building
 
-bmk.bmx is the main source-file.
+`bmk.bmx` is the main source file. Build it as a non-GUI release application
+using an existing BlitzMax NG installation:
 
-BMK should be compiled in Non-GUI and Release mode. 
+```sh
+mkdir -p build
+/path/to/bmk makeapp -a -r -h -o ./build/bmk ./bmk.bmx
+```
 
-Compilation with an older version of BMK:
+To build for a specific target, add the platform and CPU options:
 
-    $ mkdir -p build/
-    $ path/to/bmk makeapp -a -r -h -o ./build/bmk ./bmk.bmx
+```sh
+/path/to/bmk makeapp -a -r -h -l macos -g arm64 -o ./build/bmk ./bmk.bmx
+```
 
-You can optionally specify platform and CPU during compilation, e.g. 
+A threaded build of bmk2 can compile independent native and BlitzMax units in
+parallel. The resulting executable may have an `.mt` suffix, which should be
+removed when it is installed as `bin/bmk`.
 
-    PLATFORM="macos"
-    CPU="x64"
-    path/to/bmk makeapp -a -r -h -l $PLATFORM -g $CPU -o ./build/bmk ./bmk.bmx
+## Installing
 
-You can also compile BMK in either Threaded or Non-threaded modes.
+Back up the existing SDK tools before replacing them. Install the built
+executable together with `core.bmk` and `make.bmk` in the BlitzMax `bin`
+directory. Install the matching bcc2 executable as `bin/bcc`.
 
-When compiled with Threading enabled, BMK will parallel compile C/C++ files
-when it can, scaling to the number of available cores on your system.
-Note : The compiled executable filename will include ".mt", which you will need
-to remove when deploying it in BlitzMax/bin.
+Check the installed version with:
 
-When compiled without Threading, BMK will compile all files, one at a time.
+```sh
+bmk -v
+```
 
+## Common commands
 
-Deploying BMK
--------------
+```sh
+# Build a debug application
+bmk makeapp -o app app.bmx
 
-The bmk executable, core.bmk and make.bmk, should be deployed in the BlitzMax/bin
-folder.
+# Build a release application from clean generated output
+bmk makeapp -clean -r -o app app.bmx
 
+# Build all installed modules in release mode
+bmk makemods -r
 
-You can also create a custom.bmk file in BlitzMax/bin which is used to override built-in
-compiler options, such as optimisations. (see "Using custom.bmk" below)
+# Force a particular module and stale dependencies to rebuild
+bmk makemods -a -r brl.collections
 
+# Remove generated output for all installed modules
+bmk cleanmods
 
-On Linux and MacOS systems, you may also optionally deploy config.bmk. This provides
-settings for Cross-Compiling modules and applications for Win32 targets. If you intend
-to use this, please check the file for any system-specific configuration options you
-need to supply.
+# Remove generated output beneath one namespace
+bmk cleanmods brl
+```
 
+Run `bmk` without arguments for the complete command-line usage guide.
 
+## Nested module namespaces
 
-Using custom.bmk
-----------------
+bmk2 supports module names of arbitrary practical depth. Each directory ending
+in `.mod` contributes one component, while the primary source retains the last
+component's basename:
 
-This file allows you to override the default compiler options BMK uses.
+```text
+one.mod/two.mod/three.mod/three.bmx  ->  One.Two.Three
+```
 
-The format is :
+Each component is a single BlitzMax identifier. Names are case-insensitive, and
+two paths which differ only by case are an error. A `.mod` directory may be a
+namespace-only container, and parent and child modules may coexist. Imports
+always resolve one exact module; importing a parent does not import descendants.
 
-<command> <name> <value>
+## Configuration
 
+An optional `bin/custom.bmk` can override compiler options. Its general form is:
 
-The normal command is "addccopt", but all valid commands are listed here :
+```text
+addccopt <name> <value>
+```
 
-    addccopt             - for all platforms and processors
-    addlinuxccopt        - Linux specific option
-    addwin32ccopt        - Win32 specific option
-    addmacccopt          - MacOS specific option
-    addmacx86ccopt       - MacOS x86 specific option
-    addmacppcccopt       - MacOS ppc specific option
+Platform-specific forms include `addlinuxccopt`, `addwin32ccopt`, and
+`addmacccopt`. Quote values containing spaces. The same commands can be placed
+in BlitzMax line-comment pragmas, for example:
 
-The following option names will override the default settings appropriately
+```blitzmax
+'@bmk addccopt exceptions -fexceptions
+```
 
- optimization            - Optimize level. The default is -Os (optimize for size)
- arch                    - The processor architecture. The default -march=pentium
- math                    - The floating point unit.
+On Linux and macOS, an optional `bin/config.bmk` supplies toolchain settings for
+cross-compilation.
 
+## Tests
 
-If you want a value to contain spaces, wrap it in double-quotes (")
-
-See the gcc manual for more options. (hint: google for "man gcc", is useful).
-
-
-
-Cross-Compiling
----------------
-
-BMK supports compiling of Win32 binaries and modules on MacOS and Linux systems.
-
-You can download all the necessary packages from the following location : 
-
-        http://brucey.net/programming/blitz/mingw/
-
-
-
-Running BMK
------------
-
-You can obtain the current version of BMK with :
-
-    bmk -v
-
-
-Running BMK with no options will produce a basic Usage guide.
-
+The `tests` directory contains focused unit and integration runners. Most
+integration scripts expect paths to an isolated BlitzMax SDK and the freshly
+built bmk/bcc executables; run a script without arguments to see its required
+environment and usage.

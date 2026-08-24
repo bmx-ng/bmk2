@@ -26,6 +26,7 @@ Global opt_configmung$=""
 Global opt_kill=False
 Global opt_modfilter$="."
 Global opt_all=False
+Global opt_clean=False
 Global opt_quiet=False
 Global opt_verbose=False
 Global opt_execute=False
@@ -64,8 +65,13 @@ Global opt_hi:Int
 Global opt_coverage:Int
 Global opt_no_auto_superstrict:Int
 GLobal opt_no_progress:Int
-
 Global opt_dumpbuild
+Global opt_trace_build:Int = getenv_("BMK_TRACE_BUILD") <> ""
+Global trace_build_start_millis:Int = MilliSecs()
+
+Function TraceBuild(message:String)
+	If opt_trace_build Then Print "bmk trace +" + (MilliSecs() - trace_build_start_millis) + " ms: " + message
+End Function
 
 'Global cfg_platform$
 Global macos_version:Int=2784 ' 10.14
@@ -131,6 +137,8 @@ opt_arch="arm64"
 opt_arch="x86"
 ?haikux64
 opt_arch="x64"
+?haikuarm64
+opt_arch="arm64"
 ?linuxRiscv32
 opt_arch="riscv32"
 ?linuxRiscv64
@@ -173,6 +181,8 @@ Function ParseConfigArgs$[]( args$[], legacyMax:Int = False )
 		Select argv
 		Case "a", "all"
 			opt_all=True
+		Case "clean"
+			opt_clean=True
 		Case "q"
 			opt_quiet=True
 		Case "v"
@@ -211,6 +221,9 @@ Function ParseConfigArgs$[]( args$[], legacyMax:Int = False )
 			n:+1
 			If n=args.length MissingArg(argv)
 			opt_appstub=args[n]
+		Case "bcc2"
+			' Transitional compatibility no-op: this matched bmk always uses bcc.
+			Continue
 		Case "i"
 ?macos
 			' this is mac/ios only... pah!
@@ -229,7 +242,10 @@ Function ParseConfigArgs$[]( args$[], legacyMax:Int = False )
 			opt_standalone = True
 			opt_standalone_set = True
 		Case "quick"
-			opt_quickscan = True
+			' Retained for command-line compatibility. Canonical incremental
+			' builds always scan the dependency graph; the legacy interface-only
+			' shortcut cannot represent aggregate source-unit dependencies.
+			opt_quickscan = False
 			opt_quickscan_set = True
 		Case "nostrictupgrade"
 			opt_nostrictupgrade = True
@@ -340,14 +356,25 @@ Function Usage:String(fullUsage:Int = False)
 		s:+ "~tmakemods~n"
 		s:+ "~t~tBuilds a set of modules."
 		s:+ "~n~n"
+		s:+ "~tcleanmods [module-or-namespace]~n"
+		s:+ "~t~tRemoves compiler caches, archives, interfaces, manifests, and stamps from all~n"
+		s:+ "~t~tmodules, or only the selected module or namespace when one is supplied."
+		s:+ "~n~n"
 		s:+ "Options :~n"
 		s:+ "~t-a | -all~n"
 		s:+ "~t~tRecompile all source/modules regardless of timestamp. By default, only those modified~n" + ..
 		    "~t~tsince the last build are recompiled."
 		s:+ "~n~n"
+		s:+ "~t-clean~n"
+		s:+ "~t~tRemove compiler-owned application caches before dependency discovery. (makeapp only)."
+		s:+ "~n~n"
 		s:+ "~t-b <custom appstub module>~n"
 		s:+ "~t~tBuilds an app using a custom appstub (i.e. not BRL.Appstub).~n"
 		s:+ "~t~tThis can be useful when you want more control over low-level application state."
+		s:+ "~n~n"
+		s:+ "~t-bcc2~n"
+		s:+ "~t~tDeprecated compatibility option; this matched bmk always uses bcc 1.00.~n"
+		s:+ "~t~tEvery reachable BlitzMax source is compiled by bin/bcc.~n"
 		s:+ "~n~n"
 		s:+ "~t-cov~n"
 		s:+ "~t~tBuilds a version with code coverage information.~n"
@@ -391,7 +418,7 @@ Function Usage:String(fullUsage:Int = False)
 		s:+ "~t~t~tAndroid : x86, x64, arm, armeabi, armeabiv7a, arm64v8a~n"
 		s:+ "~t~t~tRaspberryPi : arm, arm64~n"
 		s:+ "~t~t~tnx : arm64~n"
-		s:+ "~t~t~thaiku : x86, x64~n"
+		s:+ "~t~t~thaiku : x86, x64, arm64~n"
 		s:+ "~n~n"
 		s:+ "~t-gdb~n"
 		s:+ "~t~tGenerates line mappings suitable for GDB debugging.~n"
@@ -453,10 +480,7 @@ Function Usage:String(fullUsage:Int = False)
 		s:+ "~t~tQuiet build."
 		s:+ "~n~n"
 		s:+ "~t-quick~n"
-		s:+ "~t~tQuick build.~n"
-		s:+ "~t~tDoes not scans modules for changes. May result in quicker build times on some systems.~n"
-		s:+ "~t~tThe default behaviour is to scan and build all requirements for the application,~n"
-		s:+ "~t~tincluding modules."
+		s:+ "~t~tAccepted for compatibility; normal incremental dependency scanning is always used."
 		s:+ "~n~n"
 		s:+ "~t-r | -release~n"
 		s:+ "~t~tBuilds a release version."
@@ -571,14 +595,9 @@ Function AsConfigurable:Int(key:String, value:String)
 			End If
 			config = True
 		Case "opt_quickscan"
-			If Not opt_quickscan_set Then
-				opt_quickscan = Int(value)
-				set = 1
-			Else
-				If opt_quickscan <> Int(value) Then
-					set = 2
-				End If
-			End If
+			' Accepted as a compatibility no-op for existing custom.bmk files.
+			opt_quickscan = False
+			set = 1
 			config = True
 		Case "opt_gdbdebug"
 			If Not opt_gdbdebug_set Then

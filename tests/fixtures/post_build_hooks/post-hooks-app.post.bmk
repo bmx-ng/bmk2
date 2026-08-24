@@ -1,0 +1,7 @@
+@define RecordSpecificPostBuild
+	local output = io.open(%BUILDPATH% .. "/hooks.log", "a")
+	output:write("specific\n")
+	output:close()
+@end
+
+RecordSpecificPostBuild

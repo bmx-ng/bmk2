@@ -1,3 +1,13 @@
+## [4.00] - 2026-08-24
+### Added
+ - Integrated support for the bcc2 compiler and its canonical generic artifacts.
+ - Added exact, arbitrary-depth nested module discovery and builds.
+ - Added safe application and module cache-cleaning commands.
+ - Added deterministic parallel compilation, publication, and archive scheduling.
+### Changed
+ - Split bmk2 from the production bmk 3.x line.
+ - Improved dependency discovery, freshness validation, diagnostics, and incremental builds.
+
 ## [3.61] - 2026-05-29
 ### Fixed
  - Ensure a change to an included file (at any depth) or incbin file correctly marks the top-level parent for rebuild.

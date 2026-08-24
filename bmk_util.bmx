@@ -8,7 +8,6 @@ Import "hash.c"
 'OS X Nasm doesn't work? Used to produce incorrect reloc offsets - haven't checked for a while 
 Const USE_NASM:Int=False
 
-Const CC_WARNINGS:Int=False'True
 Const IOS_HAS_MERGE:Int = False
 
 Type TModOpt ' BaH
@@ -160,22 +159,10 @@ Function CompileC( src$,obj$,opts$ )
 	processor.RunCommand("CompileC", [src, obj, opts])
 End Function
 
-Function CompileBMX( src$,obj$,opts$ )
-	
-	If processor.BCCVersion() <> "BlitzMax" Then
-		opts :+ " -p " + processor.Platform()
-	End If
-	
-	If opt_standalone opt_nolog = True
-	
-	processor.RunCommand("CompileBMX", [src, obj, opts])
-
-	If opt_standalone opt_nolog = False
-
-End Function
-
 Function CreateMergeArc( path$ , arc_path:String )
 	Local cmd$
+	Local outputPath:String = processor.TemporaryOutputPath(path)
+	DeleteFile outputPath
 
 	If processor.Platform() = "ios" Then
 		Local proc:String = processor.CPU()
@@ -204,13 +191,17 @@ Function CreateMergeArc( path$ , arc_path:String )
 	
 		cmd :+ proc + " " + CQuote(arc_path)
 	
-		cmd :+ " -output " + CQuote(path)
+		cmd :+ " -output " + CQuote(outputPath)
 	End If
 
-	If cmd And processor.MultiSys( cmd, path, Null, Null )
-		DeleteFile path
+	If cmd And processor.Sys(cmd)
+		DeleteFile outputPath
 		Throw "Build Error: Failed to merge archive " + path
 	EndIf
+	If cmd And Not processor.PublishOutput(outputPath, path) Then
+		DeleteFile outputPath
+		Throw "Build Error: Failed to publish merged archive " + path
+	End If
 
 End Function
 
@@ -223,7 +214,15 @@ Function LinkApp( path$,lnk_files:TList,makelib:Int,opts$ )
 		Return
 	End If
 
-	DeleteFile path
+	Local publishedPath:String = path
+	Local linkOutputPath:String = path
+	Local atomicLink:Int = processor.Platform() = "macos" Or processor.Platform() = "osx" Or processor.Platform() = "win32" Or processor.Platform() = "linux" Or processor.Platform() = "raspberrypi" Or processor.Platform() = "haiku"
+	If atomicLink Then
+		linkOutputPath = processor.TemporaryOutputPath(path)
+		DeleteFile linkOutputPath
+	Else
+		DeleteFile path
+	End If
 
 	Local cmd$
 	Local files$
@@ -252,7 +251,7 @@ Function LinkApp( path$,lnk_files:TList,makelib:Int,opts$ )
 			sb.Append(" -isysroot ").Append(processor.Option(processor.BuildName("sysroot"), ""))
 		End If
 	
-		sb.Append(" -o ").Append(CQuote( path ))
+		sb.Append(" -o ").Append(CQuote(linkOutputPath))
 	
 		If opt_debug Or opt_gdbdebug Then
 			sb.Append(" -g")
@@ -327,7 +326,12 @@ Function LinkApp( path$,lnk_files:TList,makelib:Int,opts$ )
 			Local prefix:String = processor.MinGWExePrefix()
 			sb.Append(CQuote(processor.Option("path_to_gpp", processor.MinGWBinPath() + "/" + prefix + "g++" + ext)))
 
-			If Not processor.HasClang() Then
+			If processor.HasClang() Then
+				' LLVM's MinGW driver accepts the GNU linker spelling. This also
+				' keeps cross-generated Windows bootstrap scripts from inheriting
+				' the host Clang detection and silently losing their stack reserve.
+				sb.Append(" -Wl,--stack,4194304")
+			Else
 				If version < 60000 Then
 					sb.Append(" --stack=4194304")
 				Else
@@ -371,7 +375,7 @@ Function LinkApp( path$,lnk_files:TList,makelib:Int,opts$ )
 			End If
 		End If
 		
-		sb.Append(" -o ").Append(CQuote( path ))
+		sb.Append(" -o ").Append(CQuote(linkOutputPath))
 		If usingLD Then
 			If processor.CPU()="x86"
 				sb.Append(" ").Append(processor.MinGWLinkPaths()) ' the BlitzMax lib folder
@@ -543,7 +547,7 @@ Function LinkApp( path$,lnk_files:TList,makelib:Int,opts$ )
 			sb.Append(" -lpthread")
 		End If
 		
-		sb.Append(" -o ").Append(CQuote( path ))
+		sb.Append(" -o ").Append(CQuote(linkOutputPath))
 		sb.Append(" ").Append(CQuote( tmpfile ))
 		
 		If processor.Platform() <> "haiku" Then
@@ -675,11 +679,21 @@ Function LinkApp( path$,lnk_files:TList,makelib:Int,opts$ )
 		stream.Close
 	End If
 
-	If processor.Sys( cmd ) Throw "Build Error: Failed to link "+path
+	If processor.Sys(cmd) Then
+		If atomicLink Then DeleteFile linkOutputPath
+		Throw "Build Error: Failed to link " + publishedPath
+	End If
+	If atomicLink And Not processor.PublishOutput(linkOutputPath, publishedPath) Then
+		DeleteFile linkOutputPath
+		Throw "Build Error: Failed to publish linked output " + publishedPath
+	End If
 
 	If opt_standalone
 		Local stream:TStream=WriteStream( StripExt(tmpfile) )
 		Local f:String = processor.FixPaths(files)
+		' GCC response files treat backslash as an escape, even on Windows.
+		' Keep batch commands native while spelling response-file paths portably.
+		If processor.Platform() = "win32" Then f = f.Replace("\", "/")
 		stream.WriteBytes f.ToCString(),f.length
 		stream.Close
 	End If
@@ -1912,6 +1926,7 @@ Type TBootstrapConfig
 		
 		Local ld:String = "/ld." + processor.AppDet() + ".txt"
 		Local build:String = "/" + processor.AppDet() + ".build"
+		If processor.Platform() = "win32" Then build :+ ".bat"
 		
 		Local ldSrcPath:String = src + ld
 		Local buildSrcPath:String = src + build
