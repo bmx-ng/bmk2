@@ -98,6 +98,22 @@ in BlitzMax line-comment pragmas, for example:
 On Linux and macOS, an optional `bin/config.bmk` supplies toolchain settings for
 cross-compilation.
 
+## Bootstrap sources
+
+`bmk makebootstrap` creates a clean source snapshot in `dist/bootstrap`, with
+standalone native build scripts for bcc2 and bmk2. bmk2 requires
+`bin/bootstrap2.cfg`; it does not fall back to the legacy configuration because
+that would produce an incomplete bootstrap. An SDK can ship both configurations:
+production bmk continues using `bootstrap.cfg`, while bmk2 uses its additional
+compiler sources and dependencies from `bootstrap2.cfg`.
+
+The generated scripts expect to be run from their respective `src/bcc` and
+`src/bmk` directories. A clean-system integration check is available as:
+
+```sh
+tests/run_bootstrap.sh /path/to/sdk macos arm64
+```
+
 ## Tests
 
 The `tests` directory contains focused unit and integration runners. Most
