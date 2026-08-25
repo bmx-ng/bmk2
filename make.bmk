@@ -577,9 +577,11 @@
 			if bmk.Platform() ~= "emscripten" then
 				if bmk.Platform() == "macos" or bmk.Platform() == "osx" then
 					globals.SetOption("ld_opts", "stripsymbols", "-Wl,-S,-x")
-				else
+				elseif bmk.Platform() ~= "win32" then
 					globals.SetOption("ld_opts", "stripsymbols", "-s")
 				end
+				# LinkApp adds -s directly for Win32. GNU MinGW ld_opts are
+				# otherwise placed inside an INPUT(...) linker script as files.
 			end
 		end
 	end
