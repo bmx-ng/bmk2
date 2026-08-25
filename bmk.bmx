@@ -634,6 +634,7 @@ Function MakeApplication( args$[],makelib:Int,compileOnly:Int = False )
 		If processor.Platform() <> "win32" Then
 			Local ldScript:String = "$APP_ROOT/ld." + processor.AppDet() + ".txt"
 
+			stream.WriteString("set -e~n~n")
 			stream.WriteString("echo ~qBuilding " + String(globals.GetRawVar("OUTFILE")) + "...~q~n~n")
 
 			stream.WriteString("if [ -z ~q${APP_ROOT}~q ]; then~n")
@@ -705,6 +706,7 @@ Function MakeApplication( args$[],makelib:Int,compileOnly:Int = False )
 		If processor.buildLog Then
 			For Local s:String = EachIn processor.buildLog
 				stream.WriteString(s + "~n")
+				If processor.Platform() = "win32" Then stream.WriteString("If ErrorLevel 1 Goto BuildFailed~n")
 			Next
 		End If
 
@@ -715,7 +717,10 @@ Function MakeApplication( args$[],makelib:Int,compileOnly:Int = False )
 		Else
 			stream.WriteString("echo Finished.~n")
 			stream.WriteString("ENDLOCAL~n")
-			stream.WriteString("Goto :Eof~n")
+			stream.WriteString("Exit /B 0~n~n")
+			stream.WriteString(":BuildFailed~n")
+			stream.WriteString("SET ~qBUILD_ERROR=%ERRORLEVEL%~q~n")
+			stream.WriteString("ENDLOCAL & Exit /B %BUILD_ERROR%~n")
 		End If
 
 		stream.Close()
@@ -795,6 +800,11 @@ Function MakeBootstrap()
 
 	Local bootstrapPath:String = BlitzMaxPath() + "/dist/bootstrap"
 
+	' A bootstrap is a complete generated source snapshot. Keeping files from a
+	' previous invocation can make removed sources appear to remain supported.
+	If FileType(bootstrapPath) <> FILETYPE_NONE Then
+		If Not DeleteDir(bootstrapPath, True) Throw "Error clearing bootstrap folder"
+	End If
 	If Not CreateDir(bootstrapPath, True) Throw "Error creating bootstrap folder"
 
 	If Not CreateDir(bootstrapPath + "/bin") Throw "Error creating boostrap/bin folder"

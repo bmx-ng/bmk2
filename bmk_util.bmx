@@ -1952,11 +1952,10 @@ Type TBootstrapTarget
 End Type
 
 Function LoadBootstrapConfig:TBootstrapConfig()
-	Const CONFIG:String = "bin/bootstrap.cfg"
-	
-	Local file:String = BlitzMaxPath() + "/" + CONFIG
+	Const config:String = "bin/bootstrap2.cfg"
+	Local file:String = BlitzMaxPath() + "/" + config
 	If Not FileType(file) Then
-		Throw CONFIG + " not found"
+		Throw config + " not found; bmk2 requires its own bootstrap configuration"
 	End If
 	
 	Local cfg:String = LoadText(file).Trim()
@@ -2002,9 +2001,8 @@ Function LoadBootstrapConfig:TBootstrapConfig()
 		
 		Return boot
 	Else
-		Throw "Could not load " + CONFIG
+		Throw "Could not load " + config
 	End If
-	
 End Function
 
 Function SplitByWhitespace:String[](input:String)

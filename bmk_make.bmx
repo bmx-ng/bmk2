@@ -2676,10 +2676,15 @@ Type TBuildManager Extends TCallback
 		' a useful integrity guarantee. Serial compilation has no staged validation
 		' and therefore retains the final-tree check.
 		If Not generatedFilesValidated Then source.bcc2Manifest.ValidateGeneratedFiles(source.bcc2BuildRoot)
-		If Not processor.PublishText(Bcc2GenerationStamp(source), source.bcc2ManifestPath + ".stamp") Then
-			Throw "BMKGEN035 unable to write bcc2 generation freshness stamp: " + source.bcc2ManifestPath + ".stamp"
+		' Freshness stamps describe the SDK used to generate the bootstrap. They
+		' are not inputs to the native-only clean-system build and their temporary
+		' publication commands must not leak into its standalone script.
+		If Not (opt_standalone And opt_boot) Then
+			If Not processor.PublishText(Bcc2GenerationStamp(source), source.bcc2ManifestPath + ".stamp") Then
+				Throw "BMKGEN035 unable to write bcc2 generation freshness stamp: " + source.bcc2ManifestPath + ".stamp"
+			End If
+			source.gen_time = FileTime(source.bcc2ManifestPath + ".stamp")
 		End If
-		source.gen_time = FileTime(source.bcc2ManifestPath + ".stamp")
 		pendingForcedBcc2Manifests.Remove(source.bcc2ManifestPath.Replace("\", "/").ToLower())
 		InvalidateBcc2SpecializationOwners()
 		Local generatedCPath:String = StripExt(source.obj_path) + ".c"
@@ -2831,7 +2836,9 @@ Type TBuildManager Extends TCallback
 			If FileType(work.objectPath) <> FILETYPE_FILE Then Throw "BMKGEN033 specialization compiler did not produce: " + work.objectPath
 		Next
 		For Local work:TBcc2SpecializationCompileWork = EachIn pending
-			If Not processor.PublishText(work.expectedKey, work.keyPath) Then Throw "BMKGEN034 unable to record specialization object cache key: " + work.keyPath
+			If Not (opt_standalone And opt_boot) Then
+				If Not processor.PublishText(work.expectedKey, work.keyPath) Then Throw "BMKGEN034 unable to record specialization object cache key: " + work.keyPath
+			End If
 			ensuredBcc2SpecializationObjects.Insert(work.normalizedObjectPath, work.expectedKey)
 		Next
 		' Owner selection considers native object/key usability. Rebuild it once after
