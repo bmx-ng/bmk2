@@ -789,7 +789,7 @@ Type TBuildManager Extends TCallback
 			End If
 		End If
 	
-		Local sb:TStringBuffer = New TStringBuffer
+		Local sb:TStringBuilder = New TStringBuilder(128)
 		sb.Append(" -g ").Append(processor.CPU())
 		If opt_quiet sb.Append(" -q")
 		If opt_verbose sb.Append(" -v")
@@ -2132,7 +2132,7 @@ Type TBuildManager Extends TCallback
 			source.asm_opts :+ asm_opts
 	
 			' Module BCC opts
-			Local sb:TStringBuffer = New TStringBuffer
+			Local sb:TStringBuilder = New TStringBuilder(128)
 			sb.Append(" -g ").Append(processor.CPU())
 			sb.Append(" -m ").Append(m)
 			If opt_quiet sb.Append(" -q")
@@ -2414,7 +2414,7 @@ Type TBuildManager Extends TCallback
 
 	Method LogBcc2EngineRequest(work:TBcc2CompileWork)
 		If Not opt_verbose Or Not work Then Return
-		Local displayedArguments:TStringBuffer = New TStringBuffer
+		Local displayedArguments:TStringBuilder = New TStringBuilder(128)
 		displayedArguments.Append("bcc engine request:")
 		For Local value:String = EachIn work.arguments
 			displayedArguments.Append(" ").Append(value)
@@ -3303,7 +3303,7 @@ Type TArcTask
 		Self.oobjs = oobjs
 		announcedMillis = MilliSecs()
 		If opt_verbose Then
-			Local identity:TStringBuffer = New TStringBuffer(4096)
+			Local identity:TStringBuilder = New TStringBuilder(4096)
 			For Local objectPath:String = EachIn oobjs
 				objectCount :+ 1
 				objectBytes :+ Max(Long(0), FileSize(objectPath))
@@ -3351,7 +3351,7 @@ Type TArcTask
 			' line limit, one invocation lets the archiver construct its symbol table
 			' once instead of repeatedly reopening and extending the same archive.
 			Local responsePath:String = processor.TemporaryOutputPath(path) + ".objects.rsp"
-			Local response:TStringBuffer = New TStringBuffer(4096)
+			Local response:TStringBuilder = New TStringBuilder(4096)
 			For t = EachIn oobjs
 				Local objectPath:String = t.Replace("\", "/")
 				response.Append(CQuote(objectPath)).Append("~n")

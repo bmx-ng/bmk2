@@ -46,7 +46,7 @@ BBString * bmk_temporary_staging_path(BBString * buildRoot) {
 }
 
 void bmx_setfiletimenow(BBString * path) {
-	char * p = bbStringToUTF8String(path);
+	char * p = (char *)bbStringToUTF8String(path);
 	struct utimbuf times;
 	
 	times.actime = time(NULL);

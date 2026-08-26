@@ -1,9 +1,9 @@
 SuperStrict
 
 Import BRL.Base64
+Import BRL.StringBuilder
 Import Pub.FreeProcess
 Import "bmk_bcc2_protocol.bmx"
-Import "stringbuffer_core.bmx"
 
 Const BMK_BCC2_ENGINE_PROTOCOL_VERSION:Int = 2
 
@@ -35,7 +35,7 @@ Type TBcc2EngineClient
 		If Not process Then Throw "BMKGEN045 bcc engine is not running"
 		Local requestId:String = String(nextRequestId)
 		nextRequestId :+ 1
-		Local request:TStringBuffer = New TStringBuffer
+		Local request:TStringBuilder = New TStringBuilder(128)
 		request.Append("compile ").Append(requestId).Append(" ").Append(String(arguments.length))
 		For Local argument:String = EachIn arguments
 			request.Append(" ").Append(TBase64.Encode(argument, EBase64Options.DontBreakLines))
@@ -49,7 +49,7 @@ Type TBcc2EngineClient
 		End If
 		Local expectedLength:Int = Int(header[3])
 		If expectedLength < 0 Then Throw "BMKGEN046 malformed bcc2 engine result length"
-		Local encoded:TStringBuffer = New TStringBuffer
+		Local encoded:TStringBuilder = New TStringBuilder(128)
 		While True
 			Local line:String = ReadProtocolLine()
 			Local parts:String[] = line.Split(" ")
@@ -75,7 +75,7 @@ Type TBcc2EngineClient
 		If Not paths.length Then Return
 		Local requestId:String = String(nextRequestId)
 		nextRequestId :+ 1
-		Local request:TStringBuffer = New TStringBuffer
+		Local request:TStringBuilder = New TStringBuilder(128)
 		request.Append("invalidate ").Append(requestId).Append(" ").Append(String(paths.length))
 		For Local path:String = EachIn paths
 			request.Append(" ").Append(TBase64.Encode(path, EBase64Options.DontBreakLines))
@@ -125,7 +125,7 @@ Type TBcc2EngineClient
 
 	Method ReadErrors:String()
 		If Not process Or Not process.err Then Return ""
-		Local result:TStringBuffer = New TStringBuffer
+		Local result:TStringBuilder = New TStringBuilder(128)
 		While True
 			Local line:String = NormalizeBcc2EngineProtocolLine(process.err.ReadLine())
 			If Not line.length Then Exit

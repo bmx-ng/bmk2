@@ -228,8 +228,8 @@ Function LinkApp( path$,lnk_files:TList,makelib:Int,opts$ )
 	Local files$
 	Local tmpfile$=BlitzMaxPath()+"/tmp/ld.tmp"
 	
-	Local sb:TStringBuffer = New TStringBuffer
-	Local fb:TStringBuffer = New TStringBuffer
+	Local sb:TStringBuilder = New TStringBuilder(128)
+	Local fb:TStringBuilder = New TStringBuilder(128)
 	
 	If opt_standalone tmpfile = String(globals.GetRawVar("EXEPATH")) + "/ld." + processor.AppDet() + ".txt.tmp"
 	
@@ -292,7 +292,7 @@ Function LinkApp( path$,lnk_files:TList,makelib:Int,opts$ )
 		Local version:Int = Int(processor.GCCVersion(True))
 		Local usingLD:Int = False
 
-		Local options:TStringBuffer = fb
+		Local options:TStringBuilder = fb
 		If processor.HasClang() Then
 			options = sb
 		End If
@@ -1691,12 +1691,7 @@ Function FindEOL:Int(Text:String, substr:String, start:Int = 0)
 End Function
 
 Function ConcatString:String(a1:String, a2:String, a3:String, a4:String, a5:String = Null, a6:String = Null, a7:String = Null)
-?bmxng
-	Local s:TStringBuffer = New TStringBuffer(128)
-?Not bmxng
-	TStringBuffer.initialCapacity = 128
-	Local s:TStringBuffer = New TStringBuffer
-?
+	Local s:TStringBuilder = New TStringBuilder(128)
 	s.Append(a1).Append(a2).Append(a3).Append(a4)
 	If a5 s.Append(a5)
 	If a6 s.Append(a6)
