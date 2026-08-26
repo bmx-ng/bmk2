@@ -1,7 +1,7 @@
 SuperStrict
 
 Import brl.map
-Import "stringbuffer_core.bmx"
+Import BRL.StringBuilder
 
 Global compilerOptions:TValues
 
@@ -52,7 +52,6 @@ Type TOptParser
 				Return expr
 			End If
 		Forever
-		Return expr
 	End Method
 	
 	Method ParseAndExpr:TExpr()
@@ -166,7 +165,7 @@ Type TOptTokenizer
 	End Method
 	
 	Method NextIdentToken:TOptToken(char:Int)
-		Local sb:TStringBuffer = TStringBuffer.Create(Chr(char))
+		Local sb:TStringBuilder = TStringBuilder.Create(Chr(char))
 		
 		While True
 			char = Peek()

@@ -7,8 +7,8 @@ Import BRL.StandardIO
 Import Pub.MacOS
 ?
 Import brl.map
+Import BRL.StringBuilder
 
-Import "stringbuffer_core.bmx"
 Import "version.bmx"
 
 Const ALL_SRC_EXTS$="bmx;i;c;m;h;cpp;cxx;mm;hpp;hxx;s;cc;asm;S"
@@ -144,8 +144,6 @@ opt_arch="riscv32"
 ?linuxRiscv64
 opt_arch="riscv64"
 ?
-
-TStringBuffer.initialCapacity = 128
 
 ChangeDir LaunchDir
 
