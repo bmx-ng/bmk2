@@ -3,6 +3,7 @@ Strict
 Framework brl.filesystem
 
 Import "bmk_make.bmx"
+Import "bmk_pico.bmx"
 Import "bmk_zap.bmx"
 
 ?MacOS
@@ -294,6 +295,8 @@ Function IsModuleOutputPlatformArchitecture:Int(platform:String, architecture:St
 			Return architecture = "x86" Or architecture = "x64" Or architecture = "arm" Or architecture = "armeabi" Or architecture = "armeabiv7a" Or architecture = "arm64v8a"
 		Case "raspberrypi"
 			Return architecture = "arm" Or architecture = "arm64"
+		Case "pico"
+			Return architecture = "arm"
 		Case "emscripten"
 			Return architecture = "js"
 		Case "nx"
@@ -403,6 +406,12 @@ Function MakeApplication( args$[],makelib:Int,compileOnly:Int = False )
 	Else
 		opt_outfile = RealPath(opt_outfile)
 	End If
+
+	If processor.Platform() = "pico" Then
+		MakePicoApplication(Main, opt_outfile, compileOnly)
+		Return
+	End If
+	If opt_pico_heap_set Then CmdError "-heap is currently supported only by the pico target"
 
 	If opt_universal And processor.Platform() = "macos" Then
 		opt_outfile :+ "." + processor.CPU()

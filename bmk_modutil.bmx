@@ -945,6 +945,10 @@ Function ValidatePlatformArchitecture()
 			If arch = "arm" Or arch="arm64" Then
 				valid = True
 			End If
+		Case "pico"
+			If arch = "arm" Then
+				valid = True
+			End If
 		Case "emscripten"
 			If arch = "js" Then
 				valid = True
@@ -990,7 +994,7 @@ Function SetCompilerValues()
 
 	Local longInt8:Int = True
 	' on windows and 32-bit platforms longint is 4 bytes
-	If processor.Platform()="win32" Or processor.Platform()="win64" Or processor.CPU()="x86" Or processor.CPU()="ppc" Then
+	If processor.Platform()="win32" Or processor.Platform()="win64" Or processor.Platform()="pico" Or processor.CPU()="x86" Or processor.CPU()="ppc" Then
 		longInt8 = False
 	End If
 	compilerOptions.Add("longint8", longInt8)
@@ -1038,6 +1042,8 @@ Function SetCompilerValues()
 	compilerOptions.Add("raspberrypi", processor.Platform() = "raspberrypi")
 	compilerOptions.Add("raspberrypiarm", processor.Platform() = "raspberrypi" And processor.CPU()="arm")
 	compilerOptions.Add("raspberrypiarm64", processor.Platform() = "raspberrypi" And processor.CPU()="arm64")
+	compilerOptions.Add("pico", processor.Platform() = "pico")
+	compilerOptions.Add("picoarm", processor.Platform() = "pico" And processor.CPU()="arm")
 
 	compilerOptions.Add("haiku", processor.Platform() = "haiku")
 	compilerOptions.Add("haikux86", processor.Platform() = "haiku" And processor.CPU()="x86")

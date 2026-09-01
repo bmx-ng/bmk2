@@ -29,3 +29,14 @@
 # ** defaults to resources/apache-ant **
 
 #addoption ant.home "/PATH/TO/ANT/HOME"
+
+# ** Raspberry Pi Pico configuration **
+# Values in custom.bmk take precedence over environment variables and PATH.
+# Executable values may name either the executable itself or its containing folder.
+
+#addoption pico.sdk "/PATH/TO/pico-sdk"
+#addoption pico.toolchain "/PATH/TO/arm-none-eabi-toolchain"
+#addoption pico.cmake "/PATH/TO/cmake"
+#addoption pico.ninja "/PATH/TO/ninja"
+#addoption pico.picotool "/PATH/TO/picotool"
+#addoption pico.pioasm "/PATH/TO/pioasm"

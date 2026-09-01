@@ -34,6 +34,9 @@ Global opt_appstub$="brl.appstub" ' BaH 28/9/2007
 Global opt_universal=False
 Global opt_target_platform:String
 Global opt_target_platform_set=False
+Global opt_target_board:String = "pico2"
+Global opt_pico_heap:String = "auto"
+Global opt_pico_heap_set:Int
 Global opt_gdbdebug=False
 Global opt_gdbdebug_set=False
 Global opt_standalone=False
@@ -215,6 +218,11 @@ Function ParseConfigArgs$[]( args$[], legacyMax:Int = False )
 			n:+1
 			If n=args.length MissingArg(argv)
 			opt_framework=args[n]
+		Case "heap"
+			n:+1
+			If n=args.length MissingArg(argv)
+			opt_pico_heap=args[n].ToLower()
+			opt_pico_heap_set = True
 		Case "b"
 			n:+1
 			If n=args.length MissingArg(argv)
@@ -233,6 +241,10 @@ Function ParseConfigArgs$[]( args$[], legacyMax:Int = False )
 			opt_target_platform=args[n].ToLower()
 			ValidatePlatform(opt_target_platform)
 			opt_target_platform_set = True
+		Case "board"
+			n:+1
+			If n=args.length MissingArg(argv)
+			opt_target_board=args[n].ToLower()
 		Case "gdb"
 			opt_gdbdebug = True
 			opt_gdbdebug_set = True
@@ -440,8 +452,15 @@ Function Usage:String(fullUsage:Int = False)
 		s:+ "~n~n"
 		s:+ "~t-l <target platfom> | -platform <target platform>~n"
 		s:+ "~t~tCross-compiles to the specific target platform.~n"
-		s:+ "~t~tValid targets are win32, linux, macos, ios, android, raspberrypi and haiku.~n"
+		s:+ "~t~tValid targets are win32, linux, macos, ios, android, raspberrypi, pico and haiku.~n"
 		s:+ "~t~t(see documentation for full list of requirements)"
+		s:+ "~n~n"
+		s:+ "~t-board <board>~n"
+		s:+ "~t~tSelects the Pico SDK board definition. The default for the pico target is pico2.~n"
+		s:+ "~n~n"
+		s:+ "~t-heap <auto|size>~n"
+		s:+ "~t~tSelects the Pico managed heap. Sizes accept byte, k/KiB, and m/MiB suffixes;~n"
+		s:+ "~t~tthe default is a board-aware automatic size. (Pico only)~n"
 		s:+ "~n~n"
 		s:+ "~t-musl~n"
 		s:+ "~t~tEnable musl libc compatibility. (Linux NG only)"
@@ -511,7 +530,7 @@ Function Usage:String(fullUsage:Int = False)
 		s:+ "~t~tWith this warning enabled you may have issues with method overloading."
 		s:+ "~n~n"
 		s:+ "~t-x~n"
-		s:+ "~t~tExecute built application. (makeapp only)"
+		s:+ "~t~tExecute the built application, or upload and start Pico firmware. (makeapp only)"
 		s:+ "~n~n"
 	End If
 
@@ -718,6 +737,7 @@ Function ValidatePlatform(platform:String)
 		Case "linux"
 		Case "android"
 		Case "raspberrypi"
+		Case "pico"
 		Case "emscripten"
 		Case "nx"
 		Case "haiku"
