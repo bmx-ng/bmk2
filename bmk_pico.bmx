@@ -25,6 +25,14 @@ Type TPicoBuildBundle
 	Field incbinC:String
 End Type
 
+Type TPicoTargetConfiguration
+	Field board:String
+	Field platform:String
+	Field ramBytes:Long
+	Field flashBytes:Long
+	Field arenaBytes:Long
+End Type
+
 Type TPicoGenericSpecializationOwner
 	Field link:TBcc2BuildLink
 	Field contentDigest:String
@@ -411,23 +419,23 @@ Function PicoBuildModeName:String()
 	Return "release"
 End Function
 
-Function PicoBoardMainRAM:Long(board:String)
-	If board = "pico" Then Return 256:Long * 1024
-	If board = "pico2" Then Return 512:Long * 1024
-	Throw "No Pico RAM budget is defined for board " + board
+Function ValidatePicoBoardName:String(board:String)
+	Local validated:String = board.Trim()
+	If Not validated.length Then Throw "A Pico SDK board name is required"
+	For Local index:Int = 0 Until validated.length
+		Local character:Int = validated[index]
+		Local valid:Int = character = Asc("_") Or character = Asc("-") Or character = Asc(".") Or ..
+			(character >= Asc("a") And character <= Asc("z")) Or ..
+			(character >= Asc("A") And character <= Asc("Z")) Or ..
+			(character >= Asc("0") And character <= Asc("9"))
+		If Not valid Then Throw "Invalid Pico SDK board name '" + board + "'"
+	Next
+	Return validated
 End Function
 
-Function PicoBoardFlash:Long(board:String)
-	If board = "pico" Or board = "pico2" Then Return 2:Long * 1024 * 1024
-	Throw "No Pico flash budget is defined for board " + board
-End Function
-
-Function ParsePicoHeapSize:Long(value:String, board:String)
+Function ParsePicoHeapSize:String(value:String)
 	Local normalized:String = value.Trim().ToLower()
-	If Not normalized.length Or normalized = "auto" Then
-		If board = "pico" Then Return 192:Long * 1024
-		If board = "pico2" Then Return 384:Long * 1024
-	End If
+	If Not normalized.length Or normalized = "auto" Then Return "auto"
 
 	Local multiplier:Long = 1
 	If normalized.EndsWith("kib") Then
@@ -459,8 +467,38 @@ Function ParsePicoHeapSize:Long(value:String, board:String)
 	Local bytes:Long = Long(normalized) * multiplier
 	If bytes < 1024 Then Throw "Pico heap size must be at least 1 KiB"
 	bytes = (bytes + 7) & ~7:Long
-	If bytes >= PicoBoardMainRAM(board) Then Throw "Pico heap size must leave room for application and SDK RAM"
-	Return bytes
+	Return String(bytes)
+End Function
+
+Function PicoCMakeCacheValue:String(cachePath:String, key:String)
+	Local text:String = LoadText(cachePath)
+	If Not text.length Then Throw "Unable to read Pico SDK target configuration from " + cachePath
+	Local prefix:String = key + ":"
+	For Local line:String = EachIn text.Replace("~r", "").Split("~n")
+		If Not line.StartsWith(prefix) Then Continue
+		Local equals:Int = line.Find("=")
+		If equals >= 0 Then Return line[equals + 1..].Trim()
+	Next
+	Throw "The Pico SDK did not publish " + key + " in " + cachePath
+End Function
+
+Function PicoCMakeCacheLong:Long(cachePath:String, key:String)
+	Local value:String = PicoCMakeCacheValue(cachePath, key)
+	If Not value.length Then Throw "The Pico SDK published an empty " + key + " value"
+	For Local index:Int = 0 Until value.length
+		If value[index] < Asc("0") Or value[index] > Asc("9") Then Throw "The Pico SDK published an invalid " + key + " value: " + value
+	Next
+	Return Long(value)
+End Function
+
+Function LoadPicoTargetConfiguration:TPicoTargetConfiguration(cachePath:String)
+	Local target:TPicoTargetConfiguration = New TPicoTargetConfiguration
+	target.board = PicoCMakeCacheValue(cachePath, "PICO_BOARD")
+	target.platform = PicoCMakeCacheValue(cachePath, "PICO_PLATFORM")
+	target.ramBytes = PicoCMakeCacheLong(cachePath, "BLITZMAX_PICO_RAM_BYTES")
+	target.flashBytes = PicoCMakeCacheLong(cachePath, "BLITZMAX_PICO_FLASH_BYTES")
+	target.arenaBytes = PicoCMakeCacheLong(cachePath, "BLITZMAX_PICO_RESOLVED_ARENA_SIZE")
+	Return target
 End Function
 
 Function PicoCaptureCommand:String(command:String)
@@ -490,7 +528,7 @@ Function PicoMemoryPercent:String(used:Long, capacity:Long)
 	Return (tenths / 10) + "." + (tenths Mod 10)
 End Function
 
-Function ReportPicoMemory(sizeTool:String, elfPath:String, board:String, arenaSize:Long)
+Function ReportPicoMemory(sizeTool:String, elfPath:String, target:TPicoTargetConfiguration)
 	Local output:String = PicoCaptureCommand(CQuote(sizeTool) + " -B " + CQuote(elfPath))
 	Local textBytes:Long = -1
 	Local dataBytes:Long
@@ -513,27 +551,27 @@ Function ReportPicoMemory(sizeTool:String, elfPath:String, board:String, arenaSi
 	Next
 
 	If textBytes < 0 Then
-		Print "Pico managed heap: " + arenaSize + " bytes"
+		Print "Pico managed heap: " + target.arenaBytes + " bytes"
 		Return
 	End If
 
-	Local flashCapacity:Long = PicoBoardFlash(board)
-	Local ramCapacity:Long = PicoBoardMainRAM(board)
+	Local flashCapacity:Long = target.flashBytes
+	Local ramCapacity:Long = target.ramBytes
 	Local flashUsed:Long = textBytes + dataBytes
 	Local linkedRam:Long = dataBytes + bssBytes
-	Local linkedArena:Long = arenaSize
-	If bssBytes < arenaSize Then linkedArena = 0
+	Local linkedArena:Long = target.arenaBytes
+	If bssBytes < target.arenaBytes Then linkedArena = 0
 	Local nativeRam:Long = linkedRam - linkedArena
 	Local cHeapReserve:Long = 2048
 	Local ramHeadroom:Long = ramCapacity - linkedRam - cHeapReserve
 	If ramHeadroom < 0 Then ramHeadroom = 0
 
-	Print "Pico memory (" + board + "):"
+	Print "Pico memory (" + target.board + ", " + target.platform + "):"
 	Print "  Flash:        " + flashUsed + " / " + flashCapacity + " bytes (" + PicoMemoryPercent(flashUsed, flashCapacity) + "%)"
 	If linkedArena Then
 		Print "  Managed heap: " + linkedArena + " bytes (" + opt_pico_heap + ")"
 	Else
-		Print "  Managed heap: not linked; configured " + arenaSize + " bytes (" + opt_pico_heap + ")"
+		Print "  Managed heap: not linked; configured " + target.arenaBytes + " bytes (" + opt_pico_heap + ")"
 	End If
 	Print "  App/SDK RAM:  " + nativeRam + " bytes"
 	Print "  C heap reserve: " + cHeapReserve + " bytes"
@@ -812,10 +850,8 @@ Function MakePicoApplication(mainSource:String, outputPath:String, compileOnly:I
 	If processor.CPU() <> "arm" Then Throw "The pico target currently requires the arm architecture"
 	If processor.BCCVersion() <> "bcc2" Then Throw "The pico target requires bcc2"
 	If Not opt_release And Not PicoDebugBuild() Then Throw "The pico target requires an explicit -r or -d build mode"
-	If opt_target_board <> "pico" And opt_target_board <> "pico2" Then
-		Throw "The pico target currently supports -board pico and -board pico2"
-	End If
-	Local picoArenaSize:Long = ParsePicoHeapSize(opt_pico_heap, opt_target_board)
+	Local picoBoard:String = ValidatePicoBoardName(opt_target_board)
+	Local picoArenaSize:String = ParsePicoHeapSize(opt_pico_heap)
 
 	Local sdk:String = BlitzMaxPath()
 	Local picoModuleRoot:String = sdk + "/mod/pico.mod"
@@ -866,7 +902,7 @@ Function MakePicoApplication(mainSource:String, outputPath:String, compileOnly:I
 	Local outputName:String = StripDir(outputBase)
 	Local buildVariant:String = "release"
 	If PicoDebugBuild() Then buildVariant = "debug"
-	Local buildDir:String = ExtractDir(mainSource) + "/.bmx/" + StripDir(StripExt(mainSource)) + "." + buildVariant + ".pico.arm." + opt_target_board
+	Local buildDir:String = ExtractDir(mainSource) + "/.bmx/" + StripDir(StripExt(mainSource)) + "." + buildVariant + ".pico.arm." + picoBoard
 	CreateDir(buildDir, True)
 	Local compilerBuildRoot:String = buildDir + "/bcc"
 	CreateDir(compilerBuildRoot, True)
@@ -910,7 +946,7 @@ Function MakePicoApplication(mainSource:String, outputPath:String, compileOnly:I
 		" -DCMAKE_MAKE_PROGRAM=" + CQuote(ninja) + ..
 		" -DCMAKE_BUILD_TYPE=" + cmakeBuildType + ..
 		" -DPICO_DEOPTIMIZED_DEBUG=" + picoDeoptimizedDebug + ..
-		" -DPICO_BOARD=" + opt_target_board + ..
+		" -DPICO_BOARD=" + picoBoard + ..
 		" -DBLITZMAX_PICO_ARENA_SIZE=" + picoArenaSize + ..
 		" -DBLITZMAX_PICO_SDK=" + CQuote(sdk) + ..
 		" -DBLITZMAX_APPLICATION_ROOT=" + CQuote(ExtractDir(mainSource)) + ..
@@ -920,9 +956,14 @@ Function MakePicoApplication(mainSource:String, outputPath:String, compileOnly:I
 		" -DBLITZMAX_PICO_PIO_CMAKE=" + CQuote(picoPIOCMake) + ..
 		" -DBLITZMAX_PICO_NATIVE_CMAKE=" + CQuote(picoNativeCMake) + ..
 		" -DBLITZMAX_PICO_MODULE_INITIALIZERS=" + CQuote(JoinPicoModuleField(picoUnits, "initialize"))
+	Local picoBoardHeaderDirs:String = PicoConfiguredPath("pico.board.header.dirs", "PICO_BOARD_HEADER_DIRS")
+	If picoBoardHeaderDirs.length Then configure :+ " -DPICO_BOARD_HEADER_DIRS=" + CQuote(picoBoardHeaderDirs)
+	Local picoBoardCMakeDirs:String = PicoConfiguredPath("pico.board.cmake.dirs", "PICO_BOARD_CMAKE_DIRS")
+	If picoBoardCMakeDirs.length Then configure :+ " -DPICO_BOARD_CMAKE_DIRS=" + CQuote(picoBoardCMakeDirs)
 	If picotoolDir.length Then configure :+ " -Dpicotool_DIR=" + CQuote(picotoolDir)
 	If pioasmDir.length Then configure :+ " -Dpioasm_DIR=" + CQuote(pioasmDir)
 	RunPicoCommand(configure, "Configuring Pico SDK application")
+	Local picoTarget:TPicoTargetConfiguration = LoadPicoTargetConfiguration(buildDir + "/CMakeCache.txt")
 	RunPicoCommand(CQuote(cmake) + " --build " + CQuote(buildDir), "Building Pico SDK application")
 
 	Local builtBase:String = buildDir + "/" + outputName
@@ -934,7 +975,7 @@ Function MakePicoApplication(mainSource:String, outputPath:String, compileOnly:I
 	If FileType(builtBase + ".elf.map") = FILETYPE_FILE Then CopyFile(builtBase + ".elf.map", outputBase + ".elf.map")
 
 	Local sizeTool:String = toolchain + "/bin/" + PicoExecutableName("arm-none-eabi-size", platform)
-	If FileType(sizeTool) = FILETYPE_FILE Then ReportPicoMemory(sizeTool, outputBase + ".elf", opt_target_board, picoArenaSize)
+	If FileType(sizeTool) = FILETYPE_FILE Then ReportPicoMemory(sizeTool, outputBase + ".elf", picoTarget)
 	Print "Pico UF2: " + outputBase + ".uf2"
 	If opt_execute Then UploadPicoFirmware(picotoolExecutable, outputBase + ".uf2")
 End Function

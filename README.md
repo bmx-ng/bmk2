@@ -172,18 +172,27 @@ The available `custom.bmk` keys and their existing environment equivalents are:
 | `pico.ninja` | `PICO_NINJA` |
 | `pico.picotool` | `PICOTOOL_DIR` |
 | `pico.pioasm` | `PICO_PIOASM_DIR` |
+| `pico.board.header.dirs` | `PICO_BOARD_HEADER_DIRS` |
+| `pico.board.cmake.dirs` | `PICO_BOARD_CMAKE_DIRS` |
 
 For example, `#addoption pico.sdk "/opt/pico-sdk"` selects a non-default SDK.
 Executable options may name either the executable or its containing directory.
 The SDK and toolchain options name their respective roots.
 
-Pico applications use a board-aware managed heap by default: `-heap auto`
-selects 192 KiB for `-board pico` and 384 KiB for `-board pico2`. `-heap`
-accepts an explicit byte count or a `k`, `KiB`, `m`, or `MiB` suffix. The
-selected arena is a compile definition owned by the Pico CMake target, so it is
-included in linker capacity checks. After linking, bmk reports flash use, the
-managed arena actually retained by the image, application/SDK RAM, the C heap
-reserve, and remaining main-RAM headroom.
+`-board` accepts any board definition available to the selected Pico SDK. The
+board definition selects its RP2040 or ARM RP2350 platform, flash configuration,
+default pins, and other board-level settings. Custom board definitions can be
+made available through `pico.board.header.dirs` and
+`pico.board.cmake.dirs` (or their Pico SDK environment equivalents).
+
+Pico applications use a platform-aware managed heap by default: `-heap auto`
+selects 192 KiB for RP2040 boards and 384 KiB for ARM RP2350 boards. External
+PSRAM is not included automatically. `-heap` accepts an explicit byte count or
+a `k`, `KiB`, `m`, or `MiB` suffix. The selected arena is a compile definition
+owned by the Pico CMake target, so it is included in linker capacity checks.
+After linking, bmk reports the board's configured flash capacity, the managed
+arena actually retained by the image, application/SDK RAM, the C heap reserve,
+and remaining internal-RAM headroom.
 
 For Pico, `makeapp -x` means build, upload, verify, and start. bmk invokes the
 installed picotool with automatic USB reset enabled. If the running firmware
