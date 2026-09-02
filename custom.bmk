@@ -40,3 +40,5 @@
 #addoption pico.ninja "/PATH/TO/ninja"
 #addoption pico.picotool "/PATH/TO/picotool"
 #addoption pico.pioasm "/PATH/TO/pioasm"
+#addoption pico.board.header.dirs "/PATH/TO/CUSTOM/BOARD/HEADERS"
+#addoption pico.board.cmake.dirs "/PATH/TO/CUSTOM/BOARD/CMAKE"

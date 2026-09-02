@@ -244,7 +244,7 @@ Function ParseConfigArgs$[]( args$[], legacyMax:Int = False )
 		Case "board"
 			n:+1
 			If n=args.length MissingArg(argv)
-			opt_target_board=args[n].ToLower()
+			opt_target_board=args[n]
 		Case "gdb"
 			opt_gdbdebug = True
 			opt_gdbdebug_set = True
