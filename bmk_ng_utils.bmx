@@ -8,6 +8,7 @@ Import BRL.System
 Import BRL.MaxLua
 Import BRL.TextStream
 Import Pub.StdC
+Import Pub.Time
 
 ?linux
 Import "bmk_cores_linux.bmx"
@@ -140,11 +141,11 @@ Type TSystem
 ?Not linux	
 	' System
 	Method CurrentDate:String()
-		Return Pub.StdC.CurrentDate()
+		Return Pub.Time.CurrentDate()
 	End Method
 
 	Method CurrentTime:String()
-		Return Pub.StdC.CurrentTime()
+		Return Pub.Time.CurrentTime()
 	End Method
 
 	Method Notify(text:String, serious:Int = False)

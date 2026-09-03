@@ -37,6 +37,8 @@ Global opt_target_platform_set=False
 Global opt_target_board:String = "pico2"
 Global opt_pico_heap:String = "auto"
 Global opt_pico_heap_set:Int
+Global opt_pico_storage:String = "none"
+Global opt_pico_storage_set:Int
 Global opt_gdbdebug=False
 Global opt_gdbdebug_set=False
 Global opt_standalone=False
@@ -223,6 +225,11 @@ Function ParseConfigArgs$[]( args$[], legacyMax:Int = False )
 			If n=args.length MissingArg(argv)
 			opt_pico_heap=args[n].ToLower()
 			opt_pico_heap_set = True
+		Case "storage"
+			n:+1
+			If n=args.length MissingArg(argv)
+			opt_pico_storage=args[n].ToLower()
+			opt_pico_storage_set = True
 		Case "b"
 			n:+1
 			If n=args.length MissingArg(argv)
@@ -461,6 +468,10 @@ Function Usage:String(fullUsage:Int = False)
 		s:+ "~t-heap <auto|size>~n"
 		s:+ "~t~tSelects the Pico managed heap. Sizes accept byte, k/KiB, and m/MiB suffixes;~n"
 		s:+ "~t~tthe default is a board-aware automatic size. (Pico only)~n"
+		s:+ "~n~n"
+		s:+ "~t-storage <none|size>~n"
+		s:+ "~t~tReserves persistent flash storage at a stable, sector-aligned location.~n"
+		s:+ "~t~tSizes accept byte, k/KiB, and m/MiB suffixes; the default is none. (Pico only)~n"
 		s:+ "~n~n"
 		s:+ "~t-musl~n"
 		s:+ "~t~tEnable musl libc compatibility. (Linux NG only)"

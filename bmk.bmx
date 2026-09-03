@@ -412,6 +412,7 @@ Function MakeApplication( args$[],makelib:Int,compileOnly:Int = False )
 		Return
 	End If
 	If opt_pico_heap_set Then CmdError "-heap is currently supported only by the pico target"
+	If opt_pico_storage_set Then CmdError "-storage is currently supported only by the pico target"
 
 	If opt_universal And processor.Platform() = "macos" Then
 		opt_outfile :+ "." + processor.CPU()
