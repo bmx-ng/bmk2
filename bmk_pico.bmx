@@ -31,6 +31,10 @@ Type TPicoTargetConfiguration
 	Field ramBytes:Long
 	Field flashBytes:Long
 	Field arenaBytes:Long
+	Field applicationFlashBytes:Long
+	Field storageOffset:Long
+	Field storageBytes:Long
+	Field tailReservedBytes:Long
 End Type
 
 Type TPicoGenericSpecializationOwner
@@ -470,6 +474,43 @@ Function ParsePicoHeapSize:String(value:String)
 	Return String(bytes)
 End Function
 
+Function ParsePicoStorageSize:String(value:String)
+	Local normalized:String = value.Trim().ToLower()
+	If Not normalized.length Or normalized = "none" Or normalized = "0" Then Return "0"
+
+	Local multiplier:Long = 1
+	If normalized.EndsWith("kib") Then
+		multiplier = 1024
+		normalized = normalized[..normalized.length - 3]
+	Else If normalized.EndsWith("kb") Then
+		multiplier = 1024
+		normalized = normalized[..normalized.length - 2]
+	Else If normalized.EndsWith("k") Then
+		multiplier = 1024
+		normalized = normalized[..normalized.length - 1]
+	Else If normalized.EndsWith("mib") Then
+		multiplier = 1024 * 1024
+		normalized = normalized[..normalized.length - 3]
+	Else If normalized.EndsWith("mb") Then
+		multiplier = 1024 * 1024
+		normalized = normalized[..normalized.length - 2]
+	Else If normalized.EndsWith("m") Then
+		multiplier = 1024 * 1024
+		normalized = normalized[..normalized.length - 1]
+	Else If normalized.EndsWith("b") Then
+		normalized = normalized[..normalized.length - 1]
+	End If
+
+	If Not normalized.length Then Throw "Invalid Pico storage size '" + value + "'"
+	For Local index:Int = 0 Until normalized.length
+		If normalized[index] < Asc("0") Or normalized[index] > Asc("9") Then Throw "Invalid Pico storage size '" + value + "'"
+	Next
+	Local bytes:Long = Long(normalized) * multiplier
+	If bytes < 8192 Then Throw "Pico storage must be at least 8 KiB"
+	If bytes & 4095 Then Throw "Pico storage size must be a multiple of the 4096-byte flash sector size"
+	Return String(bytes)
+End Function
+
 Function PicoCMakeCacheValue:String(cachePath:String, key:String)
 	Local text:String = LoadText(cachePath)
 	If Not text.length Then Throw "Unable to read Pico SDK target configuration from " + cachePath
@@ -498,6 +539,10 @@ Function LoadPicoTargetConfiguration:TPicoTargetConfiguration(cachePath:String)
 	target.ramBytes = PicoCMakeCacheLong(cachePath, "BLITZMAX_PICO_RAM_BYTES")
 	target.flashBytes = PicoCMakeCacheLong(cachePath, "BLITZMAX_PICO_FLASH_BYTES")
 	target.arenaBytes = PicoCMakeCacheLong(cachePath, "BLITZMAX_PICO_RESOLVED_ARENA_SIZE")
+	target.applicationFlashBytes = PicoCMakeCacheLong(cachePath, "BLITZMAX_PICO_APPLICATION_FLASH_BYTES")
+	target.storageOffset = PicoCMakeCacheLong(cachePath, "BLITZMAX_PICO_STORAGE_OFFSET")
+	target.storageBytes = PicoCMakeCacheLong(cachePath, "BLITZMAX_PICO_STORAGE_BYTES")
+	target.tailReservedBytes = PicoCMakeCacheLong(cachePath, "BLITZMAX_PICO_TAIL_RESERVED_BYTES")
 	Return target
 End Function
 
@@ -555,7 +600,7 @@ Function ReportPicoMemory(sizeTool:String, elfPath:String, target:TPicoTargetCon
 		Return
 	End If
 
-	Local flashCapacity:Long = target.flashBytes
+	Local flashCapacity:Long = target.applicationFlashBytes
 	Local ramCapacity:Long = target.ramBytes
 	Local flashUsed:Long = textBytes + dataBytes
 	Local linkedRam:Long = dataBytes + bssBytes
@@ -567,7 +612,12 @@ Function ReportPicoMemory(sizeTool:String, elfPath:String, target:TPicoTargetCon
 	If ramHeadroom < 0 Then ramHeadroom = 0
 
 	Print "Pico memory (" + target.board + ", " + target.platform + "):"
-	Print "  Flash:        " + flashUsed + " / " + flashCapacity + " bytes (" + PicoMemoryPercent(flashUsed, flashCapacity) + "%)"
+	Print "  Firmware:     " + flashUsed + " / " + flashCapacity + " bytes (" + PicoMemoryPercent(flashUsed, flashCapacity) + "%)"
+	Print "  Physical flash: " + target.flashBytes + " bytes"
+	If target.storageBytes Then
+		Print "  Storage:      " + target.storageBytes + " bytes at flash offset " + target.storageOffset
+	End If
+	If target.tailReservedBytes Then Print "  Reserved tail: " + target.tailReservedBytes + " bytes"
 	If linkedArena Then
 		Print "  Managed heap: " + linkedArena + " bytes (" + opt_pico_heap + ")"
 	Else
@@ -852,6 +902,9 @@ Function MakePicoApplication(mainSource:String, outputPath:String, compileOnly:I
 	If Not opt_release And Not PicoDebugBuild() Then Throw "The pico target requires an explicit -r or -d build mode"
 	Local picoBoard:String = ValidatePicoBoardName(opt_target_board)
 	Local picoArenaSize:String = ParsePicoHeapSize(opt_pico_heap)
+	Local picoStorageOption:String = opt_pico_storage
+	If Not opt_pico_storage_set Then picoStorageOption = processor.Option("pico.storage", "none")
+	Local picoStorageSize:String = ParsePicoStorageSize(picoStorageOption)
 
 	Local sdk:String = BlitzMaxPath()
 	Local picoModuleRoot:String = sdk + "/mod/pico.mod"
@@ -948,6 +1001,7 @@ Function MakePicoApplication(mainSource:String, outputPath:String, compileOnly:I
 		" -DPICO_DEOPTIMIZED_DEBUG=" + picoDeoptimizedDebug + ..
 		" -DPICO_BOARD=" + picoBoard + ..
 		" -DBLITZMAX_PICO_ARENA_SIZE=" + picoArenaSize + ..
+		" -DBLITZMAX_PICO_STORAGE_SIZE=" + picoStorageSize + ..
 		" -DBLITZMAX_PICO_SDK=" + CQuote(sdk) + ..
 		" -DBLITZMAX_APPLICATION_ROOT=" + CQuote(ExtractDir(mainSource)) + ..
 		" -DBLITZMAX_OUTPUT_NAME=" + outputName + ..

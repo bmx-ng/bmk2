@@ -42,3 +42,4 @@
 #addoption pico.pioasm "/PATH/TO/pioasm"
 #addoption pico.board.header.dirs "/PATH/TO/CUSTOM/BOARD/HEADERS"
 #addoption pico.board.cmake.dirs "/PATH/TO/CUSTOM/BOARD/CMAKE"
+#addoption pico.storage "256k"
