@@ -393,7 +393,7 @@ Function RequirePicoDirectory:String(label:String, optionKey:String, environment
 	Throw "Unable to locate " + label + ". Set #addoption " + optionKey + " in custom.bmk or " + environmentKey + ", or install it under the user Pico SDK directory."
 End Function
 
-Function RequirePicoExecutable:String(label:String, optionKey:String, environmentKey:String, executableName:String, managedCategory:String, managedSuffixes:String[])
+Function RequirePicoExecutable:String(label:String, optionKey:String, environmentKey:String, executableName:String, managedCategory:String, managedSuffixes:String[], preferredManagedVersion:String = "")
 	Local platform:String = PicoHostPlatform()
 	Local configured:String = processor.Option(optionKey, "").Trim()
 	If configured.length Then
@@ -407,10 +407,8 @@ Function RequirePicoExecutable:String(label:String, optionKey:String, environmen
 		If executable.length Then Return executable
 		Throw "The " + environmentKey + " path does not contain " + PicoExecutableName(executableName, platform) + ": " + configured
 	End If
-	Local executable:String = PicoFindExecutableOnPath(executableName, getenv_("PATH"), platform)
+	Local executable:String = PicoManagedOrPathExecutable(executableName, getenv_("PATH"), platform, PicoUserHome(platform), managedCategory, managedSuffixes, preferredManagedVersion)
 	If executable.length Then Return executable
-	executable = PicoLatestManagedPath(PicoUserHome(platform), managedCategory, managedSuffixes)
-	If executable.length And FileType(executable) = FILETYPE_FILE Then Return executable
 	Throw "Unable to locate " + label + ". Set #addoption " + optionKey + " in custom.bmk, set " + environmentKey + ", add it to PATH, or install it under the user Pico SDK directory."
 End Function
 
@@ -917,18 +915,21 @@ Function MakePicoApplication(mainSource:String, outputPath:String, compileOnly:I
 
 	Local platform:String = PicoHostPlatform()
 	Local picoSdk:String = RequirePicoDirectory("the Pico SDK", "pico.sdk", "PICO_SDK_PATH", "sdk", [""])
+	Local picoSdkVersion:String = StripDir(picoSdk.Replace("\", "/"))
 	Local toolchain:String = PicoConfiguredPath("pico.toolchain", "PICO_TOOLCHAIN_PATH")
 	If toolchain.length Then
 		If FileType(toolchain + "/bin/" + PicoExecutableName("arm-none-eabi-gcc", platform)) <> FILETYPE_FILE Then Throw "The configured Pico ARM toolchain does not contain arm-none-eabi-gcc: " + toolchain
 	Else
-		Local gcc:String = PicoFindExecutableOnPath("arm-none-eabi-gcc", getenv_("PATH"), platform)
-		If gcc.length Then toolchain = ExtractDir(ExtractDir(gcc))
-		If Not toolchain.length Then toolchain = PicoLatestManagedPath(PicoUserHome(platform), "toolchain", [""])
+		toolchain = PicoLatestManagedPath(PicoUserHome(platform), "toolchain", [""])
+		If Not toolchain.length Then
+			Local gcc:String = PicoFindExecutableOnPath("arm-none-eabi-gcc", getenv_("PATH"), platform)
+			If gcc.length Then toolchain = ExtractDir(ExtractDir(gcc))
+		End If
 		If Not toolchain.length Or FileType(toolchain + "/bin/" + PicoExecutableName("arm-none-eabi-gcc", platform)) <> FILETYPE_FILE Then Throw "Unable to locate the Pico ARM toolchain. Set #addoption pico.toolchain in custom.bmk, set PICO_TOOLCHAIN_PATH, add arm-none-eabi-gcc to PATH, or install it under the user Pico SDK directory."
 	End If
 	Local cmake:String = RequirePicoExecutable("CMake", "pico.cmake", "PICO_CMAKE", "cmake", "cmake", PicoCMakeManagedSuffixes(platform))
 	Local ninja:String = RequirePicoExecutable("Ninja", "pico.ninja", "PICO_NINJA", "ninja", "ninja", PicoNinjaManagedSuffixes(platform))
-	Local picotoolExecutable:String = RequirePicoExecutable("picotool", "pico.picotool", "PICOTOOL_DIR", "picotool", "picotool", PicoToolManagedSuffixes("picotool", platform))
+	Local picotoolExecutable:String = RequirePicoExecutable("picotool", "pico.picotool", "PICOTOOL_DIR", "picotool", "picotool", PicoToolManagedSuffixes("picotool", platform), picoSdkVersion)
 	Local picotoolDir:String = PicoPackageDirectory(PicoConfiguredPath("pico.picotool", "PICOTOOL_DIR"), "picotool")
 	If Not picotoolDir.length Then picotoolDir = PicoPackageDirectory(picotoolExecutable, "picotool")
 	Local pioasmConfigured:String = PicoConfiguredPath("pico.pioasm", "PICO_PIOASM_DIR")
@@ -937,8 +938,7 @@ Function MakePicoApplication(mainSource:String, outputPath:String, compileOnly:I
 		pioasmExecutable = PicoExecutableFromValue(pioasmConfigured, "pioasm", platform)
 		If Not pioasmExecutable.length Then Throw "The configured pioasm path does not contain " + PicoExecutableName("pioasm", platform) + ": " + pioasmConfigured
 	Else
-		pioasmExecutable = PicoFindExecutableOnPath("pioasm", getenv_("PATH"), platform)
-		If Not pioasmExecutable.length Then pioasmExecutable = PicoLatestManagedPath(PicoUserHome(platform), "tools", PicoToolManagedSuffixes("pioasm", platform))
+		pioasmExecutable = PicoManagedOrPathExecutable("pioasm", getenv_("PATH"), platform, PicoUserHome(platform), "tools", PicoToolManagedSuffixes("pioasm", platform), picoSdkVersion)
 	End If
 	Local pioasmDir:String = PicoPackageDirectory(pioasmConfigured, "pioasm")
 	If Not pioasmDir.length Then pioasmDir = PicoPackageDirectory(pioasmExecutable, "pioasm")
