@@ -96,7 +96,22 @@ Function PicoNaturalVersionCompare:Int(left:String, right:String)
 		leftIndex :+ 1
 		rightIndex :+ 1
 	Wend
+	' A stable version is newer than a prerelease with the same numeric prefix.
+	If leftIndex = left.length And rightIndex < right.length And right[rightIndex] = Asc("-") Then Return 1
+	If rightIndex = right.length And leftIndex < left.length And left[leftIndex] = Asc("-") Then Return -1
 	Return (left.length - leftIndex) - (right.length - rightIndex)
+End Function
+
+Function PicoManagedVersionPath:String(home:String, category:String, version:String, suffixes:String[])
+	home = home.Trim()
+	version = version.Trim()
+	If Not home.length Or Not version.length Then Return ""
+	Local root:String = home + "/.pico-sdk/" + category + "/" + version
+	For Local suffix:String = EachIn suffixes
+		Local candidate:String = root + suffix
+		If FileType(candidate) Then Return candidate
+	Next
+	Return ""
 End Function
 
 Function PicoLatestManagedPath:String(home:String, category:String, suffixes:String[])
@@ -119,6 +134,13 @@ Function PicoLatestManagedPath:String(home:String, category:String, suffixes:Str
 		Next
 	Next
 	Return bestCandidate
+End Function
+
+Function PicoManagedOrPathExecutable:String(name:String, pathValue:String, platform:String, home:String, category:String, suffixes:String[], preferredManagedVersion:String = "")
+	Local executable:String = PicoManagedVersionPath(home, category, preferredManagedVersion, suffixes)
+	If Not executable.length Then executable = PicoLatestManagedPath(home, category, suffixes)
+	If executable.length And FileType(executable) = FILETYPE_FILE Then Return executable
+	Return PicoFindExecutableOnPath(name, pathValue, platform)
 End Function
 
 Function PicoCMakeManagedSuffixes:String[](platform:String)
