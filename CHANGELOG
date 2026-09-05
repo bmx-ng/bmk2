@@ -1,3 +1,7 @@
+## [4.01] - 2026-09-05
+### Added
+ - Pico platform support.
+
 ## [4.00] - 2026-08-24
 ### Added
  - Integrated support for the bcc2 compiler and its canonical generic artifacts.
