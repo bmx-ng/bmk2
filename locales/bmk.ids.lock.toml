@@ -1,6 +1,6 @@
 format = 1
 domain = "bmk"
-next_id = 239
+next_id = 243
 
 [ids]
 "1" = "command.unknown_operation"
@@ -241,3 +241,7 @@ next_id = 239
 "236" = "conversion.included_source_open_failed"
 "237" = "module.ambiguous"
 "238" = "target.platform_architecture_invalid"
+"239" = "option.heap_region_requires_pico"
+"240" = "pico.heap.region_invalid"
+"241" = "pico.heap.psram_fixed_size_required"
+"242" = "pico.heap.psram_capacity_exceeded"

@@ -243,6 +243,10 @@ Const BMK_MSG_CONVERSION_SOURCE_OPEN_FAILED:Int = 235
 Const BMK_MSG_CONVERSION_INCLUDED_SOURCE_OPEN_FAILED:Int = 236
 Const BMK_MSG_MODULE_AMBIGUOUS:Int = 237
 Const BMK_MSG_TARGET_PLATFORM_ARCHITECTURE_INVALID:Int = 238
+Const BMK_MSG_OPTION_HEAP_REGION_REQUIRES_PICO:Int = 239
+Const BMK_MSG_PICO_HEAP_REGION_INVALID:Int = 240
+Const BMK_MSG_PICO_HEAP_PSRAM_FIXED_SIZE_REQUIRED:Int = 241
+Const BMK_MSG_PICO_HEAP_PSRAM_CAPACITY_EXCEEDED:Int = 242
 
 Type TBmkMessages
 	Function CommandUnknownOperation:TLocalisedMessage(operation:String)
@@ -958,5 +962,17 @@ Type TBmkMessages
 	End Function
 	Function TargetPlatformArchitectureInvalid:TLocalisedMessage(platform:String, architecture:String)
 		Return TLocalisedMessage.Create("bmk", BMK_MSG_TARGET_PLATFORM_ARCHITECTURE_INVALID, "Invalid Platform/Architecture configuration : {platform}/{architecture}", [TMessageArg.Create("platform", platform), TMessageArg.Create("architecture", architecture)])
+	End Function
+	Function OptionHeapRegionRequiresPico:TLocalisedMessage()
+		Return TLocalisedMessage.Create("bmk", BMK_MSG_OPTION_HEAP_REGION_REQUIRES_PICO, "-heap-region is currently supported only by the pico target")
+	End Function
+	Function PicoHeapRegionInvalid:TLocalisedMessage(value:String)
+		Return TLocalisedMessage.Create("bmk", BMK_MSG_PICO_HEAP_REGION_INVALID, "Invalid Pico heap region '{value}'; expected 'sram' or 'psram'", [TMessageArg.Create("value", value)])
+	End Function
+	Function PicoHeapPsramFixedSizeRequired:TLocalisedMessage(board:String)
+		Return TLocalisedMessage.Create("bmk", BMK_MSG_PICO_HEAP_PSRAM_FIXED_SIZE_REQUIRED, "Pico SDK board '{board}' does not define a fixed PSRAM size required for a PSRAM managed heap", [TMessageArg.Create("board", board)])
+	End Function
+	Function PicoHeapPsramCapacityExceeded:TLocalisedMessage(heap_bytes:Long, psram_bytes:Long)
+		Return TLocalisedMessage.Create("bmk", BMK_MSG_PICO_HEAP_PSRAM_CAPACITY_EXCEEDED, "Pico managed heap size {heap_bytes} exceeds the board PSRAM capacity of {psram_bytes} bytes", [TMessageArg.CreateInt("heap_bytes", heap_bytes), TMessageArg.CreateInt("psram_bytes", psram_bytes)])
 	End Function
 End Type
