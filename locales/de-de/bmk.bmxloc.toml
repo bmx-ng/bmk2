@@ -1666,3 +1666,31 @@ name = "target.platform_architecture_invalid"
 translated = false
 text = "Invalid Platform/Architecture configuration : {platform}/{architecture}"
 placeholders = [{ name = "platform", type = "string" }, { name = "architecture", type = "string" }]
+
+[[message]]
+id = 239
+name = "option.heap_region_requires_pico"
+translated = false
+text = "-heap-region is currently supported only by the pico target"
+placeholders = []
+
+[[message]]
+id = 240
+name = "pico.heap.region_invalid"
+translated = false
+text = "Invalid Pico heap region '{value}'; expected 'sram' or 'psram'"
+placeholders = [{ name = "value", type = "string" }]
+
+[[message]]
+id = 241
+name = "pico.heap.psram_fixed_size_required"
+translated = false
+text = "Pico SDK board '{board}' does not define a fixed PSRAM size required for a PSRAM managed heap"
+placeholders = [{ name = "board", type = "string" }]
+
+[[message]]
+id = 242
+name = "pico.heap.psram_capacity_exceeded"
+translated = false
+text = "Pico managed heap size {heap_bytes} exceeds the board PSRAM capacity of {psram_bytes} bytes"
+placeholders = [{ name = "heap_bytes", type = "integer" }, { name = "psram_bytes", type = "integer" }]

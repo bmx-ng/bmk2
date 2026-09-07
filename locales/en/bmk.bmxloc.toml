@@ -1,7 +1,7 @@
 format = 1
 domain = "bmk"
 locale = "en"
-next_id = 239
+next_id = 243
 
 [[message]]
 id = 1
@@ -1667,3 +1667,31 @@ name = "target.platform_architecture_invalid"
 text = "Invalid Platform/Architecture configuration : {platform}/{architecture}"
 description = "Reported when the selected architecture is unsupported on the target platform."
 placeholders = [{ name = "platform", type = "string" }, { name = "architecture", type = "string" }]
+
+[[message]]
+id = 239
+name = "option.heap_region_requires_pico"
+text = "-heap-region is currently supported only by the pico target"
+description = "Reported when the Pico managed-heap region option is used for a non-Pico target."
+placeholders = []
+
+[[message]]
+id = 240
+name = "pico.heap.region_invalid"
+text = "Invalid Pico heap region '{value}'; expected 'sram' or 'psram'"
+description = "Reported when the configured Pico managed-heap region is unsupported."
+placeholders = [{ name = "value", type = "string" }]
+
+[[message]]
+id = 241
+name = "pico.heap.psram_fixed_size_required"
+text = "Pico SDK board '{board}' does not define a fixed PSRAM size required for a PSRAM managed heap"
+description = "Reported when a PSRAM managed heap is requested for a board without a compile-time PSRAM capacity."
+placeholders = [{ name = "board", type = "string" }]
+
+[[message]]
+id = 242
+name = "pico.heap.psram_capacity_exceeded"
+text = "Pico managed heap size {heap_bytes} exceeds the board PSRAM capacity of {psram_bytes} bytes"
+description = "Reported when the requested managed heap cannot fit in the board's external PSRAM."
+placeholders = [{ name = "heap_bytes", type = "integer" }, { name = "psram_bytes", type = "integer" }]

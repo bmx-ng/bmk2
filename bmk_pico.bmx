@@ -31,7 +31,10 @@ Type TPicoTargetConfiguration
 	Field platform:String
 	Field ramBytes:Long
 	Field flashBytes:Long
+	Field psramBytes:Long
 	Field arenaBytes:Long
+	Field arenaRegion:String
+	Field psramReservedBytes:Long
 	Field applicationFlashBytes:Long
 	Field storageOffset:Long
 	Field storageBytes:Long
@@ -473,6 +476,12 @@ Function ParsePicoHeapSize:String(value:String)
 	Return String(bytes)
 End Function
 
+Function ParsePicoHeapRegion:String(value:String)
+	Local normalized:String = value.Trim().ToLower()
+	If normalized = "sram" Or normalized = "psram" Then Return normalized
+	Throw TBmkMessages.PicoHeapRegionInvalid(value).Render()
+End Function
+
 Function ParsePicoStorageSize:String(value:String)
 	Local normalized:String = value.Trim().ToLower()
 	If Not normalized.length Or normalized = "none" Or normalized = "0" Then Return "0"
@@ -537,12 +546,25 @@ Function LoadPicoTargetConfiguration:TPicoTargetConfiguration(cachePath:String)
 	target.platform = PicoCMakeCacheValue(cachePath, "PICO_PLATFORM")
 	target.ramBytes = PicoCMakeCacheLong(cachePath, "BLITZMAX_PICO_RAM_BYTES")
 	target.flashBytes = PicoCMakeCacheLong(cachePath, "BLITZMAX_PICO_FLASH_BYTES")
+	target.psramBytes = PicoCMakeCacheLong(cachePath, "BLITZMAX_PICO_PSRAM_BYTES")
 	target.arenaBytes = PicoCMakeCacheLong(cachePath, "BLITZMAX_PICO_RESOLVED_ARENA_SIZE")
+	target.arenaRegion = PicoCMakeCacheValue(cachePath, "BLITZMAX_PICO_RESOLVED_ARENA_REGION")
+	target.psramReservedBytes = PicoCMakeCacheLong(cachePath, "BLITZMAX_PICO_PSRAM_RESERVED_BYTES")
 	target.applicationFlashBytes = PicoCMakeCacheLong(cachePath, "BLITZMAX_PICO_APPLICATION_FLASH_BYTES")
 	target.storageOffset = PicoCMakeCacheLong(cachePath, "BLITZMAX_PICO_STORAGE_OFFSET")
 	target.storageBytes = PicoCMakeCacheLong(cachePath, "BLITZMAX_PICO_STORAGE_BYTES")
 	target.tailReservedBytes = PicoCMakeCacheLong(cachePath, "BLITZMAX_PICO_TAIL_RESERVED_BYTES")
 	Return target
+End Function
+
+Function ValidatePicoHeapConfiguration(target:TPicoTargetConfiguration)
+	If target.arenaRegion <> "psram" Then Return
+	If target.psramBytes <= 0 Then
+		Throw TBmkMessages.PicoHeapPsramFixedSizeRequired(target.board).Render()
+	End If
+	If target.arenaBytes > target.psramBytes Then
+		Throw TBmkMessages.PicoHeapPsramCapacityExceeded(target.arenaBytes, target.psramBytes).Render()
+	End If
 End Function
 
 Function PicoCaptureCommand:String(command:String)
@@ -570,6 +592,22 @@ Function PicoMemoryPercent:String(used:Long, capacity:Long)
 	If capacity <= 0 Then Return "0.0"
 	Local tenths:Long = used * 1000 / capacity
 	Return (tenths / 10) + "." + (tenths Mod 10)
+End Function
+
+Function PicoSectionSize:Long(sizeTool:String, elfPath:String, sectionName:String)
+	Local output:String = PicoCaptureCommand(CQuote(sizeTool) + " -A " + CQuote(elfPath))
+	For Local line:String = EachIn output.Replace("~r", "").Replace("~t", " ").Split("~n")
+		Local values:String[] = New String[0]
+		For Local value:String = EachIn line.Trim().Split(" ")
+			If value.length Then values :+ [value]
+		Next
+		If values.length < 2 Or values[0] <> sectionName Then Continue
+		For Local index:Int = 0 Until values[1].length
+			If values[1][index] < Asc("0") Or values[1][index] > Asc("9") Then Return 0
+		Next
+		Return Long(values[1])
+	Next
+	Return 0
 End Function
 
 Function ReportPicoMemory(sizeTool:String, elfPath:String, target:TPicoTargetConfiguration)
@@ -603,11 +641,17 @@ Function ReportPicoMemory(sizeTool:String, elfPath:String, target:TPicoTargetCon
 	Local ramCapacity:Long = target.ramBytes
 	Local flashUsed:Long = textBytes + dataBytes
 	Local linkedRam:Long = dataBytes + bssBytes
+	' Pico's linker marks its initialized SRAM .data section executable, so GNU
+	' size classifies it as text in Berkeley mode. Count it explicitly as RAM.
+	Local initializedRamBytes:Long = PicoSectionSize(sizeTool, elfPath, ".data")
+	If initializedRamBytes > dataBytes Then linkedRam :+ initializedRamBytes - dataBytes
 	Local linkedArena:Long = target.arenaBytes
 	If bssBytes < target.arenaBytes Then linkedArena = 0
 	Local nativeRam:Long = linkedRam - linkedArena
 	Local cHeapReserve:Long = 2048
-	Local ramHeadroom:Long = ramCapacity - linkedRam - cHeapReserve
+	Local internalRamUsed:Long = linkedRam
+	If target.arenaRegion = "psram" Then internalRamUsed = nativeRam
+	Local ramHeadroom:Long = ramCapacity - internalRamUsed - cHeapReserve
 	If ramHeadroom < 0 Then ramHeadroom = 0
 
 	Print "Pico memory (" + target.board + ", " + target.platform + "):"
@@ -618,9 +662,13 @@ Function ReportPicoMemory(sizeTool:String, elfPath:String, target:TPicoTargetCon
 	End If
 	If target.tailReservedBytes Then Print "  Reserved tail: " + target.tailReservedBytes + " bytes"
 	If linkedArena Then
-		Print "  Managed heap: " + linkedArena + " bytes (" + opt_pico_heap + ")"
+		Print "  Managed heap: " + linkedArena + " bytes (" + opt_pico_heap + ", " + target.arenaRegion.ToUpper() + ")"
 	Else
-		Print "  Managed heap: not linked; configured " + target.arenaBytes + " bytes (" + opt_pico_heap + ")"
+		Print "  Managed heap: not linked; configured " + target.arenaBytes + " bytes (" + opt_pico_heap + ", " + target.arenaRegion.ToUpper() + ")"
+	End If
+	If target.psramBytes Then
+		Print "  Physical PSRAM: " + target.psramBytes + " bytes"
+		If target.arenaRegion = "psram" Then Print "  PSRAM reserve: " + target.psramReservedBytes + " bytes"
 	End If
 	Print "  App/SDK RAM:  " + nativeRam + " bytes"
 	Print "  C heap reserve: " + cHeapReserve + " bytes"
@@ -901,6 +949,9 @@ Function MakePicoApplication(mainSource:String, outputPath:String, compileOnly:I
 	If Not opt_release And Not PicoDebugBuild() Then Throw TBmkMessages.PicoTargetBuildModeRequired().Render()
 	Local picoBoard:String = ValidatePicoBoardName(opt_target_board)
 	Local picoArenaSize:String = ParsePicoHeapSize(opt_pico_heap)
+	Local picoHeapRegionOption:String = opt_pico_heap_region
+	If Not opt_pico_heap_region_set Then picoHeapRegionOption = processor.Option("pico.heap.region", "sram")
+	Local picoArenaRegion:String = ParsePicoHeapRegion(picoHeapRegionOption)
 	Local picoStorageOption:String = opt_pico_storage
 	If Not opt_pico_storage_set Then picoStorageOption = processor.Option("pico.storage", "none")
 	Local picoStorageSize:String = ParsePicoStorageSize(picoStorageOption)
@@ -958,6 +1009,15 @@ Function MakePicoApplication(mainSource:String, outputPath:String, compileOnly:I
 	Local buildVariant:String = "release"
 	If PicoDebugBuild() Then buildVariant = "debug"
 	Local buildDir:String = ExtractDir(mainSource) + "/.bmx/" + StripDir(StripExt(mainSource)) + "." + buildVariant + ".pico.arm." + picoBoard
+	Local cachedPicoSdk:String
+	If FileType(buildDir + "/CMakeCache.txt") = FILETYPE_FILE Then
+		cachedPicoSdk = PicoCMakeCacheValue(buildDir + "/CMakeCache.txt", "PICO_SDK_PATH")
+	End If
+	If cachedPicoSdk.length And RealPath(cachedPicoSdk) <> RealPath(picoSdk) Then
+		' CMake retains absolute SDK source paths in its generated build graph and
+		' cannot safely reconfigure that graph across SDK installations.
+		If Not DeleteDir(buildDir, True) Then Throw TBmkMessages.PicoOutputDirectoryCreationFailed(buildDir).Render()
+	End If
 	CreateDir(buildDir, True)
 	Local compilerBuildRoot:String = buildDir + "/bcc"
 	CreateDir(compilerBuildRoot, True)
@@ -1003,6 +1063,7 @@ Function MakePicoApplication(mainSource:String, outputPath:String, compileOnly:I
 		" -DPICO_DEOPTIMIZED_DEBUG=" + picoDeoptimizedDebug + ..
 		" -DPICO_BOARD=" + picoBoard + ..
 		" -DBLITZMAX_PICO_ARENA_SIZE=" + picoArenaSize + ..
+		" -DBLITZMAX_PICO_ARENA_REGION=" + picoArenaRegion + ..
 		" -DBLITZMAX_PICO_STORAGE_SIZE=" + picoStorageSize + ..
 		" -DBLITZMAX_PICO_SDK=" + CQuote(sdk) + ..
 		" -DBLITZMAX_APPLICATION_ROOT=" + CQuote(ExtractDir(mainSource)) + ..
@@ -1020,6 +1081,7 @@ Function MakePicoApplication(mainSource:String, outputPath:String, compileOnly:I
 	If pioasmDir.length Then configure :+ " -Dpioasm_DIR=" + CQuote(pioasmDir)
 	RunPicoCommand(configure, "Configuring Pico SDK application")
 	Local picoTarget:TPicoTargetConfiguration = LoadPicoTargetConfiguration(buildDir + "/CMakeCache.txt")
+	ValidatePicoHeapConfiguration(picoTarget)
 	RunPicoCommand(CQuote(cmake) + " --build " + CQuote(buildDir), "Building Pico SDK application")
 
 	Local builtBase:String = buildDir + "/" + outputName

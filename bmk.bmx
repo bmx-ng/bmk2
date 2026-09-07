@@ -421,6 +421,7 @@ Function MakeApplication( args$[],makelib:Int,compileOnly:Int = False )
 		Return
 	End If
 	If opt_pico_heap_set Then CmdError TBmkMessages.OptionHeapRequiresPico().Render()
+	If opt_pico_heap_region_set Then CmdError TBmkMessages.OptionHeapRegionRequiresPico().Render()
 	If opt_pico_storage_set Then CmdError TBmkMessages.OptionStorageRequiresPico().Render()
 
 	If opt_universal And processor.Platform() = "macos" Then
