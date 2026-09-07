@@ -907,8 +907,9 @@ Function GeneratePicoPIORegistry:String(imports:TList, buildDir:String, cmakeOut
 	For Local imported:TPicoPIOImport = EachIn imports
 		Local programIndex:Int
 		For Local name:String = EachIn imported.programs
-			source :+ "static int32_t bmx_pico_pio_initialize_" + importIndex + "_" + programIndex + "(void *instance, uint32_t state_machine, uint32_t offset) {~n"
+			source :+ "static int32_t bmx_pico_pio_initialize_" + importIndex + "_" + programIndex + "(void *instance, uint32_t state_machine, uint32_t offset, const BMXPicoPIOStateMachineConfig *overrides) {~n"
 			source :+ "    pio_sm_config config = " + name + "_program_get_default_config(offset);~n"
+			source :+ "    if (!bmx_pico_pio_apply_config_overrides(&config, overrides)) return PICO_ERROR_INVALID_ARG;~n"
 			source :+ "    return pio_sm_init((PIO)instance, state_machine, offset, &config);~n}~n"
 			programIndex :+ 1
 		Next
