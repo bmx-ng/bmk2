@@ -8,6 +8,7 @@ Import BRL.TextStream
 Import "bmk_util.bmx"
 Import "options_parser.bmx"
 Import "bmk_bcc2_manifest.bmx"
+Import "bmk_messages.generated.bmx"
 
 Global installedModulePaths:TMap
 
@@ -20,7 +21,7 @@ Function InitializeInstalledModuleCatalogue()
 		Local key:String = item.name.ToLower()
 		Local existing:String = String(installedModulePaths.ValueForKey(key))
 		If existing.length Then
-			Throw "Ambiguous module '" + item.name + "' maps to both '" + existing + "' and '" + item.path + "'"
+			Throw TBmkMessages.ModuleAmbiguous(item.name, existing, item.path).Render()
 		End If
 		installedModulePaths.Insert(key, item.path)
 	Next
@@ -964,7 +965,7 @@ Function ValidatePlatformArchitecture()
 	End Select
 	
 	If Not valid Then
-		CmdError "Invalid Platform/Architecture configuration : " + platform + "/" + arch
+		CmdError TBmkMessages.TargetPlatformArchitectureInvalid(platform, arch).Render()
 	End If
 End Function
 

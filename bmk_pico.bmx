@@ -1,6 +1,7 @@
 SuperStrict
 
 Import "bmk_make.bmx"
+Import "bmk_messages.generated.bmx"
 Include "bmk_pico_paths.bmx"
 
 Type TPicoModuleUnit
@@ -81,7 +82,7 @@ End Function
 Function CollectPicoNativeImports(sourcePath:String, inheritedCC:String, inheritedC:String, inheritedCPP:String, imports:TList, linkOptions:TList, visitedSources:TMap, nativeOwners:TMap)
 	Local source:String = RealPath(sourcePath)
 	Local parsed:TSourceFile = ParseSourceFile(source)
-	If Not parsed Then Throw "Unable to read Pico source while discovering native imports at " + source
+	If Not parsed Then Throw TBmkMessages.PicoSourceNativeDiscoveryReadFailed(source).Render()
 
 	Local ccOptions:String = AppendPicoOption(inheritedCC, PicoSourceOption(parsed, "cc"))
 	Local cOptions:String = AppendPicoOption(inheritedC, PicoSourceOption(parsed, "c"))
@@ -96,10 +97,10 @@ Function CollectPicoNativeImports(sourcePath:String, inheritedCC:String, inherit
 		Local includePath:String
 		If importedPath.Find("*") >= 0 Then
 			includePath = RealPath(ExtractDir(source) + "/" + ExtractDir(importedPath))
-			If FileType(includePath) <> FILETYPE_DIR Then Throw "Unable to read quoted Pico header directory '" + importedPath + "' from " + source
+			If FileType(includePath) <> FILETYPE_DIR Then Throw TBmkMessages.PicoHeaderDirectoryReadFailed(importedPath, source).Render()
 		Else
 			Local headerPath:String = RealPath(ExtractDir(source) + "/" + importedPath)
-			If FileType(headerPath) <> FILETYPE_FILE Then Throw "Unable to read quoted Pico header '" + importedPath + "' from " + source
+			If FileType(headerPath) <> FILETYPE_FILE Then Throw TBmkMessages.PicoHeaderReadFailed(importedPath, source).Render()
 			includePath = ExtractDir(headerPath)
 		End If
 		If Not includePaths.Contains(includePath) Then
@@ -110,7 +111,7 @@ Function CollectPicoNativeImports(sourcePath:String, inheritedCC:String, inherit
 	Local visitIdentity:String = "options|" + ccOptions + "|" + cOptions + "|" + cppOptions
 	Local previousVisit:String = String(visitedSources.ValueForKey(source))
 	If previousVisit.length Then
-		If previousVisit <> visitIdentity Then Throw "Quoted Pico source has conflicting native compiler options: " + source
+		If previousVisit <> visitIdentity Then Throw TBmkMessages.PicoSourceNativeOptionsConflict(source).Render()
 		Return
 	End If
 	visitedSources.Insert(source, visitIdentity)
@@ -131,7 +132,7 @@ Function CollectPicoNativeImports(sourcePath:String, inheritedCC:String, inherit
 		If extension <> "bmx" And extension <> "c" And extension <> "cc" And extension <> "cpp" And extension <> "cxx" And extension <> "h" And extension <> "hh" And extension <> "hpp" And extension <> "hxx" Then Continue
 		If IsPicoHeaderExtension(extension) And importedPath.Find("*") >= 0 Then Continue
 		Local resolved:String = RealPath(ExtractDir(source) + "/" + importedPath)
-		If FileType(resolved) <> FILETYPE_FILE Then Throw "Unable to read quoted Pico source '" + importedPath + "' from " + source
+		If FileType(resolved) <> FILETYPE_FILE Then Throw TBmkMessages.PicoQuotedSourceReadFailed(importedPath, source).Render()
 
 		Local importedCC:String = ccOptions
 		If lexicalOptions Then importedCC = AppendPicoOption(importedCC, lexicalOptions.ccOpts)
@@ -151,7 +152,7 @@ Function CollectPicoNativeImports(sourcePath:String, inheritedCC:String, inherit
 		End If
 		Local owner:TPicoNativeImport = TPicoNativeImport(nativeOwners.ValueForKey(resolved))
 		If owner Then
-			If owner.compileOptions <> compileOptions Then Throw "Quoted Pico native source has conflicting compiler options: " + resolved
+			If owner.compileOptions <> compileOptions Then Throw TBmkMessages.PicoNativeSourceOptionsConflict(resolved).Render()
 			Continue
 		End If
 		Local nativeImport:TPicoNativeImport = New TPicoNativeImport
@@ -189,7 +190,7 @@ End Function
 
 Function PicoPIOProgramNames:String[](source:String)
 	Local text:String = LoadText(source)
-	If Not text.length Then Throw "Unable to read imported PIO source " + source
+	If Not text.length Then Throw TBmkMessages.PicoPioSourceReadFailed(source).Render()
 	Local names:String[] = New String[0]
 	Local seen:TMap = New TMap
 	For Local line:String = EachIn text.Replace("~r", "").Split("~n")
@@ -203,13 +204,13 @@ Function PicoPIOProgramNames:String[](source:String)
 			endIndex :+ 1
 		Wend
 		Local name:String = remainder[..endIndex]
-		If Not IsPicoPIOIdentifier(name) Then Throw "Invalid PIO program name '" + name + "' in " + source
+		If Not IsPicoPIOIdentifier(name) Then Throw TBmkMessages.PicoPioProgramNameInvalid(name, source).Render()
 		Local normalized:String = name.ToLower()
-		If seen.Contains(normalized) Then Throw "Duplicate PIO program name '" + name + "' in " + source
+		If seen.Contains(normalized) Then Throw TBmkMessages.PicoPioProgramNameDuplicate(name, source).Render()
 		seen.Insert(normalized, name)
 		names :+ [name]
 	Next
-	If Not names.length Then Throw "Imported PIO source declares no .program: " + source
+	If Not names.length Then Throw TBmkMessages.PicoPioProgramMissing(source).Render()
 	Return names
 End Function
 
@@ -218,13 +219,13 @@ Function CollectPicoPIOImports(sourcePath:String, imports:TList, visitedSources:
 	If visitedSources.Contains(source) Then Return
 	visitedSources.Insert(source, source)
 	Local parsed:TSourceFile = ParseSourceFile(source)
-	If Not parsed Then Throw "Unable to read Pico source while discovering PIO imports at " + source
+	If Not parsed Then Throw TBmkMessages.PicoPioDiscoverySourceReadFailed(source).Render()
 	For Local importedPath:String = EachIn parsed.imports
 		If importedPath.StartsWith("-") Then Continue
 		Local extension:String = ExtractExt(importedPath).ToLower()
 		If extension <> "bmx" And extension <> "pio" Then Continue
 		Local resolved:String = RealPath(ExtractDir(source) + "/" + importedPath)
-		If FileType(resolved) <> FILETYPE_FILE Then Throw "Unable to read quoted Pico source '" + importedPath + "' from " + source
+		If FileType(resolved) <> FILETYPE_FILE Then Throw TBmkMessages.PicoQuotedSourceReadFailed(importedPath, source).Render()
 		If extension = "bmx" Then
 			CollectPicoPIOImports(resolved, imports, visitedSources, visitedPIO)
 		Else If Not visitedPIO.Contains(resolved) Then
@@ -250,7 +251,7 @@ Function DiscoverPicoPIOImports:TList(mainSource:String, units:TList)
 		For Local name:String = EachIn imported.programs
 			Local normalized:String = name.ToLower()
 			Local owner:String = String(programOwners.ValueForKey(normalized))
-			If owner.length Then Throw "PIO program name '" + name + "' is declared by both " + owner + " and " + imported.source
+			If owner.length Then Throw TBmkMessages.PicoPioProgramOwnerConflict(name, owner, imported.source).Render()
 			programOwners.Insert(normalized, imported.source)
 		Next
 	Next
@@ -269,8 +270,8 @@ Function DiscoverPicoSourceUnit(moduleName:String, source:String, sourceUnitPath
 	visitedSources.Insert(sourceKey, sourceKey)
 
 	Local parsed:TSourceFile = ParseSourceFile(source)
-	If Not parsed Then Throw "Unable to read Pico source unit at " + source
-	If primary And parsed.modid <> moduleName.ToLower() Then Throw "Pico module source '" + source + "' declares '" + parsed.modid + "', expected '" + moduleName.ToLower() + "'"
+	If Not parsed Then Throw TBmkMessages.PicoModuleSourceUnitReadFailed(source).Render()
+	If primary And parsed.modid <> moduleName.ToLower() Then Throw TBmkMessages.PicoModuleDeclarationMismatch(source, parsed.modid, moduleName.ToLower()).Render()
 
 	For Local dependency:String = EachIn parsed.modimports
 		DiscoverPicoModule(dependency, units, visitedModules, visitedSources)
@@ -278,9 +279,9 @@ Function DiscoverPicoSourceUnit(moduleName:String, source:String, sourceUnitPath
 	For Local importedPath:String = EachIn parsed.imports
 		If importedPath.StartsWith("-") Or ExtractExt(importedPath).ToLower() <> "bmx" Then Continue
 		Local importedUnitPath:String = Bcc2SourceUnitPath(normalizedUnitPath, importedPath)
-		If Not importedUnitPath.length Then Throw "Quoted Pico source escapes module root: " + importedPath
+		If Not importedUnitPath.length Then Throw TBmkMessages.PicoModuleQuotedSourceEscapesRoot(importedPath).Render()
 		Local importedSource:String = RealPath(ExtractDir(source) + "/" + importedPath)
-		If FileType(importedSource) <> FILETYPE_FILE Then Throw "Unable to read quoted Pico source '" + importedPath + "' from " + source
+		If FileType(importedSource) <> FILETYPE_FILE Then Throw TBmkMessages.PicoQuotedSourceReadFailed(importedPath, source).Render()
 		Local importedInterface:String = ExtractDir(importedSource) + "/.bmx/" + StripDir(importedSource) + "." + PicoBuildModeName() + ".pico.arm.i"
 		DiscoverPicoSourceUnit(moduleName, importedSource, importedUnitPath, importedInterface, units, visitedModules, visitedSources)
 	Next
@@ -313,7 +314,7 @@ Function DiscoverPicoApplicationModules(sourcePath:String, sourceUnitPath:String
 	visitedApplicationSources.Insert(source, source)
 
 	Local parsed:TSourceFile = ParseSourceFile(source)
-	If Not parsed Then Throw "Unable to read Pico application source at " + source
+	If Not parsed Then Throw TBmkMessages.PicoApplicationSourceReadFailed(source).Render()
 
 	' Framework is an import for every source unit owned by the application. Mirror
 	' the normal bmk dependency walk even though a single physical module build is
@@ -326,9 +327,9 @@ Function DiscoverPicoApplicationModules(sourcePath:String, sourceUnitPath:String
 	For Local importedPath:String = EachIn parsed.imports
 		If importedPath.StartsWith("-") Or ExtractExt(importedPath).ToLower() <> "bmx" Then Continue
 		Local importedSource:String = RealPath(ExtractDir(source) + "/" + importedPath)
-		If FileType(importedSource) <> FILETYPE_FILE Then Throw "Unable to read quoted Pico application source '" + importedPath + "' from " + source
+		If FileType(importedSource) <> FILETYPE_FILE Then Throw TBmkMessages.PicoApplicationQuotedSourceReadFailed(importedPath, source).Render()
 		Local importedUnitPath:String = Bcc2SourceUnitPath(sourceUnitPath, importedPath)
-		If Not importedUnitPath.length Then Throw "Quoted Pico application source escapes its source root: " + importedPath
+		If Not importedUnitPath.length Then Throw TBmkMessages.PicoApplicationQuotedSourceEscapesRoot(importedPath).Render()
 		DiscoverPicoApplicationModules(importedSource, importedUnitPath, frameworkModule, units, applicationUnits, visitedModules, visitedModuleSources, visitedApplicationSources)
 	Next
 
@@ -343,7 +344,7 @@ End Function
 
 Function DiscoverPicoModules:TList(mainSource:String, applicationUnits:TList Var)
 	Local parsed:TSourceFile = ParseSourceFile(mainSource)
-	If Not parsed Then Throw "Unable to read Pico application source at " + mainSource
+	If Not parsed Then Throw TBmkMessages.PicoApplicationSourceReadFailed(mainSource).Render()
 	Local units:TList = New TList
 	applicationUnits = New TList
 	Local visitedModules:TMap = New TMap
@@ -386,11 +387,11 @@ Function RequirePicoDirectory:String(label:String, optionKey:String, environment
 	Local configured:String = PicoConfiguredPath(optionKey, environmentKey)
 	If configured.length Then
 		If FileType(configured) = FILETYPE_DIR Then Return configured
-		Throw "The configured " + label + " path does not name a directory: " + configured
+		Throw TBmkMessages.PicoPathConfiguredNotDirectory(label, configured).Render()
 	End If
 	Local discovered:String = PicoLatestManagedPath(PicoUserHome(PicoHostPlatform()), managedCategory, managedSuffixes)
 	If discovered.length And FileType(discovered) = FILETYPE_DIR Then Return discovered
-	Throw "Unable to locate " + label + ". Set #addoption " + optionKey + " in custom.bmk or " + environmentKey + ", or install it under the user Pico SDK directory."
+	Throw TBmkMessages.PicoPathDirectoryNotFound(label, optionKey, environmentKey).Render()
 End Function
 
 Function RequirePicoExecutable:String(label:String, optionKey:String, environmentKey:String, executableName:String, managedCategory:String, managedSuffixes:String[], preferredManagedVersion:String = "")
@@ -399,17 +400,17 @@ Function RequirePicoExecutable:String(label:String, optionKey:String, environmen
 	If configured.length Then
 		Local executable:String = PicoExecutableFromValue(configured, executableName, platform)
 		If executable.length Then Return executable
-		Throw "The configured " + label + " path does not contain " + PicoExecutableName(executableName, platform) + ": " + configured
+		Throw TBmkMessages.PicoPathConfiguredExecutableMissing(label, PicoExecutableName(executableName, platform), configured).Render()
 	End If
 	configured = getenv_(environmentKey).Trim()
 	If configured.length Then
 		Local executable:String = PicoExecutableFromValue(configured, executableName, platform)
 		If executable.length Then Return executable
-		Throw "The " + environmentKey + " path does not contain " + PicoExecutableName(executableName, platform) + ": " + configured
+		Throw TBmkMessages.PicoPathEnvironmentExecutableMissing(environmentKey, PicoExecutableName(executableName, platform), configured).Render()
 	End If
 	Local executable:String = PicoManagedOrPathExecutable(executableName, getenv_("PATH"), platform, PicoUserHome(platform), managedCategory, managedSuffixes, preferredManagedVersion)
 	If executable.length Then Return executable
-	Throw "Unable to locate " + label + ". Set #addoption " + optionKey + " in custom.bmk, set " + environmentKey + ", add it to PATH, or install it under the user Pico SDK directory."
+	Throw TBmkMessages.PicoPathExecutableNotFound(label, optionKey, environmentKey).Render()
 End Function
 
 Function PicoDebugBuild:Int()
@@ -423,14 +424,14 @@ End Function
 
 Function ValidatePicoBoardName:String(board:String)
 	Local validated:String = board.Trim()
-	If Not validated.length Then Throw "A Pico SDK board name is required"
+	If Not validated.length Then Throw TBmkMessages.PicoBoardRequired().Render()
 	For Local index:Int = 0 Until validated.length
 		Local character:Int = validated[index]
 		Local valid:Int = character = Asc("_") Or character = Asc("-") Or character = Asc(".") Or ..
 			(character >= Asc("a") And character <= Asc("z")) Or ..
 			(character >= Asc("A") And character <= Asc("Z")) Or ..
 			(character >= Asc("0") And character <= Asc("9"))
-		If Not valid Then Throw "Invalid Pico SDK board name '" + board + "'"
+		If Not valid Then Throw TBmkMessages.PicoBoardInvalid(board).Render()
 	Next
 	Return validated
 End Function
@@ -462,12 +463,12 @@ Function ParsePicoHeapSize:String(value:String)
 		normalized = normalized[..normalized.length - 1]
 	End If
 
-	If Not normalized.length Then Throw "Invalid Pico heap size '" + value + "'"
+	If Not normalized.length Then Throw TBmkMessages.PicoHeapInvalid(value).Render()
 	For Local index:Int = 0 Until normalized.length
-		If normalized[index] < Asc("0") Or normalized[index] > Asc("9") Then Throw "Invalid Pico heap size '" + value + "'"
+		If normalized[index] < Asc("0") Or normalized[index] > Asc("9") Then Throw TBmkMessages.PicoHeapInvalid(value).Render()
 	Next
 	Local bytes:Long = Long(normalized) * multiplier
-	If bytes < 1024 Then Throw "Pico heap size must be at least 1 KiB"
+	If bytes < 1024 Then Throw TBmkMessages.PicoHeapMinimum().Render()
 	bytes = (bytes + 7) & ~7:Long
 	Return String(bytes)
 End Function
@@ -499,33 +500,33 @@ Function ParsePicoStorageSize:String(value:String)
 		normalized = normalized[..normalized.length - 1]
 	End If
 
-	If Not normalized.length Then Throw "Invalid Pico storage size '" + value + "'"
+	If Not normalized.length Then Throw TBmkMessages.PicoStorageInvalid(value).Render()
 	For Local index:Int = 0 Until normalized.length
-		If normalized[index] < Asc("0") Or normalized[index] > Asc("9") Then Throw "Invalid Pico storage size '" + value + "'"
+		If normalized[index] < Asc("0") Or normalized[index] > Asc("9") Then Throw TBmkMessages.PicoStorageInvalid(value).Render()
 	Next
 	Local bytes:Long = Long(normalized) * multiplier
-	If bytes < 8192 Then Throw "Pico storage must be at least 8 KiB"
-	If bytes & 4095 Then Throw "Pico storage size must be a multiple of the 4096-byte flash sector size"
+	If bytes < 8192 Then Throw TBmkMessages.PicoStorageMinimum().Render()
+	If bytes & 4095 Then Throw TBmkMessages.PicoStorageSectorAlignment().Render()
 	Return String(bytes)
 End Function
 
 Function PicoCMakeCacheValue:String(cachePath:String, key:String)
 	Local text:String = LoadText(cachePath)
-	If Not text.length Then Throw "Unable to read Pico SDK target configuration from " + cachePath
+	If Not text.length Then Throw TBmkMessages.PicoSdkTargetConfigurationReadFailed(cachePath).Render()
 	Local prefix:String = key + ":"
 	For Local line:String = EachIn text.Replace("~r", "").Split("~n")
 		If Not line.StartsWith(prefix) Then Continue
 		Local equals:Int = line.Find("=")
 		If equals >= 0 Then Return line[equals + 1..].Trim()
 	Next
-	Throw "The Pico SDK did not publish " + key + " in " + cachePath
+	Throw TBmkMessages.PicoSdkTargetKeyMissing(key, cachePath).Render()
 End Function
 
 Function PicoCMakeCacheLong:Long(cachePath:String, key:String)
 	Local value:String = PicoCMakeCacheValue(cachePath, key)
-	If Not value.length Then Throw "The Pico SDK published an empty " + key + " value"
+	If Not value.length Then Throw TBmkMessages.PicoSdkTargetKeyEmpty(key).Render()
 	For Local index:Int = 0 Until value.length
-		If value[index] < Asc("0") Or value[index] > Asc("9") Then Throw "The Pico SDK published an invalid " + key + " value: " + value
+		If value[index] < Asc("0") Or value[index] > Asc("9") Then Throw TBmkMessages.PicoSdkTargetKeyInvalid(key, value).Render()
 	Next
 	Return Long(value)
 End Function
@@ -638,11 +639,11 @@ Function UploadPicoFirmware(picotool:String, uf2Path:String)
 	Print "Connect the Pico's own USB port directly to this computer while holding BOOTSEL,"
 	Print "then rerun the same bmk command with -x."
 	Print "The debug probe is not required; picotool uploads through the Pico's USB connection."
-	Throw "Uploading Pico firmware failed"
+	Throw TBmkMessages.PicoUploadFailed().Render()
 End Function
 
 Function RunPicoCommand(command:String, description:String)
-	If processor.Sys(command) Then Throw description + " failed"
+	If processor.Sys(command) Then Throw TBmkMessages.PicoCommandFailed(description).Render()
 End Function
 
 Function GeneratePicoInterface(bcc:String, sdk:String, moduleName:String, source:String, output:String, sourceUnitPath:String = "")
@@ -698,7 +699,7 @@ Function GeneratePicoBuildBundle:TPicoBuildBundle(bcc:String, sdk:String, source
 	For Local file:TBcc2BuildFile = EachIn bundle.manifest.files
 		If file.role = "application-c" And file.relativePath = generatedCName Then bundle.generatedC = TBcc2BuildManifestCodec.Resolve(bundleRoot, file.relativePath)
 	Next
-	If Not bundle.generatedC.length Then Throw "Pico compiler build bundle did not declare " + generatedCName
+	If Not bundle.generatedC.length Then Throw TBmkMessages.PicoCompilerGeneratedCMissing(generatedCName).Render()
 	bundle.incbinC = GeneratePicoIncbinSource(source, bundleRoot + "/incbin.c", moduleName, sourceUnitPath)
 
 	If interfaceOutput.length Then
@@ -715,27 +716,27 @@ Function GeneratePicoBuildBundle:TPicoBuildBundle(bcc:String, sdk:String, source
 				Continue
 			End If
 			CreateDir(ExtractDir(destination), True)
-			If Not CopyFile(TBcc2BuildManifestCodec.Resolve(bundleRoot, file.relativePath), destination) Then Throw "Unable to publish Pico compiler interface output " + destination
+			If Not CopyFile(TBcc2BuildManifestCodec.Resolve(bundleRoot, file.relativePath), destination) Then Throw TBmkMessages.PicoCompilerInterfacePublishFailed(destination).Render()
 		Next
-		If Not publishedInterface Then Throw "Pico compiler build bundle did not declare its module interface"
+		If Not publishedInterface Then Throw TBmkMessages.PicoCompilerInterfaceMissing().Render()
 	End If
 	If runtimeHeaderOutput.length Then
 		Local publishedHeader:Int
 		For Local file:TBcc2BuildFile = EachIn bundle.manifest.files
 			If file.role <> "runtime-header" Then Continue
 			CreateDir(ExtractDir(runtimeHeaderOutput), True)
-			If Not CopyFile(TBcc2BuildManifestCodec.Resolve(bundleRoot, file.relativePath), runtimeHeaderOutput) Then Throw "Unable to publish Pico compiler runtime header " + runtimeHeaderOutput
+			If Not CopyFile(TBcc2BuildManifestCodec.Resolve(bundleRoot, file.relativePath), runtimeHeaderOutput) Then Throw TBmkMessages.PicoCompilerRuntimeHeaderPublishFailed(runtimeHeaderOutput).Render()
 			publishedHeader = True
 			Exit
 		Next
-		If Not publishedHeader Then Throw "Pico compiler build bundle did not declare its runtime header"
+		If Not publishedHeader Then Throw TBmkMessages.PicoCompilerRuntimeHeaderMissing().Render()
 	End If
 	Return bundle
 End Function
 
 Function GeneratePicoIncbinSource:String(sourcePath:String, outputPath:String, moduleName:String = "", sourceUnitPath:String = "")
 	Local source:TSourceFile = ParseSourceFile(sourcePath)
-	If Not source Then Throw "Unable to read Pico Incbin source at " + sourcePath
+	If Not source Then Throw TBmkMessages.PicoIncbinSourceReadFailed(sourcePath).Render()
 	If source.incbins.IsEmpty() Then Return ""
 
 	Local unitName:String = "_bb_main"
@@ -753,7 +754,7 @@ Function GeneratePicoIncbinSource:String(sourcePath:String, outputPath:String, m
 	For Local logicalPath:String = EachIn source.incbins
 		ordinal :+ 1
 		Local resolvedPath:String = RealPath(ExtractDir(sourcePath) + "/" + logicalPath)
-		If FileType(resolvedPath) <> FILETYPE_FILE Then Throw "BMKGEN041 Incbin resource was not found: " + logicalPath
+		If FileType(resolvedPath) <> FILETYPE_FILE Then Throw TBmkMessages.IncbinResourceNotFound(logicalPath).Render()
 		Local escapedLogicalPath:String = logicalPath.Replace("\", "\\").Replace("~q", "\~q")
 		Local escapedResolvedPath:String = resolvedPath.Replace("\", "\\").Replace("~q", "\~q")
 		output :+ "// FILE : ~q" + escapedLogicalPath + "~q~t" + CalculateFileHash(resolvedPath) + "~n"
@@ -762,7 +763,7 @@ Function GeneratePicoIncbinSource:String(sourcePath:String, outputPath:String, m
 	output :+ "// ----~n" + resources
 
 	If FileType(outputPath) <> FILETYPE_FILE Or LoadText(outputPath) <> output Then
-		If Not SaveText(output, outputPath) Then Throw "BMKGEN043 unable to write Pico Incbin packaging unit: " + outputPath
+		If Not SaveText(output, outputPath) Then Throw TBmkMessages.PicoIncbinPackagingUnitWriteFailed(outputPath).Render()
 	End If
 	Return outputPath
 End Function
@@ -773,7 +774,7 @@ Function AppendPicoBundleSources(bundle:TPicoBuildBundle, sources:String[] Var, 
 	If bundle.incbinC.length Then sources :+ [bundle.incbinC]
 	For Local link:TBcc2BuildLink = EachIn bundle.manifest.links
 		Local file:TBcc2BuildFile = bundle.manifest.FileForPath(link.sourcePath)
-		If Not file Then Throw "Pico generic specialization source is absent from its build manifest: " + link.sourcePath
+		If Not file Then Throw TBmkMessages.PicoSpecializationSourceMissing(link.sourcePath).Render()
 		Local owner:TPicoGenericSpecializationOwner = TPicoGenericSpecializationOwner(specializationOwners.ValueForKey(link.specializationIdentity))
 		If owner Then
 			' The same imported canonical specialization can be discovered while
@@ -781,7 +782,7 @@ Function AppendPicoBundleSources(bundle:TPicoBuildBundle, sources:String[] Var, 
 			' that module's public object layout in an application. Consumer identity
 			' deliberately invalidates each local compiler cache key, but identical
 			' generated C still has one semantic owner and must be linked only once.
-			If owner.contentDigest <> file.contentDigest Then Throw "Conflicting Pico generic specialization owners for " + link.specializationIdentity
+			If owner.contentDigest <> file.contentDigest Then Throw TBmkMessages.PicoSpecializationOwnerConflict(link.specializationIdentity).Render()
 			Continue
 		End If
 		owner = New TPicoGenericSpecializationOwner
@@ -828,7 +829,7 @@ Function GeneratePicoNativeCMake:String(imports:TList, linkOptions:TList, buildD
 		output :+ "separate_arguments(BLITZMAX_PICO_NATIVE_LINK_OPTIONS NATIVE_COMMAND ~q${BLITZMAX_PICO_NATIVE_LINK_OPTIONS_RAW}~q)~n"
 	End If
 	If FileType(outputPath) <> FILETYPE_FILE Or LoadText(outputPath) <> output Then
-		If Not SaveText(output, outputPath) Then Throw "Unable to write generated Pico native source graph " + outputPath
+		If Not SaveText(output, outputPath) Then Throw TBmkMessages.PicoNativeGraphWriteFailed(outputPath).Render()
 	End If
 	Return outputPath
 End Function
@@ -885,19 +886,19 @@ Function GeneratePicoPIORegistry:String(imports:TList, buildDir:String, cmakeOut
 	source :+ "};~nconst uint32_t bmx_pico_imported_pio_program_count = " + programCount + "u;~n"
 
 	If FileType(registryPath) <> FILETYPE_FILE Or LoadText(registryPath) <> source Then
-		If Not SaveText(source, registryPath) Then Throw "Unable to write generated Pico PIO registry " + registryPath
+		If Not SaveText(source, registryPath) Then Throw TBmkMessages.PicoPioRegistryWriteFailed(registryPath).Render()
 	End If
 	If FileType(cmakeOutput) <> FILETYPE_FILE Or LoadText(cmakeOutput) <> cmake Then
-		If Not SaveText(cmake, cmakeOutput) Then Throw "Unable to write generated Pico PIO CMake integration " + cmakeOutput
+		If Not SaveText(cmake, cmakeOutput) Then Throw TBmkMessages.PicoPioCmakeWriteFailed(cmakeOutput).Render()
 	End If
 	Return registryPath
 End Function
 
 Function MakePicoApplication(mainSource:String, outputPath:String, compileOnly:Int)
-	If compileOnly Then Throw "The pico target currently supports makeapp, not compile"
-	If processor.CPU() <> "arm" Then Throw "The pico target currently requires the arm architecture"
-	If processor.BCCVersion() <> "bcc2" Then Throw "The pico target requires bcc2"
-	If Not opt_release And Not PicoDebugBuild() Then Throw "The pico target requires an explicit -r or -d build mode"
+	If compileOnly Then Throw TBmkMessages.PicoTargetCompileUnsupported().Render()
+	If processor.CPU() <> "arm" Then Throw TBmkMessages.PicoTargetArmRequired().Render()
+	If processor.BCCVersion() <> "bcc2" Then Throw TBmkMessages.PicoTargetBcc2Required().Render()
+	If Not opt_release And Not PicoDebugBuild() Then Throw TBmkMessages.PicoTargetBuildModeRequired().Render()
 	Local picoBoard:String = ValidatePicoBoardName(opt_target_board)
 	Local picoArenaSize:String = ParsePicoHeapSize(opt_pico_heap)
 	Local picoStorageOption:String = opt_pico_storage
@@ -909,23 +910,23 @@ Function MakePicoApplication(mainSource:String, outputPath:String, compileOnly:I
 	Local blitzModuleRoot:String = sdk + "/mod/brl.mod/blitz.mod"
 	Local bcc:String = sdk + "/bin/bcc"
 	Local cmakeTemplate:String = picoModuleRoot + "/cmake/application"
-	If FileType(picoModuleRoot) <> FILETYPE_DIR Then Throw "Pico modules were not found at " + picoModuleRoot
-	If FileType(bcc) <> FILETYPE_FILE Then Throw "Pico-enabled bcc2 was not found at " + bcc
-	If FileType(cmakeTemplate + "/CMakeLists.txt") <> FILETYPE_FILE Then Throw "Pico CMake application template was not found"
+	If FileType(picoModuleRoot) <> FILETYPE_DIR Then Throw TBmkMessages.PicoTargetModulesNotFound(picoModuleRoot).Render()
+	If FileType(bcc) <> FILETYPE_FILE Then Throw TBmkMessages.PicoTargetCompilerNotFound(bcc).Render()
+	If FileType(cmakeTemplate + "/CMakeLists.txt") <> FILETYPE_FILE Then Throw TBmkMessages.PicoTargetCmakeTemplateMissing().Render()
 
 	Local platform:String = PicoHostPlatform()
 	Local picoSdk:String = RequirePicoDirectory("the Pico SDK", "pico.sdk", "PICO_SDK_PATH", "sdk", [""])
 	Local picoSdkVersion:String = StripDir(picoSdk.Replace("\", "/"))
 	Local toolchain:String = PicoConfiguredPath("pico.toolchain", "PICO_TOOLCHAIN_PATH")
 	If toolchain.length Then
-		If FileType(toolchain + "/bin/" + PicoExecutableName("arm-none-eabi-gcc", platform)) <> FILETYPE_FILE Then Throw "The configured Pico ARM toolchain does not contain arm-none-eabi-gcc: " + toolchain
+		If FileType(toolchain + "/bin/" + PicoExecutableName("arm-none-eabi-gcc", platform)) <> FILETYPE_FILE Then Throw TBmkMessages.PicoToolchainConfiguredGccMissing(toolchain).Render()
 	Else
 		toolchain = PicoLatestManagedPath(PicoUserHome(platform), "toolchain", [""])
 		If Not toolchain.length Then
 			Local gcc:String = PicoFindExecutableOnPath("arm-none-eabi-gcc", getenv_("PATH"), platform)
 			If gcc.length Then toolchain = ExtractDir(ExtractDir(gcc))
 		End If
-		If Not toolchain.length Or FileType(toolchain + "/bin/" + PicoExecutableName("arm-none-eabi-gcc", platform)) <> FILETYPE_FILE Then Throw "Unable to locate the Pico ARM toolchain. Set #addoption pico.toolchain in custom.bmk, set PICO_TOOLCHAIN_PATH, add arm-none-eabi-gcc to PATH, or install it under the user Pico SDK directory."
+		If Not toolchain.length Or FileType(toolchain + "/bin/" + PicoExecutableName("arm-none-eabi-gcc", platform)) <> FILETYPE_FILE Then Throw TBmkMessages.PicoToolchainNotFound().Render()
 	End If
 	Local cmake:String = RequirePicoExecutable("CMake", "pico.cmake", "PICO_CMAKE", "cmake", "cmake", PicoCMakeManagedSuffixes(platform))
 	Local ninja:String = RequirePicoExecutable("Ninja", "pico.ninja", "PICO_NINJA", "ninja", "ninja", PicoNinjaManagedSuffixes(platform))
@@ -935,8 +936,9 @@ Function MakePicoApplication(mainSource:String, outputPath:String, compileOnly:I
 	Local pioasmConfigured:String = PicoConfiguredPath("pico.pioasm", "PICO_PIOASM_DIR")
 	Local pioasmExecutable:String
 	If pioasmConfigured.length Then
+		Local pioasmExecutableName:String = PicoExecutableName("pioasm", platform)
 		pioasmExecutable = PicoExecutableFromValue(pioasmConfigured, "pioasm", platform)
-		If Not pioasmExecutable.length Then Throw "The configured pioasm path does not contain " + PicoExecutableName("pioasm", platform) + ": " + pioasmConfigured
+		If Not pioasmExecutable.length Then Throw TBmkMessages.PicoPathConfiguredPioasmMissing(pioasmExecutableName, pioasmConfigured).Render()
 	Else
 		pioasmExecutable = PicoManagedOrPathExecutable("pioasm", getenv_("PATH"), platform, PicoUserHome(platform), "tools", PicoToolManagedSuffixes("pioasm", platform), picoSdkVersion)
 	End If
@@ -950,7 +952,7 @@ Function MakePicoApplication(mainSource:String, outputPath:String, compileOnly:I
 	End Select
 	Local outputDirectory:String = ExtractDir(outputBase)
 	If outputDirectory.length And FileType(outputDirectory) = FILETYPE_NONE Then
-		If Not CreateDir(outputDirectory, True) Then Throw "Unable to create Pico output directory " + outputDirectory
+		If Not CreateDir(outputDirectory, True) Then Throw TBmkMessages.PicoOutputDirectoryCreationFailed(outputDirectory).Render()
 	End If
 	Local outputName:String = StripDir(outputBase)
 	Local buildVariant:String = "release"
@@ -1023,7 +1025,7 @@ Function MakePicoApplication(mainSource:String, outputPath:String, compileOnly:I
 	Local builtBase:String = buildDir + "/" + outputName
 	For Local extension:String = EachIn ["elf", "uf2", "hex", "bin"]
 		If FileType(builtBase + "." + extension) = FILETYPE_FILE Then
-			If Not CopyFile(builtBase + "." + extension, outputBase + "." + extension) Then Throw "Unable to publish " + extension + " output"
+			If Not CopyFile(builtBase + "." + extension, outputBase + "." + extension) Then Throw TBmkMessages.PicoOutputPublishFailed(extension).Render()
 		End If
 	Next
 	If FileType(builtBase + ".elf.map") = FILETYPE_FILE Then CopyFile(builtBase + ".elf.map", outputBase + ".elf.map")

@@ -4,6 +4,7 @@ Strict
 Import "bmk_modutil.bmx"
 Import "bmk_bank.bmx"
 Import "bmk_modinfo.bmx"
+Import "bmk_messages.generated.bmx"
 
 Function Zap( path$,stream:TStream,skipNestedModules:Int=False )
 
@@ -89,7 +90,7 @@ Function ZapMod( name$,stream:TStream )
 	Local path$=moduleDirectory+"/"+ModuleIdent(name)+".release."+opt_target_platform+"."+opt_arch+".i"
 
 	If FileType(path)<>FILETYPE_FILE
-		Throw "Failed to find module interface '"+path+"'"
+		Throw TBmkMessages.ModuleArchiveInterfaceMissing(path).Render()
 	EndIf
 	
 	Local src:TSourceFile=ParseSourceFile( path )
@@ -101,7 +102,7 @@ Function ZapMod( name$,stream:TStream )
 
 	Local bank:TBank=TBank.Create(0)
 	Local bank_stream:TStream=TBankStream.Create( bank ) 
-	If Not Zap( moduleDirectory,bank_stream ) Throw "Failed to publish module"
+	If Not Zap( moduleDirectory,bank_stream ) Throw TBmkMessages.ModuleArchivePublishFailed().Render()
 	bank_stream.Close
 	
 	bank=CompressBank( bank )
@@ -116,7 +117,7 @@ Function UnzapMod( stream:TStream )
 	Local modinfo:TModInfo=TModInfo.CreateFromStream( stream )
 	
 	Local path$=ModulePath( modinfo.name )
-	If Not CreateDir( path,True ) Throw "Unable to create module directory"
+	If Not CreateDir( path,True ) Throw TBmkMessages.ModuleArchiveDirectoryCreationFailed().Render()
 	DeleteDir path,True
 	
 	Local bank:TBank=TBank.Create(0)

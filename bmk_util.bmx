@@ -2,6 +2,7 @@ SuperStrict
 
 Import "bmk_config.bmx"
 Import "bmk_ng.bmx"
+Import "bmk_messages.generated.bmx"
 Import "file_util.c"
 Import "hash.c"
 
@@ -196,11 +197,11 @@ Function CreateMergeArc( path$ , arc_path:String )
 
 	If cmd And processor.Sys(cmd)
 		DeleteFile outputPath
-		Throw "Build Error: Failed to merge archive " + path
+		Throw TBmkMessages.ArchiveMergeFailed(path).Render()
 	EndIf
 	If cmd And Not processor.PublishOutput(outputPath, path) Then
 		DeleteFile outputPath
-		Throw "Build Error: Failed to publish merged archive " + path
+		Throw TBmkMessages.ArchiveMergedPublishFailed(path).Render()
 	End If
 
 End Function
@@ -681,11 +682,11 @@ Function LinkApp( path$,lnk_files:TList,makelib:Int,opts$ )
 
 	If processor.Sys(cmd) Then
 		If atomicLink Then DeleteFile linkOutputPath
-		Throw "Build Error: Failed to link " + publishedPath
+		Throw TBmkMessages.LinkerLinkFailed(publishedPath).Render()
 	End If
 	If atomicLink And Not processor.PublishOutput(linkOutputPath, publishedPath) Then
 		DeleteFile linkOutputPath
-		Throw "Build Error: Failed to publish linked output " + publishedPath
+		Throw TBmkMessages.LinkerOutputPublishFailed(publishedPath).Render()
 	End If
 
 	If opt_standalone
@@ -705,7 +706,7 @@ Function MergeApp(file1:String, file2:String, outputFile:String)
 
 	Local cmd:String = "lipo -create ~q" + file1 + "~q ~q" + file2 + "~q -output ~q" + outputFile + "~q"
 	
-	If processor.Sys( cmd ) Throw "Merge Error: Failed to merge " + file1 + " and " + file2 + " into " + outputFile
+	If processor.Sys( cmd ) Throw TBmkMessages.ApplicationMergeFailed(file1, file2, outputFile).Render()
 	
 	DeleteFile file1
 	DeleteFile file2
@@ -729,7 +730,7 @@ Function DeployAndroidProject()
 
 		Local resourceProject:String = BlitzMaxPath() + "/resources/android/android-project"
 		If Not FileType(resourceProject) Then
-			Throw "Missing resources folder for Android build : " + resourceProject
+			Throw TBmkMessages.AndroidResourcesMissing(resourceProject).Render()
 		End If
 		
 		CopyDir(resourceProject, projectDir)
@@ -737,7 +738,7 @@ Function DeployAndroidProject()
 	
 	' check for valid dir
 	If FileType(projectDir) <> FILETYPE_DIR Then
-		Throw "Error creating project dir '" + projectDir + "'"
+		Throw TBmkMessages.AndroidProjectDirectoryCreationFailed(projectDir).Render()
 	End If
 	
 	' create assets dir if missing
@@ -752,7 +753,7 @@ Function DeployAndroidProject()
 		CreateDir(assetsDir)
 
 		If FileType(assetsDir) <> FILETYPE_DIR Then
-			Throw "Error creating assests dir '" + assetsDir + "'"
+			Throw TBmkMessages.AndroidAssetsDirectoryCreationFailed(assetsDir).Render()
 		End If
 	End If
 
@@ -763,7 +764,7 @@ Function DeployAndroidProject()
 		CreateDir(abiDir)
 
 		If FileType(abiDir) <> FILETYPE_DIR Then
-			Throw "Error creating libs dir '" + abiDir + "'"
+			Throw TBmkMessages.AndroidLibsDirectoryCreationFailed(abiDir).Render()
 		End If
 	End If
 	
@@ -773,7 +774,7 @@ Function DeployAndroidProject()
 		CreateDir(abiDir)
 
 		If FileType(abiDir) <> FILETYPE_DIR Then
-			Throw "Error creating libs abi dir '" + abiDir + "'"
+			Throw TBmkMessages.AndroidAbiDirectoryCreationFailed(abiDir).Render()
 		End If
 	End If
 	
@@ -786,7 +787,7 @@ Function DeployAndroidProject()
 		CopyFile(stlportSrc, stlportDest)
 		
 		If Not FileType(stlportDest) Then
-			Throw "Error copying libstlport_shared.so from '" + stlportSrc + "'"
+			Throw TBmkMessages.AndroidStlportCopyFailed(stlportSrc).Render()
 		End If
 	End If
 	
@@ -801,7 +802,7 @@ Function DeployAndroidProject()
 		CreateDir(packagePath, True)
 	
 		If FileType(packagePath) <> FILETYPE_DIR Then
-			Throw "Error creating package '" + packagePath + "'"
+			Throw TBmkMessages.AndroidPackageCreationFailed(packagePath).Render()
 		End If
 	End If
 	
@@ -812,7 +813,7 @@ Function DeployAndroidProject()
 		CopyFile(projectDir + "/BlitzMaxApp.java", gameClassFile)
 		
 		If Not FileType(gameClassFile) Then
-			Throw "Error creating class file '" + gameClassFile + "'"
+			Throw TBmkMessages.AndroidClassFileCreationFailed(gameClassFile).Render()
 		End If
 	End If
 	
@@ -872,7 +873,7 @@ Function GetAndroidArch:String()
 		Case "arm64v8a"
 			arch = "arm64-v8a"
 		Default
-			Throw "Not a valid architecture '" + processor.CPU() + "'"
+			Throw TBmkMessages.AndroidArchitectureInvalid(processor.CPU()).Render()
 	End Select
 	Return arch
 End Function
@@ -960,12 +961,13 @@ Function BuildNxNso()
 
 	If Not opt_quiet Print "Building:" + StripDir(StripExt(opt_outfile)) + ".nso"
 
-	Local elf2nso:String = NxToolsDir() + "/elf2nso"
+	Local toolName:String = "elf2nso"
+	Local elf2nso:String = NxToolsDir() + "/" + toolName
 ?win32
 	elf2nso :+ ".exe"
 ?
 	If Not FileType(elf2nso) Then
-		Throw "elf2nso tool not present at " + elf2nso
+		Throw TBmkMessages.NxToolMissing(toolName, elf2nso).Render()
 	End If
 
 	Local app:String = StripExt(opt_outfile)
@@ -980,12 +982,13 @@ Function BuildNxNacp()
 
 	If Not opt_quiet Print "Building:" + StripDir(StripExt(opt_outfile)) + ".nacp"
 
-	Local nacptool:String = NxToolsDir() + "/nacptool"
+	Local toolName:String = "nacptool"
+	Local nacptool:String = NxToolsDir() + "/" + toolName
 ?win32
 	nacptool :+ ".exe"
 ?
 	If Not FileType(nacptool) Then
-		Throw "nacptool tool not present at " + nacptool
+		Throw TBmkMessages.NxToolMissing(toolName, nacptool).Render()
 	End If
 
 	Local app:String = StripExt(opt_outfile)
@@ -1018,13 +1021,14 @@ Function BuildNxNro()
 
 	If Not opt_quiet Print "Building:" + StripDir(StripExt(opt_outfile)) + ".nro"
 
-	Local elf2nro:String = NxToolsDir() + "/elf2nro"
+	Local toolName:String = "elf2nro"
+	Local elf2nro:String = NxToolsDir() + "/" + toolName
 ?win32
 	elf2nro :+ ".exe"
 ?
 
 	If Not FileType(elf2nro) Then
-		Throw "elf2nro tool not present at " + elf2nro
+		Throw TBmkMessages.NxToolMissing(toolName, elf2nro).Render()
 	End If
 
 	' get icon
@@ -1037,7 +1041,7 @@ Function BuildNxNro()
 	If Not icon Then
 		icon = processor.Option("nx.devkitpro", "") + "/libnx/default_icon.jpg"
 		If Not FileType(icon) Then
-			Throw "Default icon not found at " + icon
+			Throw TBmkMessages.NxDefaultIconMissing(icon).Render()
 		End If
 	End If
 	
@@ -1109,7 +1113,7 @@ Function ReplaceBlock:String( Text:String,tag:String,repText:String,mark:String=
 	'find begin tag
 	Local beginTag:String = mark+"${start."+tag+"}"
 	Local i:Int = Text.Find( beginTag )
-	If i=-1 Throw "Error updating target project - can't find block begin tag '"+tag+"'."
+	If i=-1 Throw TBmkMessages.TargetProjectBlockBeginMissing(tag).Render()
 	i :+ beginTag.Length
 	While i < Text.Length And Text[i-1]<>10
 		i :+ 1
@@ -1118,7 +1122,7 @@ Function ReplaceBlock:String( Text:String,tag:String,repText:String,mark:String=
 	'find end tag
 	Local endTag:String = mark+"${end."+tag+"}"
 	Local i2:Int = Text.Find( endTag,i-1 )
-	If i2=-1 Throw "Error updating target project - can't find block end tag '"+tag+"'."
+	If i2=-1 Throw TBmkMessages.TargetProjectBlockEndMissing(tag).Render()
 	If Not repText Or repText[repText.Length-1]=10 Then
 		i2 :+ 1
 	End If
@@ -1159,7 +1163,7 @@ Function PackageIOSApp( path$, lnk_files:TList, opts$ )
 	Local templatePath:String = BlitzMaxPath() + "/resources/ios/template"
 	
 	If Not FileType(templatePath) Then
-		Throw "iOS template dir is missing. Expecting it at '" + templatePath + "'"
+		Throw TBmkMessages.IosTemplateDirectoryMissing(templatePath).Render()
 	End If
 	
 	Local appId:String = StripDir(StripExt(opt_outfile))
@@ -1829,11 +1833,11 @@ Type TBootstrapConfig
 
 			Local maxBase:String = BlitzMaxPath() + "/" + basePath
 			
-			If Not FileType(maxBase) Throw "Expected dir missing : " + basePath
-			If FileType(maxBase) <> FILETYPE_DIR Throw "Not a dir : " + basePath
+			If Not FileType(maxBase) Throw TBmkMessages.BootstrapAssetDirectoryMissing(basePath).Render()
+			If FileType(maxBase) <> FILETYPE_DIR Throw TBmkMessages.BootstrapAssetNotDirectory(basePath).Render()
 			
 			Local destBase:String = dest + "/" + basePath
-			If Not CreateDir(destBase, True) Throw "Error creating " + basePath
+			If Not CreateDir(destBase, True) Throw TBmkMessages.BootstrapAssetDestinationCreationFailed(basePath).Render()
 			
 			For Local part:String = EachIn asset.parts
 				
@@ -1855,10 +1859,10 @@ Type TBootstrapConfig
 	End Method
 	
 	Method DirCopy(src:String, dest:String)
-		If Not FileType(src) Throw "Source dir not found : " + src
-		If Not CreateDir(dest, True) Throw "Unable to create " + dest
+		If Not FileType(src) Throw TBmkMessages.BootstrapSourceDirectoryMissing(src).Render()
+		If Not CreateDir(dest, True) Throw TBmkMessages.BootstrapDirectoryCreationFailed(dest).Render()
 		
-		If Not CreateDir(dest + "/.bmx") Throw "Unable to create " + dest + "/.bmx"
+		If Not CreateDir(dest + "/.bmx") Throw TBmkMessages.BootstrapDirectoryCreationFailed(dest + "/.bmx").Render()
 	
 		For Local file:String = EachIn LoadDir( src )
 			If file.EndsWith(".bmx") Then
@@ -1882,7 +1886,7 @@ Type TBootstrapConfig
 	
 	Method FileCopy(src:String, dest:String, suffix:String)
 		
-		If Not CreateDir(dest + "/.bmx") Throw "Unable to create " + dest + "/.bmx"
+		If Not CreateDir(dest + "/.bmx") Throw TBmkMessages.BootstrapDirectoryCreationFailed(dest + "/.bmx").Render()
 	
 		For Local file:String = EachIn LoadDir( src )
 			If Not file.EndsWith(suffix) Then
@@ -1909,7 +1913,7 @@ Type TBootstrapConfig
 			
 			CreateDir(ExtractDir(destPath), True)
 			
-			If Not FileType(srcPath) Throw "Not found : " + srcPath
+			If Not FileType(srcPath) Throw TBmkMessages.BootstrapSourceMissing(srcPath).Render()
 			
 			CopyFile(srcPath, destPath)
 		Next
@@ -1926,8 +1930,8 @@ Type TBootstrapConfig
 		Local ldSrcPath:String = src + ld
 		Local buildSrcPath:String = src + build
 		
-		If Not FileType(ldSrcPath) Throw "ld script missing : " + ldSrcPath
-		If Not FileType(buildSrcPath) Throw "build script missing : " + buildSrcPath
+		If Not FileType(ldSrcPath) Throw TBmkMessages.BootstrapLinkerScriptMissing(ldSrcPath).Render()
+		If Not FileType(buildSrcPath) Throw TBmkMessages.BootstrapBuildScriptMissing(buildSrcPath).Render()
 		
 		CopyFile(ldSrcPath, dest + ld)
 		CopyFile(buildSrcPath, dest + build)
@@ -1950,7 +1954,7 @@ Function LoadBootstrapConfig:TBootstrapConfig()
 	Const config:String = "bin/bootstrap2.cfg"
 	Local file:String = BlitzMaxPath() + "/" + config
 	If Not FileType(file) Then
-		Throw config + " not found; bmk2 requires its own bootstrap configuration"
+		Throw TBmkMessages.BootstrapConfigurationMissing(config).Render()
 	End If
 	
 	Local cfg:String = LoadText(file).Trim()
@@ -1996,7 +2000,7 @@ Function LoadBootstrapConfig:TBootstrapConfig()
 		
 		Return boot
 	Else
-		Throw "Could not load " + config
+		Throw TBmkMessages.BootstrapConfigurationLoadFailed(config).Render()
 	End If
 End Function
 

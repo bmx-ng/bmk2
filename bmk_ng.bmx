@@ -18,6 +18,7 @@ Import "waitpid.c"
 Import "bmk_config.bmx"
 Import "bmk_ng_utils.bmx"
 Import "bmk_progress.bmx"
+Import "bmk_messages.generated.bmx"
 Import "file_util.c"
 
 Extern
@@ -108,7 +109,7 @@ Type TBMK
 						End If
 					Else
 						If required Then
-							Throw "Could not load required config '" + path + "'"
+							Throw TBmkMessages.ConfigRequiredLoadFailed(path).Render()
 						End If
 						Return
 					End If
@@ -131,7 +132,7 @@ Type TBMK
 						End If
 					Else
 						If required Then
-							Throw "Could not load required config '" + path + "'"
+							Throw TBmkMessages.ConfigRequiredLoadFailed(path).Render()
 						End If
 						Return
 					End If
@@ -141,7 +142,7 @@ Type TBMK
 				' fail silently...
 				' unless the file was required!
 				If required Then
-					Throw "Could not load required config '" + path + "'"
+					Throw TBmkMessages.ConfigRequiredLoadFailed(path).Render()
 				End If
 				Return
 			End Try
@@ -612,7 +613,7 @@ Type TBMK
 		End If
 		
 		If Not process Then
-			Throw "Cannot find a valid GCC compiler. Please check your paths and environment."
+			Throw TBmkMessages.ToolchainGccProcessNotFound().Render()
 		End If
 		
 		While process.Status() Or Not process.pipe.Eof() Or Not process.err.Eof()
@@ -784,7 +785,7 @@ Type TBMK
 		Local s:String
 		
 		If Not process Then
-			Throw "Cannot find xcodebuild. Please check your paths and environment."
+			Throw TBmkMessages.ToolchainXcodebuildNotFound().Render()
 		End If
 		
 		While True
@@ -962,7 +963,7 @@ Type TBMK
 				End If
 				
 				If FileType(path) = 0 Then
-					Throw "Could not determine MinGWDLLCrtPath : Expecting '" + path + "'"
+					Throw TBmkMessages.MingwDllCrtPathMissing(path).Render()
 				End If
 				
 				_minGWDLLCrtPath = path
@@ -970,7 +971,7 @@ Type TBMK
 				path :+ "lib"
 
 				If FileType(path) = 0 Then
-					Throw "Could not determine MinGWDLLCrtPath : Expecting '" + path + "'"
+					Throw TBmkMessages.MingwDllCrtPathMissing(path).Render()
 				End If
 				
 				_minGWDLLCrtPath = path
@@ -996,7 +997,7 @@ Type TBMK
 				End If
 				
 				If FileType(path) = 0 Then
-					Throw "Could not determine MinGWCrtPath: Expecting '" + path + "'"
+					Throw TBmkMessages.MingwCrtPathMissing(path).Render()
 				End If
 				
 				_minGWCrtPath = path
@@ -1010,7 +1011,7 @@ Type TBMK
 				End If
 
 				If FileType(path) = 0 Then
-					Throw "Could not determine MinGWCrtPath: Expecting '" + p + "' or '" + path + "'"
+					Throw TBmkMessages.MingwCrtPathsMissing(p, path).Render()
 				End If
 				
 				_minGWCrtPath = path
@@ -1745,7 +1746,7 @@ Type TProcessTaskImpl Extends TProcessTask
 		End If
 
 		If publish And Not processor.PublishOutput(obj, publish) Then
-			Throw "Build Error: failed to publish " + publish
+			Throw TBmkMessages.BuildOutputPublishFailed(publish).Render()
 		End If
 		
 		If source.EndsWith(".bmx") Then

@@ -4,6 +4,7 @@ Import BRL.Base64
 Import BRL.StringBuilder
 Import Pub.FreeProcess
 Import "bmk_bcc2_protocol.bmx"
+Import "bmk_messages.generated.bmx"
 
 Const BMK_BCC2_ENGINE_PROTOCOL_VERSION:Int = 2
 
@@ -21,18 +22,18 @@ Type TBcc2EngineClient
 		If process Then Return
 		executable = path
 		process = CreateProcess(QuoteExecutable(path) + " --engine", HIDECONSOLE)
-		If Not process Then Throw "BMKGEN043 unable to start bcc engine: " + path
+		If Not process Then Throw TBmkMessages.Bcc2EngineStartFailed(path).Render()
 		Local handshake:String = ReadProtocolLine()
 		Local expected:String = "bcc2-engine " + BMK_BCC2_ENGINE_PROTOCOL_VERSION
 		If handshake <> expected Then
 			Local detail:String = ReadErrors()
 			Stop()
-			Throw "BMKGEN044 incompatible bcc engine handshake: expected '" + expected + "', received '" + handshake + "'" + detail
+			Throw TBmkMessages.Bcc2EngineHandshakeIncompatible(expected, handshake, detail).Render()
 		End If
 	End Method
 
 	Method Compile:TBcc2EngineResponse(arguments:String[])
-		If Not process Then Throw "BMKGEN045 bcc engine is not running"
+		If Not process Then Throw TBmkMessages.Bcc2EngineNotRunning().Render()
 		Local requestId:String = String(nextRequestId)
 		nextRequestId :+ 1
 		Local request:TStringBuilder = New TStringBuilder(128)
@@ -45,22 +46,22 @@ Type TBcc2EngineClient
 
 		Local header:String[] = ReadProtocolLine().Split(" ")
 		If header.length <> 4 Or header[0] <> "result" Or header[1] <> requestId Then
-			Throw "BMKGEN046 malformed bcc2 engine result header"
+			Throw TBmkMessages.Bcc2EngineResultHeaderMalformed().Render()
 		End If
 		Local expectedLength:Int = Int(header[3])
-		If expectedLength < 0 Then Throw "BMKGEN046 malformed bcc2 engine result length"
+		If expectedLength < 0 Then Throw TBmkMessages.Bcc2EngineResultLengthMalformed().Render()
 		Local encoded:TStringBuilder = New TStringBuilder(128)
 		While True
 			Local line:String = ReadProtocolLine()
 			Local parts:String[] = line.Split(" ")
 			If parts.length = 2 And parts[0] = "end" And parts[1] = requestId Then Exit
 			If parts.length <> 3 Or parts[0] <> "data" Or parts[1] <> requestId Then
-				Throw "BMKGEN046 malformed bcc2 engine result body"
+				Throw TBmkMessages.Bcc2EngineResultBodyMalformed().Render()
 			End If
 			encoded.Append(parts[2])
 		Wend
 		Local encodedValue:String = encoded.ToString()
-		If encodedValue.length <> expectedLength Then Throw "BMKGEN046 incomplete bcc2 engine result body"
+		If encodedValue.length <> expectedLength Then Throw TBmkMessages.Bcc2EngineResultBodyIncomplete().Render()
 		Local response:TBcc2EngineResponse = New TBcc2EngineResponse
 		response.exitCode = Int(header[2])
 		If encodedValue.length Then
@@ -71,7 +72,7 @@ Type TBcc2EngineClient
 	End Method
 
 	Method Invalidate(paths:String[])
-		If Not process Then Throw "BMKGEN045 bcc2 engine is not running"
+		If Not process Then Throw TBmkMessages.Bcc2EngineCacheInvalidationNotRunning().Render()
 		If Not paths.length Then Return
 		Local requestId:String = String(nextRequestId)
 		nextRequestId :+ 1
@@ -84,7 +85,7 @@ Type TBcc2EngineClient
 		process.pipe.Flush()
 		Local response:String[] = ReadProtocolLine().Split(" ")
 		If response.length <> 3 Or response[0] <> "invalidated" Or response[1] <> requestId Or response[2] <> "1" Then
-			Throw "BMKGEN048 bcc2 engine rejected cache invalidation"
+			Throw TBmkMessages.Bcc2EngineCacheInvalidationRejected().Render()
 		End If
 	End Method
 
@@ -120,7 +121,7 @@ Type TBcc2EngineClient
 			If finalLine.length Then Return finalLine
 		End If
 		Local detail:String = ReadErrors()
-		Throw "BMKGEN047 bcc engine exited unexpectedly" + detail
+		Throw TBmkMessages.Bcc2EngineExitedUnexpectedly(detail).Render()
 	End Method
 
 	Method ReadErrors:String()

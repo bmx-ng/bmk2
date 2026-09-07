@@ -2,6 +2,8 @@ Strict
 
 Framework brl.filesystem
 
+Import BlitzMax.Locale
+Import "bmk_messages.generated.bmx"
 Import "bmk_make.bmx"
 Import "bmk_pico.bmx"
 Import "bmk_zap.bmx"
@@ -11,15 +13,22 @@ Import BRL.RamStream
 Incbin "macos.icns"
 ?
 
-If AppArgs.length<2 CmdError "Not enough parameters", True
+TLocale.ConfigureToolchain(["bmk"])
+
+If AppArgs.length<2 CmdError TBmkMessages.CommandNotEnoughParameters().Render(), True
 
 Local cmd$=AppArgs[1],args$[]
 Local startupStartMillis:Int = MilliSecs()
 
 args=ParseConfigArgs( AppArgs[2..], processor.BCCVersion() = "BlitzMax" )
 
+If opt_locale.length Then
+	putenv_ "BMX_LOCALE=" + opt_locale
+	TLocale.ConfigureToolchain(["bmk"], opt_locale)
+End If
+
 If opt_clean And cmd.ToLower() <> "makeapp" Then
-	CmdError "The -clean option is available only for makeapp"
+	CmdError TBmkMessages.CommandCleanOnlyMakeapp().Render()
 End If
 
 ' validate the platform configuration
@@ -43,16 +52,16 @@ CreateDir BlitzMaxPath()+"/tmp"
 Select cmd.ToLower()
 Case "makeapp"
 	If opt_universal And processor.Platform() = "macos" And Float(processor.XCodeVersion()) < 12 Then
-		Throw "XCode 12+ required for universal macOS build"
+		Throw TBmkMessages.TargetUniversalMacosRequiresXcode12().Render()
 	End If
 
 	SetConfigMung
 	MakeApplication args,False
 Case "makelib"
-	CmdError "makelib is not yet supported by canonical-only bcc2"
+	CmdError TBmkMessages.CommandMakelibUnsupportedByBcc2().Render()
 Case "makemods"
 	If opt_universal And processor.Platform() = "macos" And Float(processor.XCodeVersion()) < 12 Then
-		Throw "XCode 12+ required for universal macOS build"
+		Throw TBmkMessages.TargetUniversalMacosRequiresXcode12().Render()
 	End If
 
 	opt_quickscan = False
@@ -127,7 +136,7 @@ Case "ranlibdir"
 Case "-v"
 	VersionInfo(processor.GCCVersion(), GetCoreCount(), processor.XCodeVersion())
 Default
-	CmdError "Unknown operation '" + cmd.ToLower() + "'"
+	CmdError TBmkMessages.CommandUnknownOperation(cmd.ToLower()).Render()
 End Select
 
 Function SetConfigMung()
@@ -167,9 +176,9 @@ End Function
 
 Function MakeModules( args$[] )
 
-	If opt_standalone CmdError "Standalone build not available for makemods"
+	If opt_standalone CmdError TBmkMessages.CommandStandaloneMakemodsUnavailable().Render()
 
-	If args.length>1 CmdError "Expecting only 1 argument for makemods"
+	If args.length>1 CmdError TBmkMessages.CommandMakemodsTooManyArguments().Render()
 
 	Local mods:TList
 
@@ -200,7 +209,7 @@ End Function
 
 Function CleanModules( args$[] )
 
-	If args.length>1 CmdError "Expecting only 1 argument for cleanmods"
+	If args.length>1 CmdError TBmkMessages.CommandCleanmodsTooManyArguments().Render()
 
 	If args.length SetModfilter args[0] Else opt_modfilter=""
 
@@ -376,13 +385,13 @@ Function MakeApplication( args$[],makelib:Int,compileOnly:Int = False )
 	Local projectSetupStartMillis:Int = MilliSecs()
 
 	If opt_execute And Not compileOnly
-		If Len(args)=0 CmdError "Execute requires at least 1 argument"
+		If Len(args)=0 CmdError TBmkMessages.CommandExecuteRequiresArgument().Render()
 	Else
 		If Len(args)<>1 Then
 			If compileOnly Then
-				CmdError "Expecting only 1 argument for compile"
+				CmdError TBmkMessages.CommandCompileArgumentCount().Render()
 			Else
-				CmdError "Expecting only 1 argument for makeapp"
+				CmdError TBmkMessages.CommandMakeappArgumentCount().Render()
 			End If
 		End If
 	EndIf
@@ -394,10 +403,10 @@ Function MakeApplication( args$[],makelib:Int,compileOnly:Int = False )
 		Main:+".bmx"
 	Case "c","cpp","cxx","mm","bmx"
 	Default
-		Throw "Unrecognized app source file type:"+ExtractExt(Main)
+		Throw TBmkMessages.ApplicationSourceTypeUnrecognized(ExtractExt(Main)).Render()
 	End Select
 
-	If FileType(Main)<>FILETYPE_FILE Throw "Unable to open source file '"+Main+"'"
+	If FileType(Main)<>FILETYPE_FILE Throw TBmkMessages.ApplicationSourceFileOpenFailed(Main).Render()
 	
 	opt_infile = Main
 
@@ -411,8 +420,8 @@ Function MakeApplication( args$[],makelib:Int,compileOnly:Int = False )
 		MakePicoApplication(Main, opt_outfile, compileOnly)
 		Return
 	End If
-	If opt_pico_heap_set Then CmdError "-heap is currently supported only by the pico target"
-	If opt_pico_storage_set Then CmdError "-storage is currently supported only by the pico target"
+	If opt_pico_heap_set Then CmdError TBmkMessages.OptionHeapRequiresPico().Render()
+	If opt_pico_storage_set Then CmdError TBmkMessages.OptionStorageRequiresPico().Render()
 
 	If opt_universal And processor.Platform() = "macos" Then
 		opt_outfile :+ "." + processor.CPU()
@@ -452,10 +461,10 @@ Function MakeApplication( args$[],makelib:Int,compileOnly:Int = False )
 		Case FILETYPE_NONE
 			CreateDir d,True
 			If FileType( d )<>FILETYPE_DIR
-				Throw "Unable to create application directory"
+				Throw TBmkMessages.ApplicationDirectoryCreationFailed().Render()
 			EndIf
 		Case FILETYPE_FILE
-			Throw "Unable to create application directory"
+			Throw TBmkMessages.ApplicationDirectoryCreationFailed().Render()
 		Case FILETYPE_DIR
 		End Select
 
@@ -464,10 +473,10 @@ Function MakeApplication( args$[],makelib:Int,compileOnly:Int = False )
 		Case FILETYPE_NONE
 			CreateDir d
 			If FileType( d )<>FILETYPE_DIR
-				Throw "Unable to create resources directory"
+				Throw TBmkMessages.ApplicationResourcesDirectoryCreationFailed().Render()
 			EndIf
 		Case FILETYPE_FILE
-			Throw "Unable to create resources directory"
+			Throw TBmkMessages.ApplicationResourcesDirectoryCreationFailed().Render()
 		Case FILETYPE_DIR
 		End Select
 
@@ -477,10 +486,10 @@ Function MakeApplication( args$[],makelib:Int,compileOnly:Int = False )
 			Case FILETYPE_NONE
 				CreateDir d, True
 				If FileType(d) <> FILETYPE_DIR Then
-					Throw "Unable to create output directory : " + d
+					Throw TBmkMessages.ApplicationOutputDirectoryCreationFailed(d).Render()
 				End If
 			Case FILETYPE_FILE
-				Throw "Invalid output directory : " + d
+				Throw TBmkMessages.ApplicationOutputDirectoryInvalid(d).Render()
 		End Select
 	End If
 
@@ -523,7 +532,7 @@ Function MakeApplication( args$[],makelib:Int,compileOnly:Int = False )
 			Local t:TStream
 
 			t=WriteStream( exeDir+"/Contents/Info.plist" )
-			If Not t Throw "Unable to create Info.plist"
+			If Not t Throw TBmkMessages.ApplicationInfoPlistCreationFailed().Render()
 			t.WriteLine "<?xml version=~q1.0~q encoding=~qUTF-8~q?>"
 			t.WriteLine "<!DOCTYPE plist PUBLIC ~q-//Apple Computer//DTD PLIST 1.0//EN~q ~qhttp://www.apple.com/DTDs/PropertyList-1.0.dtd~q>"
 			t.WriteLine "<plist version=~q1.0~q>"
@@ -560,7 +569,7 @@ Function MakeApplication( args$[],makelib:Int,compileOnly:Int = False )
 			t.Close
 
 			t=WriteStream( exeDir+"/Contents/Resources/"+appId+".icns" )
-			If Not t Throw "Unable to create icons"
+			If Not t Throw TBmkMessages.ApplicationIconsCreationFailed().Render()
 			Local in:TStream=ReadStream( "incbin::macos.icns" )
 			CopyStream in,t
 			in.Close
@@ -763,13 +772,13 @@ Function MakeApplication( args$[],makelib:Int,compileOnly:Int = False )
 End Function
 
 Function ZapModule( args$[] )
-	If Len(args)<>2 CmdError "Both module name and outfile required"
+	If Len(args)<>2 CmdError TBmkMessages.CommandModuleNameAndOutputRequired().Render()
 
 	Local modname$=args[0].ToLower()
 	Local outfile$=RealPath( args[1] )
 
 	Local stream:TStream=WriteStream( outfile )
-	If Not stream Throw "Unable to open output file"
+	If Not stream Throw TBmkMessages.ArchiveOutputFileOpenFailed().Render()
 
 	ZapMod modname,stream
 
@@ -777,12 +786,12 @@ Function ZapModule( args$[] )
 End Function
 
 Function UnzapModule( args$[] )
-	If Len(args)<>1 CmdError "Expecting 1 argument for unzapmod"
+	If Len(args)<>1 CmdError TBmkMessages.CommandUnzapmodArgumentCount().Render()
 
 	Local infile$=args[0]
 
 	Local stream:TStream=ReadStream( infile )
-	If Not stream Throw "Unable to open input file"
+	If Not stream Throw TBmkMessages.ArchiveInputFileOpenFailed().Render()
 
 	UnzapMod stream
 
@@ -790,7 +799,7 @@ Function UnzapModule( args$[] )
 End Function
 
 Function RanlibDir( args$[] )
-	If args.length<>1 CmdError "Expecting 1 argument for ranlibdir"
+	If args.length<>1 CmdError TBmkMessages.CommandRanlibdirArgumentCount().Render()
 
 	Ranlib args[0]
 
@@ -813,13 +822,13 @@ Function MakeBootstrap()
 	' A bootstrap is a complete generated source snapshot. Keeping files from a
 	' previous invocation can make removed sources appear to remain supported.
 	If FileType(bootstrapPath) <> FILETYPE_NONE Then
-		If Not DeleteDir(bootstrapPath, True) Throw "Error clearing bootstrap folder"
+		If Not DeleteDir(bootstrapPath, True) Throw TBmkMessages.BootstrapFolderClearFailed().Render()
 	End If
-	If Not CreateDir(bootstrapPath, True) Throw "Error creating bootstrap folder"
+	If Not CreateDir(bootstrapPath, True) Throw TBmkMessages.BootstrapFolderCreationFailed().Render()
 
-	If Not CreateDir(bootstrapPath + "/bin") Throw "Error creating boostrap/bin folder"
-	If Not CreateDir(bootstrapPath + "/mod") Throw "Error creating boostrap/mod folder"
-	If Not CreateDir(bootstrapPath + "/src") Throw "Error creating boostrap/src folder"
+	If Not CreateDir(bootstrapPath + "/bin") Throw TBmkMessages.BootstrapSubdirectoryCreationFailed("bin").Render()
+	If Not CreateDir(bootstrapPath + "/mod") Throw TBmkMessages.BootstrapSubdirectoryCreationFailed("mod").Render()
+	If Not CreateDir(bootstrapPath + "/src") Throw TBmkMessages.BootstrapSubdirectoryCreationFailed("src").Render()
 
 	config.CopyAssets(bootstrapPath)
 
@@ -867,5 +876,5 @@ Function BootstrapApplicationSource:String(appName:String)
 	If FileType(directPath) = FILETYPE_FILE Then Return directPath
 	Local compilerPath:String = sourceRoot + "/compiler/" + appName + ".bmx"
 	If FileType(compilerPath) = FILETYPE_FILE Then Return compilerPath
-	Throw "App not found : " + appName
+	Throw TBmkMessages.ApplicationNamedAppNotFound(appName).Render()
 End Function
