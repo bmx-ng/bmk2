@@ -51,6 +51,7 @@ Strict
 ' LoopSound(sound), ChannelPitch(channel,hz),PlayCDTrack( track,mode=0 )
 
 Import brl.retro
+Import "bmk_messages.generated.bmx"
 
 Const TAB$=Chr(9)
 
@@ -72,7 +73,7 @@ End Function
 
 Function ConvertBB(args$[])
 	Local srcfile$,destfile$
-	If Len args<1 Throw "convertbb option requires a filename"
+	If Len args<1 Throw TBmkMessages.ConversionFilenameRequired().Render()
 	srcfile$=args[0]
 	If Len args>1 destfile=args[1]
 	bb2bmx srcfile,destfile
@@ -96,7 +97,7 @@ Function bb2bmx(srcfile$,destfile$)
 	currdir=CurrentDir()
 		
 	src=ReadTextFile(srcfile)
-	If Not src Throw "bb2bmx failed to open "+srcfile
+	If Not src Throw TBmkMessages.ConversionSourceOpenFailed(srcfile).Render()
 
 	If Not destfile	destfile$=Replace$(srcfile,".bb",".bmx")
 	ChangeDir ExtractDir(srcfile)
@@ -125,7 +126,7 @@ Function bb2bmx(srcfile$,destfile$)
 
 			complete.AddLast srcfile			
 			isrc=ReadTextFile(srcfile)
-			If Not isrc Throw "bb2bmx failed to open included file "+srcfile
+			If Not isrc Throw TBmkMessages.ConversionIncludedSourceOpenFailed(srcfile).Render()
 			ChangeDir ExtractDir(srcfile)
 
 			idest=New TList

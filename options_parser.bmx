@@ -2,6 +2,7 @@ SuperStrict
 
 Import brl.map
 Import BRL.StringBuilder
+Import "bmk_messages.generated.bmx"
 
 Global compilerOptions:TValues
 
@@ -98,14 +99,14 @@ Type TOptParser
 				NextToke
 				expr = Parse()
 				If token.tokType <> TOK_RPAREN Then
-					Throw "Expected ')'"
+					Throw TBmkMessages.OptionsExpressionClosingParenthesisExpected().Render()
 				End If
 			Case TOK_IDENT
 				Local value:Int = values.Value(token.value)
 				expr = New TIdentExpr.Create(token.value, value)
 				NextToke
 			Case TOK_RPAREN
-				Throw "Unexpected ')'"
+				Throw TBmkMessages.OptionsExpressionClosingParenthesisUnexpected().Render()
 		End Select
 		
 		Return expr
@@ -159,7 +160,7 @@ Type TOptTokenizer
 			Else If IsAlphaNumeric(char) Then
 				Return NextIdentToken(char)
 			Else If Not IsWhitespace(char) Then
-				Throw "Unexpected character : " + Chr(char)
+				Throw TBmkMessages.OptionsExpressionCharacterUnexpected(Chr(char)).Render()
 			End If			
 		Wend
 	End Method
@@ -223,7 +224,7 @@ Type TNotExpr Extends TExpr
 	
 	Method Eval:Int()
 		If Not expr Then
-			Throw "Missing expression"
+			Throw TBmkMessages.OptionsExpressionMissing().Render()
 		End If
 		Return Not expr.Eval()
 	End Method
@@ -244,7 +245,7 @@ Type TBinaryExpr Extends TExpr
 	
 	Method Eval:Int()
 		If Not lhs Or Not rhs Then
-			Throw "Missing expression"
+			Throw TBmkMessages.OptionsExpressionMissing().Render()
 		End If
 		Select op
 			Case TOK_OR
@@ -260,7 +261,7 @@ Type TBinaryCompareExpr Extends TBinaryExpr
 	
 	Method Eval:Int()
 		If Not lhs Or Not rhs Then
-			Throw "Missing expression"
+			Throw TBmkMessages.OptionsExpressionMissing().Render()
 		End If
 		Select op
 			Case TOK_LT

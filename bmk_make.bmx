@@ -1,6 +1,7 @@
 
 SuperStrict
 
+Import "bmk_messages.generated.bmx"
 Import "bmk_modutil.bmx"
 Import "bmk_bcc2_options.bmx"
 Import "bmk_bcc2_engine.bmx"
@@ -36,7 +37,7 @@ Type TBcc2ValidationLane
 		Local lane:TBcc2ValidationLane = TBcc2ValidationLane(data)
 		For Local file:TBcc2ValidationFile = EachIn lane.files
 			Try
-				If Not file.exists Then Throw "BMKGEN020 declared compiler output is missing: " + file.path
+				If Not file.exists Then Throw TBmkMessages.CompilerDeclaredOutputMissing(file.path).Render()
 				file.digest = TBcc2BuildManifestCodec.FileDigest(file.path)
 			Catch exception:Object
 				file.failure = exception
@@ -83,7 +84,7 @@ Type TBcc2CleanupLane
 		For Local work:TBcc2CompileWork = EachIn lane.works
 			Try
 				If FileType(work.cleanupPath) = FILETYPE_DIR And Not DeleteDir(work.cleanupPath, True) Then
-					Throw "BMKGEN054 unable to remove compiler staging directory: " + work.cleanupPath
+					Throw TBmkMessages.CompilerStagingCleanupFailed(work.cleanupPath).Render()
 				End If
 			Catch exception:Object
 				work.cleanupFailure = exception
@@ -177,7 +178,7 @@ Function ConfigureAndroidPaths()
 	Else If FileType(toolchainDir + "-x86") = FILETYPE_DIR Then
 		toolchainDir :+ "-x86"
 	Else If FileType(toolchainDir) <> FILETYPE_DIR Then
-		Throw "Cannot determine toolchain dir for '" + native + "', at '" + toolchainDir + "'"
+		Throw TBmkMessages.ToolchainDirectoryNotFound(native, toolchainDir).Render()
 	End If
 
 	Local exe:String	
@@ -192,15 +193,15 @@ Function ConfigureAndroidPaths()
 
 	' check paths
 	If Not FileType(RealPath(gccPath)) Then
-		Throw "gcc not found at '" + gccPath + "'"
+		Throw TBmkMessages.ToolchainGccNotFound(gccPath).Render()
 	End If
 
 	If Not FileType(RealPath(gppPath)) Then
-		Throw "g++ not found at '" + gppPath + "'"
+		Throw TBmkMessages.ToolchainGppNotFound(gppPath).Render()
 	End If
 
 	If Not FileType(RealPath(gccPath)) Then
-		Throw "ar not found at '" + arPath + "'"
+		Throw TBmkMessages.ToolchainArchiverNotFound(arPath).Render()
 	End If
 	
 	globals.SetVar("android." + processor.CPU() + ".gcc", gccPath)
@@ -213,7 +214,7 @@ Function ConfigureAndroidPaths()
 			processor.Option("android.platform", "") + "/" + arch
 
 	If Not FileType(platformDir) Then
-		Throw "Cannot determine platform dir for '" + arch + "' at '" + platformDir + "'"
+		Throw TBmkMessages.ToolchainPlatformDirectoryNotFound(arch, platformDir).Render()
 	End If
 	
 	' platform sysroot
@@ -229,9 +230,9 @@ Function ConfigureAndroidPaths()
 	If Not target Or Not FileType(processor.Option("android.sdk", "") + "/platforms/android-" + target) Then
 		Local sdkPath:String = processor.Option("android.sdk.target", "")
 		If sdkPath Then
-			Throw "Cannot determine SDK target for '" + sdkPath + "'"
+			Throw TBmkMessages.AndroidSdkTargetNotDetermined(sdkPath).Render()
 		Else
-			Throw "Cannot determine SDK target dir. ANDROID_SDK_TARGET or android.sdk.target option is not set, and auto-lookup failed."
+			Throw TBmkMessages.AndroidSdkTargetDirectoryNotDetermined().Render()
 		End If
 	End If
 
@@ -243,7 +244,7 @@ Function CheckAndroidPaths()
 	' check envs and paths
 	Local androidHome:String = processor.Option("android.home", getenv_("ANDROID_HOME")).Trim()
 	If Not androidHome Then
-		Throw "ANDROID_HOME or 'android.home' config option not set"
+		Throw TBmkMessages.AndroidHomeNotSet().Render()
 	End If
 		
 	putenv_("ANDROID_HOME=" + androidHome)
@@ -251,7 +252,7 @@ Function CheckAndroidPaths()
 	
 	Local androidSDK:String = processor.Option("android.sdk", getenv_("ANDROID_SDK")).Trim()
 	If Not androidSDK Then
-		Throw "ANDROID_SDK or 'android.sdk' config option not set"
+		Throw TBmkMessages.AndroidSdkNotSet().Render()
 	End If
 		
 	putenv_("ANDROID_SDK=" + androidSDK)
@@ -259,7 +260,7 @@ Function CheckAndroidPaths()
 
 	Local androidNDK:String = processor.Option("android.ndk", getenv_("ANDROID_NDK")).Trim()
 	If Not androidNDK Then
-		Throw "ANDROID_NDK or 'android.ndk' config option not set"
+		Throw TBmkMessages.AndroidNdkNotSet().Render()
 	End If
 		
 	putenv_("ANDROID_NDK=" + androidNDK)
@@ -267,7 +268,7 @@ Function CheckAndroidPaths()
 
 	Local androidToolchainVersion:String = processor.Option("android.toolchain.version", getenv_("ANDROID_TOOLCHAIN_VERSION")).Trim()
 	If Not androidToolchainVersion Then
-		Throw "ANDROID_TOOLCHAIN_VERSION or 'android.toolchain.version' config option not set"
+		Throw TBmkMessages.AndroidToolchainVersionNotSet().Render()
 	End If
 		
 	putenv_("ANDROID_TOOLCHAIN_VERSION=" + androidToolchainVersion)
@@ -275,7 +276,7 @@ Function CheckAndroidPaths()
 
 	Local androidPlatform:String = processor.Option("android.platform", getenv_("ANDROID_PLATFORM")).Trim()
 	If Not androidPlatform Then
-		Throw "ANDROID_PLATFORM or 'android.platform' config option not set"
+		Throw TBmkMessages.AndroidPlatformNotSet().Render()
 	End If
 		
 	putenv_("ANDROID_PLATFORM=" + androidPlatform.Trim())
@@ -295,7 +296,7 @@ Function CheckAndroidPaths()
 		Local antDir:String = RealPath(BlitzMaxPath() + "/resources/android/apache-ant")
 		
 		If FileType(antDir) <> FILETYPE_DIR Then
-			Throw "ANT_HOME or 'ant.home' config option not set, and resources missing apache-ant."
+			Throw TBmkMessages.AndroidAntNotSet().Render()
 		Else
 			antHome = antDir
 			globals.SetVar("ant.home", antHome)
@@ -349,7 +350,7 @@ Function ConfigureNXPaths()
 	Local toolchainDir:String = processor.Option("nx.devkitpro", "") + "/devkitA64/"
 	
 	If FileType(RealPath(toolchainDir)) <> FILETYPE_DIR Then
-		Throw "Cannot determine toolchain dir for NX, at '" + toolchainDir + "'"
+		Throw TBmkMessages.NxToolchainDirectoryNotFound(toolchainDir).Render()
 	End If
 
 	Local exe:String	
@@ -363,15 +364,15 @@ Function ConfigureNXPaths()
 
 	' check paths
 	If Not FileType(RealPath(gccPath)) Then
-		Throw "gcc not found at '" + gccPath + "'"
+		Throw TBmkMessages.ToolchainGccNotFound(gccPath).Render()
 	End If
 
 	If Not FileType(RealPath(gppPath)) Then
-		Throw "g++ not found at '" + gppPath + "'"
+		Throw TBmkMessages.ToolchainGppNotFound(gppPath).Render()
 	End If
 
 	If Not FileType(RealPath(gccPath)) Then
-		Throw "ar not found at '" + arPath + "'"
+		Throw TBmkMessages.ToolchainArchiverNotFound(arPath).Render()
 	End If
 	
 	globals.SetVar("nx." + processor.CPU() + ".gcc", gccPath)
@@ -396,7 +397,7 @@ Function CheckNXPaths()
 	' check envs and paths
 	Local devkitpro:String = processor.Option("nx.devkitpro", getenv_("DEVKITPRO")).Trim()
 	If Not devkitpro Then
-		Throw "DEVKITPRO or 'nx.devkitpro' config option not set"
+		Throw TBmkMessages.NxDevkitproNotSet().Render()
 	End If
 		
 	putenv_("DEVKITPRO=" + devkitpro)
@@ -603,12 +604,12 @@ Type TBuildManager Extends TCallback
 			End If
 			For Local link:TBcc2BuildLink = EachIn manifest.links
 				Local generated:TBcc2BuildFile = manifest.FileForPath(link.sourcePath)
-				If Not generated Then Throw "BMKGEN022 specialization link source is not declared: " + link.sourcePath
+				If Not generated Then Throw TBmkMessages.SpecializationLinkSourceUndeclared(link.sourcePath).Render()
 				Local objectPath:String = TBcc2BuildManifestCodec.Resolve(source.bcc2BuildRoot, link.objectPath)
 				Local normalizedObjectPath:String = objectPath.Replace("\", "/").ToLower()
 				Local existingObjectIdentity:String = String(collectedIdentitiesByObject.ValueForKey(normalizedObjectPath))
 				If existingObjectIdentity.length And existingObjectIdentity <> link.specializationIdentity Then
-					Throw "BMKGEN055 specialization cache path is claimed by distinct identities: " + objectPath + " (" + existingObjectIdentity + " and " + link.specializationIdentity + ")"
+					Throw TBmkMessages.SpecializationCachePathIdentityConflict(objectPath, existingObjectIdentity, link.specializationIdentity).Render()
 				End If
 				collectedIdentitiesByObject.Insert(normalizedObjectPath, link.specializationIdentity)
 				Local candidate:TBcc2SpecializationOwner = New TBcc2SpecializationOwner
@@ -630,7 +631,7 @@ Type TBuildManager Extends TCallback
 					' replaces stale dependency manifests; normal owner priority
 					' converges them as the reachable graph is rebuilt.
 					If existing.cacheKey = candidate.cacheKey And existing.contentDigest <> candidate.contentDigest Then
-						Throw "BMKGEN038 conflicting generated implementations for specialization " + link.specializationIdentity + " (cache " + link.cacheKey + "; " + existing.manifestPath + " -> " + existing.contentDigest + "; " + candidate.manifestPath + " -> " + candidate.contentDigest + ")"
+						Throw TBmkMessages.SpecializationGeneratedImplementationConflict(link.specializationIdentity, link.cacheKey, existing.manifestPath, existing.contentDigest, candidate.manifestPath, candidate.contentDigest).Render()
 					End If
 					' A forced compiler/module rebuild may publish the new
 					' manifest before its specialization objects have been
@@ -701,7 +702,7 @@ Type TBuildManager Extends TCallback
 					' objects exist. Ownership is still deterministic, but native
 					' usability can only be established when the generated script
 					' runs on the destination system.
-					If Not (opt_standalone And opt_boot) And Not IsBcc2SpecializationOwnerUsable(owner) Then Throw "BMKGEN039 selected specialization owner object is unavailable: " + owner.objectPath
+					If Not (opt_standalone And opt_boot) And Not IsBcc2SpecializationOwnerUsable(owner) Then Throw TBmkMessages.SpecializationOwnerObjectUnavailable(owner.objectPath).Render()
 					If owner.objectPath.Replace("\", "/").ToLower() <> normalizedObjectPath Then Continue
 				End If
 			End If
@@ -854,7 +855,7 @@ Type TBuildManager Extends TCallback
 
 		If source.framewk
 			If opt_framework Then
-				Throw "Framework already specified on commandline"
+				Throw TBmkMessages.FrameworkAlreadySpecified().Render()
 			End If
 			opt_framework = source.framewk
 			sb.Append(" -f ").Append(opt_framework)
@@ -975,7 +976,7 @@ Type TBuildManager Extends TCallback
 			End If
 			If Not buildDirectory Then Continue
 			If NormalizeCompilerCachePath(buildDirectory) <> NormalizeCompilerCachePath(expectedDirectory) Then
-				Throw "BMKCLEAN008 refusing unexpected application build directory: " + buildDirectory
+				Throw TBmkMessages.CleanApplicationBuildDirectoryUnexpected(buildDirectory).Render()
 			End If
 			Local key:String = NormalizeCompilerCachePath(expectedDirectory)
 			If Not directories.Contains(key) Then directories.Insert(key, expectedDirectory)
@@ -991,7 +992,7 @@ Type TBuildManager Extends TCallback
 			Local normalizedPath:String = NormalizeCompilerCachePath(path)
 			Local normalizedOutput:String = NormalizeCompilerCachePath(opt_outfile)
 			If normalizedOutput = normalizedPath Or normalizedOutput.StartsWith(normalizedPath + "/") Then
-				Throw "BMKCLEAN009 refusing to clean an application cache containing the requested output: " + path
+				Throw TBmkMessages.CleanOutputInsideApplicationCache(path).Render()
 			End If
 			Local plan:TCompilerCachePlan = InspectCompilerCacheDirectory(path)
 			If plan Then plans.AddLast(plan)
@@ -1004,7 +1005,7 @@ Type TBuildManager Extends TCallback
 	Method RequireBccCompilers(count:Int)
 		count = Max(1, count)
 		Local executable:String = BccExecutablePath()
-		If FileType(executable) <> FILETYPE_FILE Then Throw "BMKGEN030 bcc compiler was not found: " + executable
+		If FileType(executable) <> FILETYPE_FILE Then Throw TBmkMessages.CompilerExecutableNotFound(executable).Render()
 		While bcc2Engines.length < count
 			Local client:TBcc2EngineClient = New TBcc2EngineClient
 			client.Start(executable)
@@ -1067,7 +1068,7 @@ Type TBuildManager Extends TCallback
 			Local buildPath:String
 			If source.obj_path Then buildPath = ExtractDir(source.obj_path) Else buildPath = ExtractDir(source.path) + "/.bmx"
 			If Not FileType(buildPath) Then CreateDir buildPath
-			If FileType(buildPath) <> FILETYPE_DIR Then Throw "Unable to create temporary directory : " + buildPath
+			If FileType(buildPath) <> FILETYPE_DIR Then Throw TBmkMessages.BuildTemporaryDirectoryCreationFailed(buildPath).Render()
 			ChangeDir ExtractDir(source.path)
 			If Not opt_quiet Then
 				LogLine(ShowPct(source.pct) + "Processing:" + StripDir(source.path))
@@ -1242,7 +1243,7 @@ Type TBuildManager Extends TCallback
 				End If
 				
 				If FileType(build_path) <> FILETYPE_DIR Then
-					Throw "Unable to create temporary directory : " + build_path
+					Throw TBmkMessages.BuildTemporaryDirectoryCreationFailed(build_path).Render()
 				End If
 
 				' change dir, so relative commands work as expected
@@ -1377,7 +1378,7 @@ Type TBuildManager Extends TCallback
 							' this probably should never happen.
 							' may be a bad module?
 							If Not opt_outfile Then
-								Throw "Build Error: Did not expect to link against " + m.path
+								Throw TBmkMessages.BuildUnexpectedModuleLink(m.path).Render()
 							End If
 
 							' an app!
@@ -1601,7 +1602,7 @@ Type TBuildManager Extends TCallback
 				End If
 				
 				If Sys( cmd ) Then
-					Throw "Error creating apk"
+					Throw TBmkMessages.AndroidApkCreationFailed().Render()
 				End If
 				
 				ChangeDir(dir)
@@ -1693,19 +1694,19 @@ Type TBuildManager Extends TCallback
 								Local sourceModuleName:String = source.modid
 								If Not sourceModuleName.length Then sourceModuleName = source.bcc2SourceModuleName
 								If Not sourceModuleName.length Then
-									If isMod Then Throw "BMKGEN041 quoted BlitzMax source has no bcc2 ownership identity: " + s.path
+					If isMod Then Throw TBmkMessages.SourceQuotedOwnershipIdentityMissing(s.path).Render()
 									sourceModuleName = Bcc2ApplicationIdentity(app_main)
 									source.bcc2SourceModuleName = sourceModuleName
 								End If
 								If s.bcc2SourceModuleName.length And s.bcc2SourceModuleName.ToLower() <> sourceModuleName.ToLower() Then
-									Throw "BMKGEN040 quoted BlitzMax source has conflicting bcc2 module owners: " + s.path
+					Throw TBmkMessages.SourceQuotedModuleOwnerConflict(s.path).Render()
 								End If
 								s.bcc2OwnedSource = True
 								s.bcc2ApplicationSource = Not isMod
 								s.bcc2SourceModuleName = sourceModuleName.ToLower()
 								Local sourceUnitPath:String = Bcc2SourceUnitPath(source.bcc2SourceUnitPath, f)
-								If Not sourceUnitPath.length Then Throw "BMKGEN048 quoted BlitzMax source escapes its bcc2 source root: " + f
-								If s.bcc2SourceUnitPath.length And s.bcc2SourceUnitPath <> sourceUnitPath Then Throw "BMKGEN049 quoted BlitzMax source has conflicting bcc2 unit paths: " + s.path
+				If Not sourceUnitPath.length Then Throw TBmkMessages.SourceQuotedEscapesRoot(f).Render()
+				If s.bcc2SourceUnitPath.length And s.bcc2SourceUnitPath <> sourceUnitPath Then Throw TBmkMessages.SourceQuotedUnitPathConflict(s.path).Render()
 								s.bcc2SourceUnitPath = sourceUnitPath
 							End If
 							s.modimports.AddLast("brl.blitz")
@@ -2085,7 +2086,7 @@ Type TBuildManager Extends TCallback
 		End If
 
 		If source.modid.ToLower() <> m.ToLower() Then
-			Throw "Module declaration '" + source.modid + "' does not match path-derived module name '" + m + "' for '" + src_path + "'"
+			Throw TBmkMessages.ModuleDeclarationMismatch(source.modid, m, src_path).Render()
 		End If
 		
 		If Not source.processed Then
@@ -2225,7 +2226,7 @@ Type TBuildManager Extends TCallback
 				link = TSourceFile(sources.ValueForKey(source.arc_path))
 			End If
 			If Not link Then
-				Throw "Can't find link for : " + source.path
+				Throw TBmkMessages.BuildLinkNotFound(source.path).Render()
 			End If
 		End If
 		
@@ -2343,10 +2344,10 @@ Type TBuildManager Extends TCallback
 	End Method
 
 	Method CreateBcc2StagingRoot:String(source:TSourceFile)
-		If Not source Or Not source.bcc2ManifestPath.length Or Not source.bcc2BuildRoot.length Then Throw "BMKGEN050 cannot stage compiler output without a build root and manifest path"
+		If Not source Or Not source.bcc2ManifestPath.length Or Not source.bcc2BuildRoot.length Then Throw TBmkMessages.CompilerStagingContextMissing().Render()
 		Local result:String = Bcc2StagingPath(source)
-		If FileType(result) <> FILETYPE_NONE Then Throw "BMKGEN050 compiler staging path already exists: " + result
-		If Not CreateDir(result, True) Or FileType(result) <> FILETYPE_DIR Then Throw "BMKGEN050 unable to create compiler staging directory: " + result
+		If FileType(result) <> FILETYPE_NONE Then Throw TBmkMessages.CompilerStagingPathExists(result).Render()
+		If Not CreateDir(result, True) Or FileType(result) <> FILETYPE_DIR Then Throw TBmkMessages.CompilerStagingDirectoryCreationFailed(result).Render()
 		TraceBuild("compiler staging root: " + result)
 		Return result
 	End Method
@@ -2424,19 +2425,19 @@ Type TBuildManager Extends TCallback
 
 	Method ValidateBcc2CompileBatch(works:TList, configuredWorkers:Int)
 		For Local work:TBcc2CompileWork = EachIn works
-			If Not work Or Not work.source Then Throw "BMKGEN049 missing bcc2 compiler work result"
+			If Not work Or Not work.source Then Throw TBmkMessages.CompilerWorkResultMissing().Render()
 			If work.failure Then Throw work.failure
 			Local response:TBcc2EngineResponse = work.response
-			If Not response Then Throw "BMKGEN049 missing bcc2 compiler response for " + work.source.path
+			If Not response Then Throw TBmkMessages.CompilerResponseMissing(work.source.path).Render()
 			If response.output.length Then LogLine(response.output.Trim())
 			If response.exitCode Then
 				DiagnoseBcc2CompileFailure(work)
-				Throw "BMKGEN031 bcc failed to produce a build bundle for " + work.source.path
+				Throw TBmkMessages.CompilerBuildBundleMissing(work.source.path).Render()
 			End If
 			Local stagedManifestPath:String = work.stagingBuildRoot + "/" + StripDir(work.source.bcc2ManifestPath)
 			TBcc2BuildManifestCodec.Invalidate(stagedManifestPath)
 			work.stagedManifest = TBcc2BuildManifestCodec.Load(stagedManifestPath)
-			If Not work.stagedManifest Then Throw "BMKGEN051 staged compiler manifest is missing: " + stagedManifestPath
+			If Not work.stagedManifest Then Throw TBmkMessages.CompilerStagedManifestMissing(stagedManifestPath).Render()
 		Next
 
 		' Validate only the first file that can become each final path. Other
@@ -2454,7 +2455,7 @@ Type TBuildManager Extends TCallback
 				Local validationFile:TBcc2ValidationFile = TBcc2ValidationFile(filesByFinalPath.ValueForKey(key))
 				If validationFile Then
 					Local firstDeclaration:TBcc2ValidationDeclaration = TBcc2ValidationDeclaration(validationFile.declarations.First())
-					If firstDeclaration.expectedDigest <> file.contentDigest Then Throw "BMKGEN052 conflicting staged compiler outputs for " + finalPath
+					If firstDeclaration.expectedDigest <> file.contentDigest Then Throw TBmkMessages.CompilerStagedOutputConflict(finalPath).Render()
 					Continue
 				End If
 				validationFile = New TBcc2ValidationFile
@@ -2463,7 +2464,7 @@ Type TBuildManager Extends TCallback
 				Local info:SFileStat
 				If Not FileStat(validationFile.path, info) Or info.fileType <> FILETYPE_FILE Then
 					validationFile.path = finalPath
-					If Not FileStat(validationFile.path, info) Or info.fileType <> FILETYPE_FILE Then Throw "BMKGEN020 declared compiler output is missing: " + validationFile.path
+					If Not FileStat(validationFile.path, info) Or info.fileType <> FILETYPE_FILE Then Throw TBmkMessages.CompilerDeclaredOutputMissing(validationFile.path).Render()
 				End If
 				validationFile.exists = True
 				validationFile.size = info.size
@@ -2502,7 +2503,7 @@ Type TBuildManager Extends TCallback
 		For Local file:TBcc2ValidationFile = EachIn files
 			If file.failure Then Throw file.failure
 			Local declaration:TBcc2ValidationDeclaration = TBcc2ValidationDeclaration(file.declarations.First())
-			If file.digest <> declaration.expectedDigest Then Throw "BMKGEN021 compiler output digest mismatch: " + file.path
+			If file.digest <> declaration.expectedDigest Then Throw TBmkMessages.CompilerOutputDigestMismatch(file.path).Render()
 		Next
 
 		' No final path may acquire two different contents from the same batch.
@@ -2515,7 +2516,7 @@ Type TBuildManager Extends TCallback
 				Local key:String = finalPath.Replace("\", "/").ToLower()
 				If digestsByPath.Contains(key) Then
 					Local existingDigest:String = String(digestsByPath.ValueForKey(key))
-					If existingDigest <> file.contentDigest Then Throw "BMKGEN052 conflicting staged compiler outputs for " + finalPath
+					If existingDigest <> file.contentDigest Then Throw TBmkMessages.CompilerStagedOutputConflict(finalPath).Render()
 				Else
 					digestsByPath.Insert(key, file.contentDigest)
 				End If
@@ -2584,8 +2585,8 @@ Type TBuildManager Extends TCallback
 					Continue
 				End If
 				Local directory:String = ExtractDir(finalPath)
-				If FileType(directory) = FILETYPE_NONE And Not CreateDir(directory, True) Then Throw "BMKGEN053 unable to create compiler output directory: " + directory
-				If Not processor.PublishCompilerOutput(stagedPath, finalPath) Then Throw "BMKGEN053 unable to publish staged compiler output: " + finalPath
+				If FileType(directory) = FILETYPE_NONE And Not CreateDir(directory, True) Then Throw TBmkMessages.CompilerOutputDirectoryCreationFailed(directory).Render()
+				If Not processor.PublishCompilerOutput(stagedPath, finalPath) Then Throw TBmkMessages.CompilerStagedOutputPublishFailed(finalPath).Render()
 				publishedPaths.Insert(key, finalPath)
 				bcc2PublishedOutputDigests.Insert(key, file.contentDigest)
 			Next
@@ -2596,7 +2597,7 @@ Type TBuildManager Extends TCallback
 		' complete new bundle on the next build.
 		For Local work:TBcc2CompileWork = EachIn works
 			Local stagedManifestPath:String = work.stagingBuildRoot + "/" + StripDir(work.source.bcc2ManifestPath)
-			If Not processor.PublishCompilerOutput(stagedManifestPath, work.source.bcc2ManifestPath) Then Throw "BMKGEN053 unable to publish staged compiler manifest: " + work.source.bcc2ManifestPath
+			If Not processor.PublishCompilerOutput(stagedManifestPath, work.source.bcc2ManifestPath) Then Throw TBmkMessages.CompilerStagedManifestPublishFailed(work.source.bcc2ManifestPath).Render()
 		Next
 	End Method
 
@@ -2613,7 +2614,7 @@ Type TBuildManager Extends TCallback
 		Local prefix:String = StripSlash(work.source.bcc2BuildRoot.Replace("\", "/")) + "/.s-"
 		Local suffix:String
 		If path.ToLower().StartsWith(prefix.ToLower()) Then suffix = path[prefix.length..]
-		If Not suffix.length Or suffix.Find("/") <> -1 Then Throw "BMKGEN054 refusing unsafe compiler staging cleanup: " + path
+		If Not suffix.length Or suffix.Find("/") <> -1 Then Throw TBmkMessages.CompilerUnsafeStagingCleanupRefused(path).Render()
 		work.cleanupPath = path
 		work.cleanupFailure = Null
 	End Method
@@ -2653,18 +2654,18 @@ Type TBuildManager Extends TCallback
 	End Function
 
 	Method CommitBcc2CompileWork(work:TBcc2CompileWork)
-		If Not work Or Not work.source Then Throw "BMKGEN049 missing bcc2 compiler work result"
+		If Not work Or Not work.source Then Throw TBmkMessages.CompilerWorkResultMissing().Render()
 		If work.failure Then Throw work.failure
 		Local source:TSourceFile = work.source
 		Local response:TBcc2EngineResponse = work.response
-		If Not response Then Throw "BMKGEN049 missing bcc2 compiler response for " + source.path
+		If Not response Then Throw TBmkMessages.CompilerResponseMissing(source.path).Render()
 		If response.output.length Then LogLine(response.output.Trim())
-		If response.exitCode Then Throw "BMKGEN031 bcc failed to produce a build bundle for " + source.path
+		If response.exitCode Then Throw TBmkMessages.CompilerBuildBundleMissing(source.path).Render()
 		FinalizeBcc2CompileWork(work)
 	End Method
 
 	Method FinalizeBcc2CompileWork(work:TBcc2CompileWork, generatedFilesValidated:Int = False)
-		If Not work Or Not work.source Then Throw "BMKGEN049 missing bcc2 compiler work result"
+		If Not work Or Not work.source Then Throw TBmkMessages.CompilerWorkResultMissing().Render()
 		Local source:TSourceFile = work.source
 		processor.DoCallback(source.path)
 		TBcc2BuildManifestCodec.Invalidate(source.bcc2ManifestPath)
@@ -2680,10 +2681,11 @@ Type TBuildManager Extends TCallback
 		' are not inputs to the native-only clean-system build and their temporary
 		' publication commands must not leak into its standalone script.
 		If Not (opt_standalone And opt_boot) Then
-			If Not processor.PublishText(Bcc2GenerationStamp(source), source.bcc2ManifestPath + ".stamp") Then
-				Throw "BMKGEN035 unable to write bcc2 generation freshness stamp: " + source.bcc2ManifestPath + ".stamp"
+			Local stampPath:String = source.bcc2ManifestPath + ".stamp"
+			If Not processor.PublishText(Bcc2GenerationStamp(source), stampPath) Then
+				Throw TBmkMessages.CompilerFreshnessStampWriteFailed(stampPath).Render()
 			End If
-			source.gen_time = FileTime(source.bcc2ManifestPath + ".stamp")
+			source.gen_time = FileTime(stampPath)
 		End If
 		pendingForcedBcc2Manifests.Remove(source.bcc2ManifestPath.Replace("\", "/").ToLower())
 		InvalidateBcc2SpecializationOwners()
@@ -2796,11 +2798,11 @@ Type TBuildManager Extends TCallback
 			End If
 			Local existingWork:TBcc2SpecializationCompileWork = TBcc2SpecializationCompileWork(pendingByObject.ValueForKey(normalizedObjectPath))
 			If existingWork Then
-				If existingWork.expectedKey <> expectedKey Then Throw "BMKGEN039 conflicting compile requests for specialization object: " + objectPath
+				If existingWork.expectedKey <> expectedKey Then Throw TBmkMessages.SpecializationCompileRequestConflict(objectPath).Render()
 				Continue
 			End If
 			If FileType(ExtractDir(objectPath)) = FILETYPE_NONE And Not CreateDir(ExtractDir(objectPath), True) Then
-				Throw "BMKGEN032 unable to create specialization object directory: " + ExtractDir(objectPath)
+				Throw TBmkMessages.SpecializationObjectDirectoryCreationFailed(ExtractDir(objectPath)).Render()
 			End If
 			If Not opt_quiet Then
 				If opt_verbose Then
@@ -2833,11 +2835,11 @@ Type TBuildManager Extends TCallback
 		' Validate the complete batch before publishing any cache sidecars. A failed
 		' compile must never make a partial batch appear reusable on the next build.
 		For Local work:TBcc2SpecializationCompileWork = EachIn pending
-			If FileType(work.objectPath) <> FILETYPE_FILE Then Throw "BMKGEN033 specialization compiler did not produce: " + work.objectPath
+			If FileType(work.objectPath) <> FILETYPE_FILE Then Throw TBmkMessages.SpecializationObjectMissing(work.objectPath).Render()
 		Next
 		For Local work:TBcc2SpecializationCompileWork = EachIn pending
 			If Not (opt_standalone And opt_boot) Then
-				If Not processor.PublishText(work.expectedKey, work.keyPath) Then Throw "BMKGEN034 unable to record specialization object cache key: " + work.keyPath
+				If Not processor.PublishText(work.expectedKey, work.keyPath) Then Throw TBmkMessages.SpecializationCacheKeyWriteFailed(work.keyPath).Render()
 			End If
 			ensuredBcc2SpecializationObjects.Insert(work.normalizedObjectPath, work.expectedKey)
 		Next
@@ -2924,7 +2926,7 @@ Type TBuildManager Extends TCallback
 				resolvedPath = CheckPath(ExtractDir(source.owner_path), logicalPath)
 			End If
 			If FileType(resolvedPath) <> FILETYPE_FILE Then
-				Throw "BMKGEN041 Incbin resource was not found: " + logicalPath
+				Throw TBmkMessages.IncbinResourceNotFound(logicalPath).Render()
 			End If
 
 			Local escapedLogicalPath:String = logicalPath.Replace("\", "\\").Replace("~q", "\~q")
@@ -2936,11 +2938,11 @@ Type TBuildManager Extends TCallback
 		output :+ resources
 
 		If FileType(ExtractDir(incbinPath)) = FILETYPE_NONE And Not CreateDir(ExtractDir(incbinPath), True) Then
-			Throw "BMKGEN042 unable to create Incbin output directory: " + ExtractDir(incbinPath)
+			Throw TBmkMessages.IncbinOutputDirectoryCreationFailed(ExtractDir(incbinPath)).Render()
 		End If
 		If FileType(incbinPath) <> FILETYPE_FILE Or LoadText(incbinPath) <> output Then
 			If Not SaveText(output, incbinPath) Then
-				Throw "BMKGEN043 unable to write Incbin packaging unit: " + incbinPath
+				Throw TBmkMessages.IncbinPackagingUnitWriteFailed(incbinPath).Render()
 			End If
 		End If
 	End Method
@@ -3065,7 +3067,7 @@ Type TBuildManager Extends TCallback
 			Local node:TBuildDependencyNode = TBuildDependencyNode(nodes.ValueForKey(m.GetSourcePath()))
 			For Local dependencyName:String = EachIn m.deps.Keys()
 				Local dependency:TBuildDependencyNode = TBuildDependencyNode(nodes.ValueForKey(dependencyName))
-				If Not dependency Then Throw "Build graph dependency is missing: " + dependencyName
+				If Not dependency Then Throw TBmkMessages.GraphDependencyMissing(dependencyName).Render()
 				node.remaining :+ 1
 				dependency.dependents.AddLast(node)
 			Next
@@ -3087,7 +3089,7 @@ Type TBuildManager Extends TCallback
 				For Local node:TBuildDependencyNode = EachIn nodes.Values()
 					If node.remaining Then Print "  " + node.source.GetSourcePath()
 				Next
-				Throw "circular dependency!"
+				Throw TBmkMessages.GraphCircularDependency().Render()
 			End If
 
 			Local batch:TList = New TList
@@ -3272,7 +3274,7 @@ Type TBuildManager Extends TCallback
 		End If
 		If Not update Then Return
 		If Not CopyFile(m.iface_path, m.iface_path2) Then
-			Throw "BMKGEN037 unable to publish bcc compatibility interface copy: " + m.iface_path2
+			Throw TBmkMessages.InterfaceCompatibilityCopyPublishFailed(m.iface_path2).Render()
 		End If
 		m.SetRequiresBuild(True)
 		m.iface_time = FileTime(m.iface_path2)
@@ -3358,7 +3360,7 @@ Type TArcTask
 			Next
 			DeleteFile responsePath
 			If Not SaveText(response.ToString(), responsePath) Then
-				Throw "Build Error: Failed to write archive response file " + responsePath
+				Throw TBmkMessages.ArchiveResponseFileWriteFailed(responsePath).Render()
 			End If
 			Local prefix:String = processor.MinGWExePrefix()
 			Local ext:String = ""
@@ -3368,7 +3370,7 @@ Type TArcTask
 			DeleteFile responsePath
 			If responseResult Then
 				DeleteFile outputPath
-				Throw "Build Error: Failed to create archive " + path
+				Throw TBmkMessages.ArchiveCreationFailed(path).Render()
 			End If
 			cmd = ""
 		Else If processor.Platform() = "win32"
@@ -3377,7 +3379,7 @@ Type TArcTask
 
 					If ExecuteArchiveCommand(cmd)
 						DeleteFile outputPath
-						Throw "Build Error: Failed to create archive "+path
+						Throw TBmkMessages.ArchiveCreationFailed(path).Render()
 					EndIf
 					cmd=""
 				EndIf
@@ -3421,7 +3423,7 @@ Type TArcTask
 				
 					If ExecuteArchiveCommand(cmd)
 						DeleteFile outputPath
-						Throw "Build Error: Failed to create archive "+path
+						Throw TBmkMessages.ArchiveCreationFailed(path).Render()
 					EndIf
 					cmd=""
 				EndIf
@@ -3437,14 +3439,14 @@ Type TArcTask
 		If cmd
 			If ExecuteArchiveCommand(cmd)
 				DeleteFile outputPath
-				Throw "Build Error: Failed to create archive "+path
+				Throw TBmkMessages.ArchiveCreationFailed(path).Render()
 			End If
 		EndIf
 
 		Local publishStartedMillis:Int = MilliSecs()
 		If Not processor.PublishOutput(outputPath, path) Then
 			DeleteFile outputPath
-			Throw "Build Error: Failed to publish archive " + path
+			Throw TBmkMessages.ArchivePublishFailed(path).Render()
 		End If
 		Local publishMillis:Int = MilliSecs() - publishStartedMillis
 		If opt_verbose Then

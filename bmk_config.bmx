@@ -9,6 +9,7 @@ Import Pub.MacOS
 Import brl.map
 Import BRL.StringBuilder
 
+Import "bmk_messages.generated.bmx"
 Import "version.bmx"
 
 Const ALL_SRC_EXTS$="bmx;i;c;m;h;cpp;cxx;mm;hpp;hxx;s;cc;asm;S"
@@ -65,6 +66,7 @@ Global opt_nopie:Int
 Global opt_nopie_set:Int
 Global opt_upx:Int
 Global opt_userdefs:String
+Global opt_locale:String
 Global opt_gprof:Int
 Global opt_hi:Int
 Global opt_coverage:Int
@@ -153,7 +155,7 @@ opt_arch="riscv64"
 ChangeDir LaunchDir
 
 Function CmdError(details:String = Null, fullUsage:Int = False)
-	Local s:String = "Command line error"
+	Local s:String = TBmkMessages.CommandErrorHeading().Render()
 	If details Then
 		s:+ " : " + details
 	End If
@@ -165,7 +167,7 @@ Function CmdError(details:String = Null, fullUsage:Int = False)
 End Function
 
 Function MissingArg(arg:String)
-	CmdError "Missing arg for '-" + arg + "'"
+	CmdError TBmkMessages.OptionMissingArgument(arg).Render()
 End Function
 
 Function ParseConfigArgs$[]( args$[], legacyMax:Int = False )
@@ -297,6 +299,10 @@ Function ParseConfigArgs$[]( args$[], legacyMax:Int = False )
 			n:+1
 			If n=args.length MissingArg(argv)
 			opt_userdefs=args[n]
+		Case "locale"
+			n:+1
+			If n=args.length MissingArg(argv)
+			opt_locale=args[n]
 		Case "gprof"
 			opt_gprof = True
 		Case "hi"
@@ -308,7 +314,7 @@ Function ParseConfigArgs$[]( args$[], legacyMax:Int = False )
 		Case "noprogress"
 			opt_no_progress = True
 		Default
-			CmdError "Invalid option '" + argv + "'"
+			CmdError TBmkMessages.OptionInvalid(argv).Render()
 		End Select
 	Next
 
@@ -461,6 +467,9 @@ Function Usage:String(fullUsage:Int = False)
 		s:+ "~t~tCross-compiles to the specific target platform.~n"
 		s:+ "~t~tValid targets are win32, linux, macos, ios, android, raspberrypi, pico and haiku.~n"
 		s:+ "~t~t(see documentation for full list of requirements)"
+		s:+ "~n~n"
+		s:+ "~t-locale <locale>~n"
+		s:+ "~t~tSelects the locale for user-facing compiler and build errors (for example, de-de).~n"
 		s:+ "~n~n"
 		s:+ "~t-board <board>~n"
 		s:+ "~t~tSelects the Pico SDK board definition. The default for the pico target is pico2.~n"
@@ -735,7 +744,7 @@ Function ValidateArch(arch:String)
 		Case "riscv32"
 		Case "riscv64"
 		Default
-			CmdError "Not a valid architecture : '" + arch + "'"
+			CmdError TBmkMessages.TargetArchitectureInvalid(arch).Render()
 	End Select
 End Function
 
@@ -754,7 +763,7 @@ Function ValidatePlatform(platform:String)
 		Case "haiku"
 		Default
 			' oops
-			CmdError "Not valid platform : '" + platform + "'"
+			CmdError TBmkMessages.TargetPlatformInvalid(platform).Render()
 	End Select
 End Function
 

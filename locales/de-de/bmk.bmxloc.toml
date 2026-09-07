@@ -1,0 +1,1668 @@
+format = 1
+domain = "bmk"
+locale = "de-de"
+
+[[message]]
+id = 1
+name = "command.unknown_operation"
+text = "Unbekannter Vorgang '{operation}'"
+placeholders = [{ name = "operation", type = "string" }]
+
+[[message]]
+id = 2
+name = "command.error_heading"
+translated = false
+text = "Command line error"
+placeholders = []
+
+[[message]]
+id = 22
+name = "application.source_type_unrecognized"
+translated = false
+text = "Unrecognized app source file type:{extension}"
+placeholders = [{ name = "extension", type = "string" }]
+
+[[message]]
+id = 23
+name = "application.source_file_open_failed"
+translated = false
+text = "Unable to open source file '{path}'"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 24
+name = "application.directory_creation_failed"
+translated = false
+text = "Unable to create application directory"
+placeholders = []
+
+[[message]]
+id = 25
+name = "application.resources_directory_creation_failed"
+translated = false
+text = "Unable to create resources directory"
+placeholders = []
+
+[[message]]
+id = 26
+name = "application.output_directory_creation_failed"
+translated = false
+text = "Unable to create output directory : {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 27
+name = "application.output_directory_invalid"
+translated = false
+text = "Invalid output directory : {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 28
+name = "application.info_plist_creation_failed"
+translated = false
+text = "Unable to create Info.plist"
+placeholders = []
+
+[[message]]
+id = 29
+name = "application.icons_creation_failed"
+translated = false
+text = "Unable to create icons"
+placeholders = []
+
+[[message]]
+id = 30
+name = "archive.output_file_open_failed"
+translated = false
+text = "Unable to open output file"
+placeholders = []
+
+[[message]]
+id = 31
+name = "archive.input_file_open_failed"
+translated = false
+text = "Unable to open input file"
+placeholders = []
+
+[[message]]
+id = 32
+name = "bootstrap.folder_clear_failed"
+translated = false
+text = "Error clearing bootstrap folder"
+placeholders = []
+
+[[message]]
+id = 33
+name = "bootstrap.folder_creation_failed"
+translated = false
+text = "Error creating bootstrap folder"
+placeholders = []
+
+[[message]]
+id = 34
+name = "bootstrap.subdirectory_creation_failed"
+translated = false
+text = "Error creating bootstrap/{directory} folder"
+placeholders = [{ name = "directory", type = "string" }]
+
+[[message]]
+id = 35
+name = "application.named_app_not_found"
+translated = false
+text = "App not found : {application}"
+placeholders = [{ name = "application", type = "string" }]
+
+[[message]]
+id = 3
+name = "command.not_enough_parameters"
+translated = false
+text = "Not enough parameters"
+placeholders = []
+
+[[message]]
+id = 4
+name = "command.clean_only_makeapp"
+translated = false
+text = "The -clean option is available only for makeapp"
+placeholders = []
+
+[[message]]
+id = 5
+name = "command.makelib_unsupported_by_bcc2"
+translated = false
+text = "makelib is not yet supported by canonical-only bcc2"
+placeholders = []
+
+[[message]]
+id = 6
+name = "command.standalone_makemods_unavailable"
+translated = false
+text = "Standalone build not available for makemods"
+placeholders = []
+
+[[message]]
+id = 7
+name = "command.makemods_too_many_arguments"
+translated = false
+text = "Expecting only 1 argument for makemods"
+placeholders = []
+
+[[message]]
+id = 8
+name = "command.cleanmods_too_many_arguments"
+translated = false
+text = "Expecting only 1 argument for cleanmods"
+placeholders = []
+
+[[message]]
+id = 9
+name = "command.execute_requires_argument"
+translated = false
+text = "Execute requires at least 1 argument"
+placeholders = []
+
+[[message]]
+id = 10
+name = "command.compile_argument_count"
+translated = false
+text = "Expecting only 1 argument for compile"
+placeholders = []
+
+[[message]]
+id = 11
+name = "command.makeapp_argument_count"
+translated = false
+text = "Expecting only 1 argument for makeapp"
+placeholders = []
+
+[[message]]
+id = 12
+name = "command.module_name_and_output_required"
+translated = false
+text = "Both module name and outfile required"
+placeholders = []
+
+[[message]]
+id = 13
+name = "command.unzapmod_argument_count"
+translated = false
+text = "Expecting 1 argument for unzapmod"
+placeholders = []
+
+[[message]]
+id = 14
+name = "command.ranlibdir_argument_count"
+translated = false
+text = "Expecting 1 argument for ranlibdir"
+placeholders = []
+
+[[message]]
+id = 15
+name = "option.missing_argument"
+translated = false
+text = "Missing arg for '-{option}'"
+placeholders = [{ name = "option", type = "string" }]
+
+[[message]]
+id = 16
+name = "option.invalid"
+translated = false
+text = "Invalid option '{option}'"
+placeholders = [{ name = "option", type = "string" }]
+
+[[message]]
+id = 17
+name = "target.architecture_invalid"
+translated = false
+text = "Not a valid architecture : '{architecture}'"
+placeholders = [{ name = "architecture", type = "string" }]
+
+[[message]]
+id = 18
+name = "target.platform_invalid"
+translated = false
+text = "Not valid platform : '{platform}'"
+placeholders = [{ name = "platform", type = "string" }]
+
+[[message]]
+id = 19
+name = "option.heap_requires_pico"
+translated = false
+text = "-heap is currently supported only by the pico target"
+placeholders = []
+
+[[message]]
+id = 20
+name = "option.storage_requires_pico"
+translated = false
+text = "-storage is currently supported only by the pico target"
+placeholders = []
+
+[[message]]
+id = 21
+name = "target.universal_macos_requires_xcode_12"
+translated = false
+text = "XCode 12+ required for universal macOS build"
+placeholders = []
+
+[[message]]
+id = 36
+name = "compiler.declared_output_missing"
+translated = false
+text = "BMKGEN020 declared compiler output is missing: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 37
+name = "compiler.staging_cleanup_failed"
+translated = false
+text = "BMKGEN054 unable to remove compiler staging directory: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 38
+name = "toolchain.directory_not_found"
+translated = false
+text = "Cannot determine toolchain dir for '{native}', at '{path}'"
+placeholders = [{ name = "native", type = "string" }, { name = "path", type = "string" }]
+
+[[message]]
+id = 39
+name = "toolchain.gcc_not_found"
+translated = false
+text = "gcc not found at '{path}'"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 40
+name = "toolchain.gpp_not_found"
+translated = false
+text = "g++ not found at '{path}'"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 41
+name = "toolchain.archiver_not_found"
+translated = false
+text = "ar not found at '{path}'"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 42
+name = "toolchain.platform_directory_not_found"
+translated = false
+text = "Cannot determine platform dir for '{architecture}' at '{path}'"
+placeholders = [{ name = "architecture", type = "string" }, { name = "path", type = "string" }]
+
+[[message]]
+id = 43
+name = "android.sdk_target_not_determined"
+translated = false
+text = "Cannot determine SDK target for '{path}'"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 44
+name = "android.sdk_target_directory_not_determined"
+translated = false
+text = "Cannot determine SDK target dir. ANDROID_SDK_TARGET or android.sdk.target option is not set, and auto-lookup failed."
+placeholders = []
+
+[[message]]
+id = 45
+name = "android.home_not_set"
+translated = false
+text = "ANDROID_HOME or 'android.home' config option not set"
+placeholders = []
+
+[[message]]
+id = 46
+name = "android.sdk_not_set"
+translated = false
+text = "ANDROID_SDK or 'android.sdk' config option not set"
+placeholders = []
+
+[[message]]
+id = 47
+name = "android.ndk_not_set"
+translated = false
+text = "ANDROID_NDK or 'android.ndk' config option not set"
+placeholders = []
+
+[[message]]
+id = 48
+name = "android.toolchain_version_not_set"
+translated = false
+text = "ANDROID_TOOLCHAIN_VERSION or 'android.toolchain.version' config option not set"
+placeholders = []
+
+[[message]]
+id = 49
+name = "android.platform_not_set"
+translated = false
+text = "ANDROID_PLATFORM or 'android.platform' config option not set"
+placeholders = []
+
+[[message]]
+id = 50
+name = "android.ant_not_set"
+translated = false
+text = "ANT_HOME or 'ant.home' config option not set, and resources missing apache-ant."
+placeholders = []
+
+[[message]]
+id = 51
+name = "nx.toolchain_directory_not_found"
+translated = false
+text = "Cannot determine toolchain dir for NX, at '{path}'"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 52
+name = "nx.devkitpro_not_set"
+translated = false
+text = "DEVKITPRO or 'nx.devkitpro' config option not set"
+placeholders = []
+
+[[message]]
+id = 53
+name = "framework.already_specified"
+translated = false
+text = "Framework already specified on commandline"
+placeholders = []
+
+[[message]]
+id = 54
+name = "clean.application_build_directory_unexpected"
+translated = false
+text = "BMKCLEAN008 refusing unexpected application build directory: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 55
+name = "clean.output_inside_application_cache"
+translated = false
+text = "BMKCLEAN009 refusing to clean an application cache containing the requested output: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 56
+name = "compiler.executable_not_found"
+translated = false
+text = "BMKGEN030 bcc compiler was not found: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 57
+name = "build.temporary_directory_creation_failed"
+translated = false
+text = "Unable to create temporary directory : {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 58
+name = "build.unexpected_module_link"
+translated = false
+text = "Build Error: Did not expect to link against {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 59
+name = "android.apk_creation_failed"
+translated = false
+text = "Error creating apk"
+placeholders = []
+
+[[message]]
+id = 60
+name = "specialization.link_source_undeclared"
+translated = false
+text = "BMKGEN022 specialization link source is not declared: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 61
+name = "specialization.cache_path_identity_conflict"
+translated = false
+text = "BMKGEN055 specialization cache path is claimed by distinct identities: {path} ({existingIdentity} and {requestedIdentity})"
+placeholders = [{ name = "path", type = "string" }, { name = "existingIdentity", type = "string" }, { name = "requestedIdentity", type = "string" }]
+
+[[message]]
+id = 62
+name = "specialization.generated_implementation_conflict"
+translated = false
+text = "BMKGEN038 conflicting generated implementations for specialization {identity} (cache {cacheKey}; {existingManifest} -> {existingDigest}; {candidateManifest} -> {candidateDigest})"
+placeholders = [{ name = "identity", type = "string" }, { name = "cacheKey", type = "string" }, { name = "existingManifest", type = "string" }, { name = "existingDigest", type = "string" }, { name = "candidateManifest", type = "string" }, { name = "candidateDigest", type = "string" }]
+
+[[message]]
+id = 63
+name = "specialization.owner_object_unavailable"
+translated = false
+text = "BMKGEN039 selected specialization owner object is unavailable: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 64
+name = "source.quoted_ownership_identity_missing"
+translated = false
+text = "BMKGEN041 quoted BlitzMax source has no bcc2 ownership identity: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 65
+name = "source.quoted_module_owner_conflict"
+translated = false
+text = "BMKGEN040 quoted BlitzMax source has conflicting bcc2 module owners: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 66
+name = "source.quoted_escapes_root"
+translated = false
+text = "BMKGEN048 quoted BlitzMax source escapes its bcc2 source root: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 67
+name = "source.quoted_unit_path_conflict"
+translated = false
+text = "BMKGEN049 quoted BlitzMax source has conflicting bcc2 unit paths: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 68
+name = "module.declaration_mismatch"
+translated = false
+text = "Module declaration '{declaredName}' does not match path-derived module name '{expectedName}' for '{path}'"
+placeholders = [{ name = "declaredName", type = "string" }, { name = "expectedName", type = "string" }, { name = "path", type = "string" }]
+
+[[message]]
+id = 69
+name = "build.link_not_found"
+translated = false
+text = "Can't find link for : {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 70
+name = "compiler.staging_context_missing"
+translated = false
+text = "BMKGEN050 cannot stage compiler output without a build root and manifest path"
+placeholders = []
+
+[[message]]
+id = 71
+name = "compiler.staging_path_exists"
+translated = false
+text = "BMKGEN050 compiler staging path already exists: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 72
+name = "compiler.staging_directory_creation_failed"
+translated = false
+text = "BMKGEN050 unable to create compiler staging directory: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 73
+name = "compiler.work_result_missing"
+translated = false
+text = "BMKGEN049 missing bcc2 compiler work result"
+placeholders = []
+
+[[message]]
+id = 74
+name = "compiler.response_missing"
+translated = false
+text = "BMKGEN049 missing bcc2 compiler response for {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 75
+name = "compiler.build_bundle_missing"
+translated = false
+text = "BMKGEN031 bcc failed to produce a build bundle for {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 76
+name = "compiler.staged_manifest_missing"
+translated = false
+text = "BMKGEN051 staged compiler manifest is missing: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 77
+name = "compiler.staged_output_conflict"
+translated = false
+text = "BMKGEN052 conflicting staged compiler outputs for {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 78
+name = "compiler.output_digest_mismatch"
+translated = false
+text = "BMKGEN021 compiler output digest mismatch: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 79
+name = "compiler.output_directory_creation_failed"
+translated = false
+text = "BMKGEN053 unable to create compiler output directory: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 80
+name = "compiler.staged_output_publish_failed"
+translated = false
+text = "BMKGEN053 unable to publish staged compiler output: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 81
+name = "compiler.staged_manifest_publish_failed"
+translated = false
+text = "BMKGEN053 unable to publish staged compiler manifest: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 82
+name = "compiler.unsafe_staging_cleanup_refused"
+translated = false
+text = "BMKGEN054 refusing unsafe compiler staging cleanup: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 83
+name = "compiler.freshness_stamp_write_failed"
+translated = false
+text = "BMKGEN035 unable to write bcc2 generation freshness stamp: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 84
+name = "specialization.compile_request_conflict"
+translated = false
+text = "BMKGEN039 conflicting compile requests for specialization object: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 85
+name = "specialization.object_directory_creation_failed"
+translated = false
+text = "BMKGEN032 unable to create specialization object directory: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 86
+name = "specialization.object_missing"
+translated = false
+text = "BMKGEN033 specialization compiler did not produce: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 87
+name = "specialization.cache_key_write_failed"
+translated = false
+text = "BMKGEN034 unable to record specialization object cache key: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 88
+name = "incbin.resource_not_found"
+translated = false
+text = "BMKGEN041 Incbin resource was not found: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 89
+name = "incbin.output_directory_creation_failed"
+translated = false
+text = "BMKGEN042 unable to create Incbin output directory: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 90
+name = "incbin.packaging_unit_write_failed"
+translated = false
+text = "BMKGEN043 unable to write Incbin packaging unit: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 91
+name = "graph.dependency_missing"
+translated = false
+text = "Build graph dependency is missing: {dependency}"
+placeholders = [{ name = "dependency", type = "string" }]
+
+[[message]]
+id = 92
+name = "graph.circular_dependency"
+translated = false
+text = "circular dependency!"
+placeholders = []
+
+[[message]]
+id = 93
+name = "interface.compatibility_copy_publish_failed"
+translated = false
+text = "BMKGEN037 unable to publish bcc compatibility interface copy: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 94
+name = "archive.response_file_write_failed"
+translated = false
+text = "Build Error: Failed to write archive response file {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 95
+name = "archive.creation_failed"
+translated = false
+text = "Build Error: Failed to create archive {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 96
+name = "archive.publish_failed"
+translated = false
+text = "Build Error: Failed to publish archive {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 97
+name = "pico.source.native_discovery_read_failed"
+translated = false
+text = "Unable to read Pico source while discovering native imports at {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 98
+name = "pico.header_directory_read_failed"
+translated = false
+text = "Unable to read quoted Pico header directory '{imported_path}' from {source_path}"
+placeholders = [{ name = "imported_path", type = "string" }, { name = "source_path", type = "string" }]
+
+[[message]]
+id = 99
+name = "pico.header_read_failed"
+translated = false
+text = "Unable to read quoted Pico header '{imported_path}' from {source_path}"
+placeholders = [{ name = "imported_path", type = "string" }, { name = "source_path", type = "string" }]
+
+[[message]]
+id = 100
+name = "pico.source.native_options_conflict"
+translated = false
+text = "Quoted Pico source has conflicting native compiler options: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 101
+name = "pico.quoted_source_read_failed"
+translated = false
+text = "Unable to read quoted Pico source '{imported_path}' from {source_path}"
+placeholders = [{ name = "imported_path", type = "string" }, { name = "source_path", type = "string" }]
+
+[[message]]
+id = 102
+name = "pico.native_source_options_conflict"
+translated = false
+text = "Quoted Pico native source has conflicting compiler options: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 103
+name = "pico.pio.source_read_failed"
+translated = false
+text = "Unable to read imported PIO source {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 104
+name = "pico.pio.program_name_invalid"
+translated = false
+text = "Invalid PIO program name '{name}' in {path}"
+placeholders = [{ name = "name", type = "string" }, { name = "path", type = "string" }]
+
+[[message]]
+id = 105
+name = "pico.pio.program_name_duplicate"
+translated = false
+text = "Duplicate PIO program name '{name}' in {path}"
+placeholders = [{ name = "name", type = "string" }, { name = "path", type = "string" }]
+
+[[message]]
+id = 106
+name = "pico.pio.program_missing"
+translated = false
+text = "Imported PIO source declares no .program: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 107
+name = "pico.pio.discovery_source_read_failed"
+translated = false
+text = "Unable to read Pico source while discovering PIO imports at {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 108
+name = "pico.pio.program_owner_conflict"
+translated = false
+text = "PIO program name '{name}' is declared by both {first_path} and {second_path}"
+placeholders = [{ name = "name", type = "string" }, { name = "first_path", type = "string" }, { name = "second_path", type = "string" }]
+
+[[message]]
+id = 109
+name = "pico.module.source_unit_read_failed"
+translated = false
+text = "Unable to read Pico source unit at {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 110
+name = "pico.module.declaration_mismatch"
+translated = false
+text = "Pico module source '{path}' declares '{declared_name}', expected '{expected_name}'"
+placeholders = [{ name = "path", type = "string" }, { name = "declared_name", type = "string" }, { name = "expected_name", type = "string" }]
+
+[[message]]
+id = 111
+name = "pico.module.quoted_source_escapes_root"
+translated = false
+text = "Quoted Pico source escapes module root: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 112
+name = "pico.application.source_read_failed"
+translated = false
+text = "Unable to read Pico application source at {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 113
+name = "pico.application.quoted_source_read_failed"
+translated = false
+text = "Unable to read quoted Pico application source '{imported_path}' from {source_path}"
+placeholders = [{ name = "imported_path", type = "string" }, { name = "source_path", type = "string" }]
+
+[[message]]
+id = 114
+name = "pico.application.quoted_source_escapes_root"
+translated = false
+text = "Quoted Pico application source escapes its source root: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 115
+name = "pico.path.configured_not_directory"
+translated = false
+text = "The configured {label} path does not name a directory: {path}"
+placeholders = [{ name = "label", type = "string" }, { name = "path", type = "string" }]
+
+[[message]]
+id = 116
+name = "pico.path.directory_not_found"
+translated = false
+text = "Unable to locate {label}. Set #addoption {option_key} in custom.bmk or {environment_key}, or install it under the user Pico SDK directory."
+placeholders = [{ name = "label", type = "string" }, { name = "option_key", type = "string" }, { name = "environment_key", type = "string" }]
+
+[[message]]
+id = 117
+name = "pico.path.configured_executable_missing"
+translated = false
+text = "The configured {label} path does not contain {executable}: {path}"
+placeholders = [{ name = "label", type = "string" }, { name = "executable", type = "string" }, { name = "path", type = "string" }]
+
+[[message]]
+id = 118
+name = "pico.path.environment_executable_missing"
+translated = false
+text = "The {environment_key} path does not contain {executable}: {path}"
+placeholders = [{ name = "environment_key", type = "string" }, { name = "executable", type = "string" }, { name = "path", type = "string" }]
+
+[[message]]
+id = 119
+name = "pico.path.executable_not_found"
+translated = false
+text = "Unable to locate {label}. Set #addoption {option_key} in custom.bmk, set {environment_key}, add it to PATH, or install it under the user Pico SDK directory."
+placeholders = [{ name = "label", type = "string" }, { name = "option_key", type = "string" }, { name = "environment_key", type = "string" }]
+
+[[message]]
+id = 120
+name = "pico.board.required"
+translated = false
+text = "A Pico SDK board name is required"
+placeholders = []
+
+[[message]]
+id = 121
+name = "pico.board.invalid"
+translated = false
+text = "Invalid Pico SDK board name '{board}'"
+placeholders = [{ name = "board", type = "string" }]
+
+[[message]]
+id = 122
+name = "pico.heap.invalid"
+translated = false
+text = "Invalid Pico heap size '{value}'"
+placeholders = [{ name = "value", type = "string" }]
+
+[[message]]
+id = 123
+name = "pico.heap.minimum"
+translated = false
+text = "Pico heap size must be at least 1 KiB"
+placeholders = []
+
+[[message]]
+id = 124
+name = "pico.storage.invalid"
+translated = false
+text = "Invalid Pico storage size '{value}'"
+placeholders = [{ name = "value", type = "string" }]
+
+[[message]]
+id = 125
+name = "pico.storage.minimum"
+translated = false
+text = "Pico storage must be at least 8 KiB"
+placeholders = []
+
+[[message]]
+id = 126
+name = "pico.storage.sector_alignment"
+translated = false
+text = "Pico storage size must be a multiple of the 4096-byte flash sector size"
+placeholders = []
+
+[[message]]
+id = 127
+name = "pico.sdk.target_configuration_read_failed"
+translated = false
+text = "Unable to read Pico SDK target configuration from {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 128
+name = "pico.sdk.target_key_missing"
+translated = false
+text = "The Pico SDK did not publish {key} in {path}"
+placeholders = [{ name = "key", type = "string" }, { name = "path", type = "string" }]
+
+[[message]]
+id = 129
+name = "pico.sdk.target_key_empty"
+translated = false
+text = "The Pico SDK published an empty {key} value"
+placeholders = [{ name = "key", type = "string" }]
+
+[[message]]
+id = 130
+name = "pico.sdk.target_key_invalid"
+translated = false
+text = "The Pico SDK published an invalid {key} value: {value}"
+placeholders = [{ name = "key", type = "string" }, { name = "value", type = "string" }]
+
+[[message]]
+id = 131
+name = "pico.upload.failed"
+translated = false
+text = "Uploading Pico firmware failed"
+placeholders = []
+
+[[message]]
+id = 132
+name = "pico.command.failed"
+translated = false
+text = "{description} failed"
+placeholders = [{ name = "description", type = "string" }]
+
+[[message]]
+id = 133
+name = "pico.compiler.generated_c_missing"
+translated = false
+text = "Pico compiler build bundle did not declare {name}"
+placeholders = [{ name = "name", type = "string" }]
+
+[[message]]
+id = 134
+name = "pico.compiler.interface_publish_failed"
+translated = false
+text = "Unable to publish Pico compiler interface output {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 135
+name = "pico.compiler.interface_missing"
+translated = false
+text = "Pico compiler build bundle did not declare its module interface"
+placeholders = []
+
+[[message]]
+id = 136
+name = "pico.compiler.runtime_header_publish_failed"
+translated = false
+text = "Unable to publish Pico compiler runtime header {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 137
+name = "pico.compiler.runtime_header_missing"
+translated = false
+text = "Pico compiler build bundle did not declare its runtime header"
+placeholders = []
+
+[[message]]
+id = 138
+name = "pico.incbin.source_read_failed"
+translated = false
+text = "Unable to read Pico Incbin source at {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 139
+name = "pico.incbin.packaging_unit_write_failed"
+translated = false
+text = "BMKGEN043 unable to write Pico Incbin packaging unit: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 140
+name = "pico.specialization.source_missing"
+translated = false
+text = "Pico generic specialization source is absent from its build manifest: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 141
+name = "pico.specialization.owner_conflict"
+translated = false
+text = "Conflicting Pico generic specialization owners for {identity}"
+placeholders = [{ name = "identity", type = "string" }]
+
+[[message]]
+id = 142
+name = "pico.native_graph_write_failed"
+translated = false
+text = "Unable to write generated Pico native source graph {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 143
+name = "pico.pio.registry_write_failed"
+translated = false
+text = "Unable to write generated Pico PIO registry {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 144
+name = "pico.pio.cmake_write_failed"
+translated = false
+text = "Unable to write generated Pico PIO CMake integration {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 145
+name = "pico.target.compile_unsupported"
+translated = false
+text = "The pico target currently supports makeapp, not compile"
+placeholders = []
+
+[[message]]
+id = 146
+name = "pico.target.arm_required"
+translated = false
+text = "The pico target currently requires the arm architecture"
+placeholders = []
+
+[[message]]
+id = 147
+name = "pico.target.bcc2_required"
+translated = false
+text = "The pico target requires bcc2"
+placeholders = []
+
+[[message]]
+id = 148
+name = "pico.target.build_mode_required"
+translated = false
+text = "The pico target requires an explicit -r or -d build mode"
+placeholders = []
+
+[[message]]
+id = 149
+name = "pico.target.modules_not_found"
+translated = false
+text = "Pico modules were not found at {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 150
+name = "pico.target.compiler_not_found"
+translated = false
+text = "Pico-enabled bcc2 was not found at {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 151
+name = "pico.target.cmake_template_missing"
+translated = false
+text = "Pico CMake application template was not found"
+placeholders = []
+
+[[message]]
+id = 152
+name = "pico.toolchain.configured_gcc_missing"
+translated = false
+text = "The configured Pico ARM toolchain does not contain arm-none-eabi-gcc: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 153
+name = "pico.toolchain.not_found"
+translated = false
+text = "Unable to locate the Pico ARM toolchain. Set #addoption pico.toolchain in custom.bmk, set PICO_TOOLCHAIN_PATH, add arm-none-eabi-gcc to PATH, or install it under the user Pico SDK directory."
+placeholders = []
+
+[[message]]
+id = 154
+name = "pico.output_directory_creation_failed"
+translated = false
+text = "Unable to create Pico output directory {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 155
+name = "pico.output_publish_failed"
+translated = false
+text = "Unable to publish {extension} output"
+placeholders = [{ name = "extension", type = "string" }]
+
+[[message]]
+id = 156
+name = "pico.path.configured_pioasm_missing"
+translated = false
+text = "The configured pioasm path does not contain {executable}: {path}"
+placeholders = [{ name = "executable", type = "string" }, { name = "path", type = "string" }]
+
+[[message]]
+id = 157
+name = "archive.merge_failed"
+translated = false
+text = "Build Error: Failed to merge archive {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 158
+name = "archive.merged_publish_failed"
+translated = false
+text = "Build Error: Failed to publish merged archive {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 159
+name = "linker.link_failed"
+translated = false
+text = "Build Error: Failed to link {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 160
+name = "linker.output_publish_failed"
+translated = false
+text = "Build Error: Failed to publish linked output {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 161
+name = "application.merge_failed"
+translated = false
+text = "Merge Error: Failed to merge {first_path} and {second_path} into {output_path}"
+placeholders = [{ name = "first_path", type = "string" }, { name = "second_path", type = "string" }, { name = "output_path", type = "string" }]
+
+[[message]]
+id = 162
+name = "android.resources_missing"
+translated = false
+text = "Missing resources folder for Android build : {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 163
+name = "android.project_directory_creation_failed"
+translated = false
+text = "Error creating project dir '{path}'"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 164
+name = "android.assets_directory_creation_failed"
+translated = false
+text = "Error creating assests dir '{path}'"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 165
+name = "android.libs_directory_creation_failed"
+translated = false
+text = "Error creating libs dir '{path}'"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 166
+name = "android.abi_directory_creation_failed"
+translated = false
+text = "Error creating libs abi dir '{path}'"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 167
+name = "android.stlport_copy_failed"
+translated = false
+text = "Error copying libstlport_shared.so from '{path}'"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 168
+name = "android.package_creation_failed"
+translated = false
+text = "Error creating package '{path}'"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 169
+name = "android.class_file_creation_failed"
+translated = false
+text = "Error creating class file '{path}'"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 170
+name = "android.architecture_invalid"
+translated = false
+text = "Not a valid architecture '{architecture}'"
+placeholders = [{ name = "architecture", type = "string" }]
+
+[[message]]
+id = 171
+name = "nx.tool_missing"
+translated = false
+text = "{tool} tool not present at {path}"
+placeholders = [{ name = "tool", type = "string" }, { name = "path", type = "string" }]
+
+[[message]]
+id = 172
+name = "nx.default_icon_missing"
+translated = false
+text = "Default icon not found at {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 173
+name = "target_project.block_begin_missing"
+translated = false
+text = "Error updating target project - can't find block begin tag '{tag}'."
+placeholders = [{ name = "tag", type = "string" }]
+
+[[message]]
+id = 174
+name = "target_project.block_end_missing"
+translated = false
+text = "Error updating target project - can't find block end tag '{tag}'."
+placeholders = [{ name = "tag", type = "string" }]
+
+[[message]]
+id = 175
+name = "ios.template_directory_missing"
+translated = false
+text = "iOS template dir is missing. Expecting it at '{path}'"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 176
+name = "bootstrap.asset_directory_missing"
+translated = false
+text = "Expected dir missing : {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 177
+name = "bootstrap.asset_not_directory"
+translated = false
+text = "Not a dir : {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 178
+name = "bootstrap.asset_destination_creation_failed"
+translated = false
+text = "Error creating {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 179
+name = "bootstrap.source_directory_missing"
+translated = false
+text = "Source dir not found : {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 180
+name = "bootstrap.directory_creation_failed"
+translated = false
+text = "Unable to create {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 181
+name = "bootstrap.source_missing"
+translated = false
+text = "Not found : {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 182
+name = "bootstrap.linker_script_missing"
+translated = false
+text = "ld script missing : {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 183
+name = "bootstrap.build_script_missing"
+translated = false
+text = "build script missing : {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 184
+name = "bootstrap.configuration_missing"
+translated = false
+text = "{path} not found; bmk2 requires its own bootstrap configuration"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 185
+name = "bootstrap.configuration_load_failed"
+translated = false
+text = "Could not load {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 186
+name = "specialization.file_link_identity_mismatch"
+translated = false
+text = "BMKGEN023 specialization file/link identity mismatch: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 187
+name = "specialization.link_record_cardinality"
+translated = false
+text = "BMKGEN024 specialization C unit must have exactly one link record: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 188
+name = "compiler.manifest.version_unsupported"
+translated = false
+text = "BMKGEN001 unsupported or missing compiler build manifest version"
+placeholders = []
+
+[[message]]
+id = 189
+name = "compiler.manifest.file_record_malformed"
+translated = false
+text = "BMKGEN002 malformed compiler build file record"
+placeholders = []
+
+[[message]]
+id = 190
+name = "compiler.manifest.unsafe_file_path"
+translated = false
+text = "BMKGEN003 unsafe compiler build file path"
+placeholders = []
+
+[[message]]
+id = 191
+name = "compiler.manifest.duplicate_file_path"
+translated = false
+text = "BMKGEN004 duplicate compiler build file path"
+placeholders = []
+
+[[message]]
+id = 192
+name = "compiler.manifest.link_identity_malformed"
+translated = false
+text = "BMKGEN005 malformed compiler build link identity"
+placeholders = []
+
+[[message]]
+id = 193
+name = "compiler.manifest.unsafe_link_path"
+translated = false
+text = "BMKGEN006 unsafe compiler build link path"
+placeholders = []
+
+[[message]]
+id = 194
+name = "compiler.manifest.duplicate_link_input"
+translated = false
+text = "BMKGEN007 duplicate compiler build link input"
+placeholders = []
+
+[[message]]
+id = 195
+name = "compiler.manifest.record_malformed"
+translated = false
+text = "BMKGEN008 unknown or malformed compiler build manifest record"
+placeholders = []
+
+[[message]]
+id = 196
+name = "compiler.manifest.missing"
+translated = false
+text = "BMKGEN009 compiler build manifest is missing: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 197
+name = "compiler.manifest.encoded_field_malformed"
+translated = false
+text = "BMKGEN010 malformed encoded compiler build manifest field"
+placeholders = []
+
+[[message]]
+id = 198
+name = "compiler.manifest.unsafe_path_resolution"
+translated = false
+text = "BMKGEN011 refusing to resolve unsafe compiler build path"
+placeholders = []
+
+[[message]]
+id = 199
+name = "compiler.output_hash_failed"
+translated = false
+text = "BMKGEN025 declared compiler output cannot be hashed: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 200
+name = "clean.generated_file_removal_failed"
+translated = false
+text = "BMKCLEAN006 unable to remove generated file: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 201
+name = "clean.generated_directory_removal_failed"
+translated = false
+text = "BMKCLEAN007 unable to remove generated directory: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 202
+name = "clean.symbolic_output_file_refused"
+translated = false
+text = "BMKCLEAN002 refusing symbolic {cache_kind} output file: {path}"
+placeholders = [{ name = "cache_kind", type = "string" }, { name = "path", type = "string" }]
+
+[[message]]
+id = 203
+name = "clean.cache_entry_outside_directory"
+translated = false
+text = "BMKCLEAN004 refusing cache entry outside the selected directory: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 204
+name = "clean.unexpected_cache_directory"
+translated = false
+text = "BMKCLEAN001 refusing non-{expected_leaf} {cache_kind} cache directory: {path}"
+placeholders = [{ name = "expected_leaf", type = "string" }, { name = "cache_kind", type = "string" }, { name = "path", type = "string" }]
+
+[[message]]
+id = 205
+name = "clean.symbolic_cache_directory_refused"
+translated = false
+text = "BMKCLEAN002 refusing symbolic {cache_kind} cache directory: {path}"
+placeholders = [{ name = "cache_kind", type = "string" }, { name = "path", type = "string" }]
+
+[[message]]
+id = 206
+name = "clean.cache_path_not_directory"
+translated = false
+text = "BMKCLEAN003 {cache_kind} cache path is not a directory: {path}"
+placeholders = [{ name = "cache_kind", type = "string" }, { name = "path", type = "string" }]
+
+[[message]]
+id = 207
+name = "clean.symbolic_link_inside_cache_refused"
+translated = false
+text = "BMKCLEAN002 refusing symbolic link inside {cache_kind} cache: {path}"
+placeholders = [{ name = "cache_kind", type = "string" }, { name = "path", type = "string" }]
+
+[[message]]
+id = 208
+name = "clean.unsupported_cache_entry"
+translated = false
+text = "BMKCLEAN005 refusing unsupported cache entry: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 209
+name = "clean.unsupported_output"
+translated = false
+text = "BMKCLEAN005 refusing unsupported {cache_kind} output: {path}"
+placeholders = [{ name = "cache_kind", type = "string" }, { name = "path", type = "string" }]
+
+[[message]]
+id = 210
+name = "bcc2_engine.start_failed"
+translated = false
+text = "BMKGEN043 unable to start bcc engine: {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 211
+name = "bcc2_engine.handshake_incompatible"
+translated = false
+text = "BMKGEN044 incompatible bcc engine handshake: expected '{expected}', received '{received}'{detail}"
+placeholders = [{ name = "expected", type = "string" }, { name = "received", type = "string" }, { name = "detail", type = "string" }]
+
+[[message]]
+id = 212
+name = "bcc2_engine.not_running"
+translated = false
+text = "BMKGEN045 bcc engine is not running"
+placeholders = []
+
+[[message]]
+id = 213
+name = "bcc2_engine.result_header_malformed"
+translated = false
+text = "BMKGEN046 malformed bcc2 engine result header"
+placeholders = []
+
+[[message]]
+id = 214
+name = "bcc2_engine.result_length_malformed"
+translated = false
+text = "BMKGEN046 malformed bcc2 engine result length"
+placeholders = []
+
+[[message]]
+id = 215
+name = "bcc2_engine.result_body_malformed"
+translated = false
+text = "BMKGEN046 malformed bcc2 engine result body"
+placeholders = []
+
+[[message]]
+id = 216
+name = "bcc2_engine.result_body_incomplete"
+translated = false
+text = "BMKGEN046 incomplete bcc2 engine result body"
+placeholders = []
+
+[[message]]
+id = 217
+name = "bcc2_engine.cache_invalidation_not_running"
+translated = false
+text = "BMKGEN045 bcc2 engine is not running"
+placeholders = []
+
+[[message]]
+id = 218
+name = "bcc2_engine.cache_invalidation_rejected"
+translated = false
+text = "BMKGEN048 bcc2 engine rejected cache invalidation"
+placeholders = []
+
+[[message]]
+id = 219
+name = "bcc2_engine.exited_unexpectedly"
+translated = false
+text = "BMKGEN047 bcc engine exited unexpectedly{detail}"
+placeholders = [{ name = "detail", type = "string" }]
+
+[[message]]
+id = 220
+name = "config.required_load_failed"
+translated = false
+text = "Could not load required config '{path}'"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 221
+name = "toolchain.gcc_process_not_found"
+translated = false
+text = "Cannot find a valid GCC compiler. Please check your paths and environment."
+placeholders = []
+
+[[message]]
+id = 222
+name = "toolchain.xcodebuild_not_found"
+translated = false
+text = "Cannot find xcodebuild. Please check your paths and environment."
+placeholders = []
+
+[[message]]
+id = 223
+name = "mingw.dll_crt_path_missing"
+translated = false
+text = "Could not determine MinGWDLLCrtPath : Expecting '{path}'"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 224
+name = "mingw.crt_path_missing"
+translated = false
+text = "Could not determine MinGWCrtPath: Expecting '{path}'"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 225
+name = "mingw.crt_paths_missing"
+translated = false
+text = "Could not determine MinGWCrtPath: Expecting '{first_path}' or '{second_path}'"
+placeholders = [{ name = "first_path", type = "string" }, { name = "second_path", type = "string" }]
+
+[[message]]
+id = 226
+name = "build.output_publish_failed"
+translated = false
+text = "Build Error: failed to publish {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 227
+name = "options.expression.closing_parenthesis_expected"
+translated = false
+text = "Expected ')'"
+placeholders = []
+
+[[message]]
+id = 228
+name = "options.expression.closing_parenthesis_unexpected"
+translated = false
+text = "Unexpected ')'"
+placeholders = []
+
+[[message]]
+id = 229
+name = "options.expression.character_unexpected"
+translated = false
+text = "Unexpected character : {character}"
+placeholders = [{ name = "character", type = "string" }]
+
+[[message]]
+id = 230
+name = "options.expression.missing"
+translated = false
+text = "Missing expression"
+placeholders = []
+
+[[message]]
+id = 231
+name = "module_archive.interface_missing"
+translated = false
+text = "Failed to find module interface '{path}'"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 232
+name = "module_archive.publish_failed"
+translated = false
+text = "Failed to publish module"
+placeholders = []
+
+[[message]]
+id = 233
+name = "module_archive.directory_creation_failed"
+translated = false
+text = "Unable to create module directory"
+placeholders = []
+
+[[message]]
+id = 234
+name = "conversion.filename_required"
+translated = false
+text = "convertbb option requires a filename"
+placeholders = []
+
+[[message]]
+id = 235
+name = "conversion.source_open_failed"
+translated = false
+text = "bb2bmx failed to open {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 236
+name = "conversion.included_source_open_failed"
+translated = false
+text = "bb2bmx failed to open included file {path}"
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 237
+name = "module.ambiguous"
+translated = false
+text = "Ambiguous module '{name}' maps to both '{first_path}' and '{second_path}'"
+placeholders = [{ name = "name", type = "string" }, { name = "first_path", type = "string" }, { name = "second_path", type = "string" }]
+
+[[message]]
+id = 238
+name = "target.platform_architecture_invalid"
+translated = false
+text = "Invalid Platform/Architecture configuration : {platform}/{architecture}"
+placeholders = [{ name = "platform", type = "string" }, { name = "architecture", type = "string" }]

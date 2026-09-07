@@ -5,6 +5,7 @@ Import BRL.LinkedList
 Import BRL.Map
 Import BRL.StandardIO
 Import Pub.StdC
+Import "bmk_messages.generated.bmx"
 
 Type TCompilerCacheEntry
 	Field path:String
@@ -24,13 +25,13 @@ Type TCompilerCachePlan
 				If entry.depth <> depth Then Continue
 				If entry.fileType = FILETYPE_FILE Then
 					If FileType(entry.path) <> FILETYPE_FILE Or Not DeleteFile(entry.path) Then
-						Throw "BMKCLEAN006 unable to remove generated file: " + entry.path
+						Throw TBmkMessages.CleanGeneratedFileRemovalFailed(entry.path).Render()
 					End If
 				Else
 					' Never recurse here. The complete tree was inspected first, and
 					' directories are removed from the leaves upward.
 					If FileType(entry.path) <> FILETYPE_DIR Or Not DeleteDir(entry.path, False) Then
-						Throw "BMKCLEAN007 unable to remove generated directory: " + entry.path
+						Throw TBmkMessages.CleanGeneratedDirectoryRemovalFailed(entry.path).Render()
 					End If
 				End If
 			Next
@@ -44,10 +45,10 @@ Type TCompilerOutputFilePlan
 
 	Method Execute(verbose:Int = False)
 		If readlink_(path).length Then
-			Throw "BMKCLEAN002 refusing symbolic " + cacheKind + " output file: " + path
+			Throw TBmkMessages.CleanSymbolicOutputFileRefused(cacheKind, path).Render()
 		End If
 		If FileType(path) <> FILETYPE_FILE Or Not DeleteFile(path) Then
-			Throw "BMKCLEAN006 unable to remove generated file: " + path
+			Throw TBmkMessages.CleanGeneratedFileRemovalFailed(path).Render()
 		End If
 		If verbose Then Print "  Deleted " + path
 	End Method
@@ -65,7 +66,7 @@ Type TCompilerCacheWalker Implements IFileWalker
 	Method Add(path:String, fileType:Int, depth:Int)
 		Local normalized:String = NormalizeCompilerCachePath(path)
 		If normalized <> root And Not normalized.StartsWith(root + "/") Then
-			Throw "BMKCLEAN004 refusing cache entry outside the selected directory: " + path
+			Throw TBmkMessages.CleanCacheEntryOutsideDirectory(path).Render()
 		End If
 		If paths.Contains(normalized) Then Return
 		Local entry:TCompilerCacheEntry = New TCompilerCacheEntry
@@ -97,15 +98,15 @@ End Function
 Function InspectCompilerCacheDirectory:TCompilerCachePlan(path:String, expectedLeaf:String = ".bmx", cacheKind:String = "application")
 	Local normalized:String = NormalizeCompilerCachePath(path)
 	If StripDir(normalized) <> expectedLeaf Then
-		Throw "BMKCLEAN001 refusing non-" + expectedLeaf + " " + cacheKind + " cache directory: " + path
+		Throw TBmkMessages.CleanUnexpectedCacheDirectory(expectedLeaf, cacheKind, path).Render()
 	End If
 	If readlink_(path).length Then
-		Throw "BMKCLEAN002 refusing symbolic " + cacheKind + " cache directory: " + path
+		Throw TBmkMessages.CleanSymbolicCacheDirectoryRefused(cacheKind, path).Render()
 	End If
 	Local rootType:Int = FileType(path)
 	If rootType = FILETYPE_NONE Then Return Null
 	If rootType <> FILETYPE_DIR Then
-		Throw "BMKCLEAN003 " + cacheKind + " cache path is not a directory: " + path
+		Throw TBmkMessages.CleanCachePathNotDirectory(cacheKind, path).Render()
 	End If
 
 	Local walker:TCompilerCacheWalker = New TCompilerCacheWalker(path)
@@ -118,10 +119,10 @@ Function InspectCompilerCacheDirectory:TCompilerCachePlan(path:String, expectedL
 	plan.entries = walker.entries
 	For Local entry:TCompilerCacheEntry = EachIn walker.entries
 		If readlink_(entry.path).length Or entry.fileType = FILETYPE_SYM Then
-			Throw "BMKCLEAN002 refusing symbolic link inside " + cacheKind + " cache: " + entry.path
+			Throw TBmkMessages.CleanSymbolicLinkInsideCacheRefused(cacheKind, entry.path).Render()
 		End If
 		If entry.fileType <> FILETYPE_FILE And entry.fileType <> FILETYPE_DIR Then
-			Throw "BMKCLEAN005 refusing unsupported cache entry: " + entry.path
+			Throw TBmkMessages.CleanUnsupportedCacheEntry(entry.path).Render()
 		End If
 		plan.maximumDepth = Max(plan.maximumDepth, entry.depth)
 	Next
@@ -130,12 +131,12 @@ End Function
 
 Function InspectCompilerOutputFile:TCompilerOutputFilePlan(path:String, cacheKind:String)
 	If readlink_(path).length Then
-		Throw "BMKCLEAN002 refusing symbolic " + cacheKind + " output file: " + path
+		Throw TBmkMessages.CleanSymbolicOutputFileRefused(cacheKind, path).Render()
 	End If
 	Local outputType:Int = FileType(path)
 	If outputType = FILETYPE_NONE Then Return Null
 	If outputType <> FILETYPE_FILE Then
-		Throw "BMKCLEAN005 refusing unsupported " + cacheKind + " output: " + path
+		Throw TBmkMessages.CleanUnsupportedOutput(cacheKind, path).Render()
 	End If
 	Local plan:TCompilerOutputFilePlan = New TCompilerOutputFilePlan
 	plan.path = path

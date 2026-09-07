@@ -8,6 +8,7 @@ Import BRL.FileSystem
 Import BRL.Map
 Import BRL.TextStream
 Import Crypto.SHA256Digest
+Import "bmk_messages.generated.bmx"
 
 Const BMK_BCC2_BUILD_MANIFEST_VERSION:Int = 1
 
@@ -57,7 +58,7 @@ Type TBcc2BuildManifest
 			Local path:String = TBcc2BuildManifestCodec.Resolve(rootPath, file.relativePath)
 			Local info:SFileStat
 			If Not FileStat(path, info) Or info.fileType <> FILETYPE_FILE Then
-				Throw "BMKGEN020 declared compiler output is missing: " + path
+				Throw TBmkMessages.CompilerDeclaredOutputMissing(path).Render()
 			End If
 			If stats Then stats.declarations :+ 1
 			Local digest:String
@@ -84,7 +85,7 @@ Type TBcc2BuildManifest
 				End If
 			End If
 			If digest <> file.contentDigest Then
-				Throw "BMKGEN021 compiler output digest mismatch: " + path
+				Throw TBmkMessages.CompilerOutputDigestMismatch(path).Render()
 			End If
 		Next
 	End Method
@@ -94,20 +95,20 @@ Type TBcc2BuildManifest
 		For Local link:TBcc2BuildLink = EachIn links
 			Local file:TBcc2BuildFile = FileForPath(link.sourcePath)
 			If Not file Or file.role <> "generic-specialization-c" Then
-				Throw "BMKGEN022 specialization link source is not a declared generated C unit: " + link.sourcePath
+				Throw TBmkMessages.SpecializationLinkSourceUndeclared(link.sourcePath).Render()
 			End If
 			If file.cacheKey <> link.cacheKey Or file.semanticIdentity <> link.specializationIdentity Then
-				Throw "BMKGEN023 specialization file/link identity mismatch: " + link.sourcePath
+				Throw TBmkMessages.SpecializationFileLinkIdentityMismatch(link.sourcePath).Render()
 			End If
 			Local normalizedSourcePath:String = NormalizePath(link.sourcePath)
 			If linksBySourcePath.Contains(normalizedSourcePath) Then
-				Throw "BMKGEN024 specialization C unit must have exactly one link record: " + link.sourcePath
+				Throw TBmkMessages.SpecializationLinkRecordCardinality(link.sourcePath).Render()
 			End If
 			linksBySourcePath.Insert(normalizedSourcePath, link)
 		Next
 		For Local file:TBcc2BuildFile = EachIn files
 			If file.role <> "generic-specialization-c" Then Continue
-			If Not linksBySourcePath.Contains(NormalizePath(file.relativePath)) Then Throw "BMKGEN024 specialization C unit must have exactly one link record: " + file.relativePath
+			If Not linksBySourcePath.Contains(NormalizePath(file.relativePath)) Then Throw TBmkMessages.SpecializationLinkRecordCardinality(file.relativePath).Render()
 		Next
 	End Method
 End Type
@@ -127,7 +128,7 @@ Type TBcc2BuildManifestCodec
 		Local linkObjectPaths:TMap = New TMap
 		Local lines:String[] = content.Replace("~r~n", "~n").Replace("~r", "~n").Split("~n")
 		If Not lines.length Or lines[0] <> "BMXBUILD " + BMK_BCC2_BUILD_MANIFEST_VERSION Then
-			Throw "BMKGEN001 unsupported or missing compiler build manifest version"
+			Throw TBmkMessages.CompilerManifestVersionUnsupported().Render()
 		End If
 		For Local index:Int = 1 Until lines.length
 			Local line:String = lines[index]
@@ -141,11 +142,11 @@ Type TBcc2BuildManifestCodec
 				file.semanticIdentity = DecodeField(parts[4])
 				file.relativePath = DecodeField(parts[5])
 				If Not ValidRole(file.role) Or Not IsDigest(file.contentDigest) Or (file.cacheKey.length And Not IsDigest(file.cacheKey)) Then
-					Throw "BMKGEN002 malformed compiler build file record"
+					Throw TBmkMessages.CompilerManifestFileRecordMalformed().Render()
 				End If
-				If Not IsSafeRelativePath(file.relativePath) Then Throw "BMKGEN003 unsafe compiler build file path"
+				If Not IsSafeRelativePath(file.relativePath) Then Throw TBmkMessages.CompilerManifestUnsafeFilePath().Render()
 				Local normalizedFilePath:String = TBcc2BuildManifest.NormalizePath(file.relativePath)
-				If result.filesByPath.Contains(normalizedFilePath) Then Throw "BMKGEN004 duplicate compiler build file path"
+				If result.filesByPath.Contains(normalizedFilePath) Then Throw TBmkMessages.CompilerManifestDuplicateFilePath().Render()
 				result.files :+ [file]
 				result.filesByPath.Insert(normalizedFilePath, file)
 			Else If parts.length = 5 And parts[0] = "link" Then
@@ -155,18 +156,18 @@ Type TBcc2BuildManifestCodec
 				link.sourcePath = DecodeField(parts[3])
 				link.objectPath = DecodeField(parts[4])
 				If Not IsDigest(link.cacheKey) Or Not IsDigest(link.specializationIdentity) Then
-					Throw "BMKGEN005 malformed compiler build link identity"
+					Throw TBmkMessages.CompilerManifestLinkIdentityMalformed().Render()
 				End If
 				If Not IsSafeRelativePath(link.sourcePath) Or Not IsSafeRelativePath(link.objectPath) Then
-					Throw "BMKGEN006 unsafe compiler build link path"
+					Throw TBmkMessages.CompilerManifestUnsafeLinkPath().Render()
 				End If
 				Local normalizedObjectPath:String = TBcc2BuildManifest.NormalizePath(link.objectPath)
-				If linkIdentities.Contains(link.specializationIdentity) Or linkObjectPaths.Contains(normalizedObjectPath) Then Throw "BMKGEN007 duplicate compiler build link input"
+				If linkIdentities.Contains(link.specializationIdentity) Or linkObjectPaths.Contains(normalizedObjectPath) Then Throw TBmkMessages.CompilerManifestDuplicateLinkInput().Render()
 				result.links :+ [link]
 				linkIdentities.Insert(link.specializationIdentity, link)
 				linkObjectPaths.Insert(normalizedObjectPath, link)
 			Else
-				Throw "BMKGEN008 unknown or malformed compiler build manifest record"
+				Throw TBmkMessages.CompilerManifestRecordMalformed().Render()
 			End If
 		Next
 		result.ValidateLinkClosure()
@@ -175,7 +176,7 @@ Type TBcc2BuildManifestCodec
 
 	Function Load:TBcc2BuildManifest(path:String)
 		Local info:SFileStat
-		If Not FileStat(path, info) Or info.fileType <> FILETYPE_FILE Then Throw "BMKGEN009 compiler build manifest is missing: " + path
+		If Not FileStat(path, info) Or info.fileType <> FILETYPE_FILE Then Throw TBmkMessages.CompilerManifestMissing(path).Render()
 		Local normalizedPath:String = path.Replace("\", "/").ToLower()
 		Local modifiedTime:Long = info.modifiedTime
 		Local size:Long = info.size
@@ -200,7 +201,7 @@ Type TBcc2BuildManifestCodec
 			Local bytes:Byte[] = TBase64.Decode(value)
 			Return String.FromUTF8Bytes(bytes, bytes.length)
 		Catch exception:Object
-			Throw "BMKGEN010 malformed encoded compiler build manifest field"
+			Throw TBmkMessages.CompilerManifestEncodedFieldMalformed().Render()
 		End Try
 	End Function
 
@@ -230,7 +231,7 @@ Type TBcc2BuildManifestCodec
 	End Function
 
 	Function Resolve:String(rootPath:String, relativePath:String)
-		If Not IsSafeRelativePath(relativePath) Then Throw "BMKGEN011 refusing to resolve unsafe compiler build path"
+		If Not IsSafeRelativePath(relativePath) Then Throw TBmkMessages.CompilerManifestUnsafePathResolution().Render()
 		Return rootPath.Replace("\", "/") + "/" + relativePath
 	End Function
 
@@ -244,11 +245,11 @@ Type TBcc2BuildManifestCodec
 
 	Function FileDigest:String(path:String)
 		Local stream:TStream = ReadFile(path)
-		If Not stream Then Throw "BMKGEN020 declared compiler output is missing: " + path
+		If Not stream Then Throw TBmkMessages.CompilerDeclaredOutputMissing(path).Render()
 		Local size:Long = stream.Size()
 		If size < 0 Or size > $7fffffff Then
 			stream.Close()
-			Throw "BMKGEN025 declared compiler output cannot be hashed: " + path
+			Throw TBmkMessages.CompilerOutputHashFailed(path).Render()
 		End If
 		Local bytes:Byte[] = New Byte[Int(size)]
 		Local offset:Int
@@ -256,7 +257,7 @@ Type TBcc2BuildManifestCodec
 			Local count:Int = stream.Read(Byte Ptr(bytes) + offset, bytes.length - offset)
 			If count <= 0 Then
 				stream.Close()
-				Throw "BMKGEN025 declared compiler output cannot be hashed: " + path
+				Throw TBmkMessages.CompilerOutputHashFailed(path).Render()
 			End If
 			offset :+ count
 		Wend
