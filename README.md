@@ -174,6 +174,7 @@ The available `custom.bmk` keys and their existing environment equivalents are:
 | `pico.pioasm` | `PICO_PIOASM_DIR` |
 | `pico.board.header.dirs` | `PICO_BOARD_HEADER_DIRS` |
 | `pico.board.cmake.dirs` | `PICO_BOARD_CMAKE_DIRS` |
+| `pico.float.abi` | `PICO_FLOAT_ABI` |
 
 For example, `#addoption pico.sdk "/opt/pico-sdk"` selects a non-default SDK.
 Executable options may name either the executable or its containing directory.
@@ -184,6 +185,12 @@ board definition selects its RP2040 or ARM RP2350 platform, flash configuration,
 default pins, and other board-level settings. Custom board definitions can be
 made available through `pico.board.header.dirs` and
 `pico.board.cmake.dirs` (or their Pico SDK environment equivalents).
+
+`-float-abi auto` is the default: RP2040 uses the software floating-point ABI,
+while ARM RP2350 uses the softfp ABI and its hardware FPU. `-float-abi hard`
+selects the hard-float calling convention and is supported only by ARM RP2350
+boards. The same setting can be supplied as `pico.float.abi` or
+`PICO_FLOAT_ABI`.
 
 Pico applications use a platform-aware managed heap by default: `-heap auto`
 selects 192 KiB for RP2040 boards and 384 KiB for ARM RP2350 boards. External

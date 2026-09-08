@@ -247,6 +247,8 @@ Const BMK_MSG_OPTION_HEAP_REGION_REQUIRES_PICO:Int = 239
 Const BMK_MSG_PICO_HEAP_REGION_INVALID:Int = 240
 Const BMK_MSG_PICO_HEAP_PSRAM_FIXED_SIZE_REQUIRED:Int = 241
 Const BMK_MSG_PICO_HEAP_PSRAM_CAPACITY_EXCEEDED:Int = 242
+Const BMK_MSG_OPTION_FLOAT_ABI_REQUIRES_PICO:Int = 243
+Const BMK_MSG_PICO_FLOAT_ABI_INVALID:Int = 244
 
 Type TBmkMessages
 	Function CommandUnknownOperation:TLocalisedMessage(operation:String)
@@ -974,5 +976,11 @@ Type TBmkMessages
 	End Function
 	Function PicoHeapPsramCapacityExceeded:TLocalisedMessage(heap_bytes:Long, psram_bytes:Long)
 		Return TLocalisedMessage.Create("bmk", BMK_MSG_PICO_HEAP_PSRAM_CAPACITY_EXCEEDED, "Pico managed heap size {heap_bytes} exceeds the board PSRAM capacity of {psram_bytes} bytes", [TMessageArg.CreateInt("heap_bytes", heap_bytes), TMessageArg.CreateInt("psram_bytes", psram_bytes)])
+	End Function
+	Function OptionFloatAbiRequiresPico:TLocalisedMessage()
+		Return TLocalisedMessage.Create("bmk", BMK_MSG_OPTION_FLOAT_ABI_REQUIRES_PICO, "-float-abi is currently supported only by the pico target")
+	End Function
+	Function PicoFloatAbiInvalid:TLocalisedMessage(value:String)
+		Return TLocalisedMessage.Create("bmk", BMK_MSG_PICO_FLOAT_ABI_INVALID, "Invalid Pico floating-point ABI '{value}'; expected 'auto' or 'hard'", [TMessageArg.Create("value", value)])
 	End Function
 End Type
