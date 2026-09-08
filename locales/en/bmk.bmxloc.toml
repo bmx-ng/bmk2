@@ -1,7 +1,7 @@
 format = 1
 domain = "bmk"
 locale = "en"
-next_id = 243
+next_id = 245
 
 [[message]]
 id = 1
@@ -1695,3 +1695,17 @@ name = "pico.heap.psram_capacity_exceeded"
 text = "Pico managed heap size {heap_bytes} exceeds the board PSRAM capacity of {psram_bytes} bytes"
 description = "Reported when the requested managed heap cannot fit in the board's external PSRAM."
 placeholders = [{ name = "heap_bytes", type = "integer" }, { name = "psram_bytes", type = "integer" }]
+
+[[message]]
+id = 243
+name = "option.float_abi_requires_pico"
+text = "-float-abi is currently supported only by the pico target"
+description = "Reported when the Pico floating-point ABI option is used for a non-Pico target."
+placeholders = []
+
+[[message]]
+id = 244
+name = "pico.float_abi_invalid"
+text = "Invalid Pico floating-point ABI '{value}'; expected 'auto' or 'hard'"
+description = "Reported when the configured Pico floating-point calling convention is unsupported."
+placeholders = [{ name = "value", type = "string" }]

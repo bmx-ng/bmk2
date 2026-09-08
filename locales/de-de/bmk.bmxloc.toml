@@ -1694,3 +1694,17 @@ name = "pico.heap.psram_capacity_exceeded"
 translated = false
 text = "Pico managed heap size {heap_bytes} exceeds the board PSRAM capacity of {psram_bytes} bytes"
 placeholders = [{ name = "heap_bytes", type = "integer" }, { name = "psram_bytes", type = "integer" }]
+
+[[message]]
+id = 243
+name = "option.float_abi_requires_pico"
+translated = false
+text = "-float-abi is currently supported only by the pico target"
+placeholders = []
+
+[[message]]
+id = 244
+name = "pico.float_abi_invalid"
+translated = false
+text = "Invalid Pico floating-point ABI '{value}'; expected 'auto' or 'hard'"
+placeholders = [{ name = "value", type = "string" }]

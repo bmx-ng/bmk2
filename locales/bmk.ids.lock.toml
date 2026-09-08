@@ -1,6 +1,6 @@
 format = 1
 domain = "bmk"
-next_id = 243
+next_id = 245
 
 [ids]
 "1" = "command.unknown_operation"
@@ -245,3 +245,5 @@ next_id = 243
 "240" = "pico.heap.region_invalid"
 "241" = "pico.heap.psram_fixed_size_required"
 "242" = "pico.heap.psram_capacity_exceeded"
+"243" = "option.float_abi_requires_pico"
+"244" = "pico.float_abi_invalid"

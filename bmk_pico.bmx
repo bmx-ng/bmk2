@@ -29,6 +29,7 @@ End Type
 Type TPicoTargetConfiguration
 	Field board:String
 	Field platform:String
+	Field floatABI:String
 	Field ramBytes:Long
 	Field flashBytes:Long
 	Field psramBytes:Long
@@ -439,6 +440,15 @@ Function ValidatePicoBoardName:String(board:String)
 	Return validated
 End Function
 
+Function ParsePicoFloatABI:String(value:String)
+	Local normalized:String = value.Trim().ToLower()
+	If Not normalized.length Then normalized = "auto"
+	If normalized <> "auto" And normalized <> "hard" Then
+		Throw TBmkMessages.PicoFloatAbiInvalid(value).Render()
+	End If
+	Return normalized
+End Function
+
 Function ParsePicoHeapSize:String(value:String)
 	Local normalized:String = value.Trim().ToLower()
 	If Not normalized.length Or normalized = "auto" Then Return "auto"
@@ -544,6 +554,7 @@ Function LoadPicoTargetConfiguration:TPicoTargetConfiguration(cachePath:String)
 	Local target:TPicoTargetConfiguration = New TPicoTargetConfiguration
 	target.board = PicoCMakeCacheValue(cachePath, "PICO_BOARD")
 	target.platform = PicoCMakeCacheValue(cachePath, "PICO_PLATFORM")
+	target.floatABI = PicoCMakeCacheValue(cachePath, "BLITZMAX_PICO_RESOLVED_FLOAT_ABI")
 	target.ramBytes = PicoCMakeCacheLong(cachePath, "BLITZMAX_PICO_RAM_BYTES")
 	target.flashBytes = PicoCMakeCacheLong(cachePath, "BLITZMAX_PICO_FLASH_BYTES")
 	target.psramBytes = PicoCMakeCacheLong(cachePath, "BLITZMAX_PICO_PSRAM_BYTES")
@@ -611,6 +622,7 @@ Function PicoSectionSize:Long(sizeTool:String, elfPath:String, sectionName:Strin
 End Function
 
 Function ReportPicoMemory(sizeTool:String, elfPath:String, target:TPicoTargetConfiguration)
+	Print "Pico floating-point ABI: " + target.floatABI
 	Local output:String = PicoCaptureCommand(CQuote(sizeTool) + " -B " + CQuote(elfPath))
 	Local textBytes:Long = -1
 	Local dataBytes:Long
@@ -956,6 +968,9 @@ Function MakePicoApplication(mainSource:String, outputPath:String, compileOnly:I
 	Local picoStorageOption:String = opt_pico_storage
 	If Not opt_pico_storage_set Then picoStorageOption = processor.Option("pico.storage", "none")
 	Local picoStorageSize:String = ParsePicoStorageSize(picoStorageOption)
+	Local picoFloatABIOption:String = opt_pico_float_abi
+	If Not opt_pico_float_abi_set Then picoFloatABIOption = processor.Option("pico.float.abi", getenv_("PICO_FLOAT_ABI"))
+	Local picoFloatABI:String = ParsePicoFloatABI(picoFloatABIOption)
 
 	Local sdk:String = BlitzMaxPath()
 	Local picoModuleRoot:String = sdk + "/mod/pico.mod"
@@ -1010,6 +1025,7 @@ Function MakePicoApplication(mainSource:String, outputPath:String, compileOnly:I
 	Local buildVariant:String = "release"
 	If PicoDebugBuild() Then buildVariant = "debug"
 	Local buildDir:String = ExtractDir(mainSource) + "/.bmx/" + StripDir(StripExt(mainSource)) + "." + buildVariant + ".pico.arm." + picoBoard
+	If picoFloatABI = "hard" Then buildDir :+ ".hardfloat"
 	Local cachedPicoSdk:String
 	If FileType(buildDir + "/CMakeCache.txt") = FILETYPE_FILE Then
 		cachedPicoSdk = PicoCMakeCacheValue(buildDir + "/CMakeCache.txt", "PICO_SDK_PATH")
@@ -1063,6 +1079,7 @@ Function MakePicoApplication(mainSource:String, outputPath:String, compileOnly:I
 		" -DCMAKE_BUILD_TYPE=" + cmakeBuildType + ..
 		" -DPICO_DEOPTIMIZED_DEBUG=" + picoDeoptimizedDebug + ..
 		" -DPICO_BOARD=" + picoBoard + ..
+		" -DBLITZMAX_PICO_FLOAT_ABI=" + picoFloatABI + ..
 		" -DBLITZMAX_PICO_ARENA_SIZE=" + picoArenaSize + ..
 		" -DBLITZMAX_PICO_ARENA_REGION=" + picoArenaRegion + ..
 		" -DBLITZMAX_PICO_STORAGE_SIZE=" + picoStorageSize + ..
