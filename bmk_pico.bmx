@@ -578,25 +578,34 @@ Function ValidatePicoHeapConfiguration(target:TPicoTargetConfiguration)
 	End If
 End Function
 
-Function PicoCaptureCommand:String(command:String)
+Function PicoCaptureCommand:String(command:String, streamOutput:Int = False)
 	Local process:TProcess = CreateProcess(command)
 	If Not process Then Return ""
 	Local output:TStringBuilder = New TStringBuilder
 	While process.Status() Or Not process.pipe.Eof() Or Not process.err.Eof()
 		Delay 1
-		While True
-			Local line:String = process.pipe.ReadLine()
-			If Not line Then Exit
-			output.Append(line).Append("~n")
-		Wend
-		While True
-			Local line:String = process.err.ReadLine()
-			If Not line Then Exit
-			output.Append(line).Append("~n")
-		Wend
+		Local bytes:Byte[] = process.pipe.ReadPipe()
+		If bytes Then
+			Local text:String = String.FromBytes(bytes, bytes.length)
+			output.Append(text)
+			If streamOutput Then WriteStdout text
+		End If
+		bytes = process.err.ReadPipe()
+		If bytes Then
+			Local text:String = String.FromBytes(bytes, bytes.length)
+			output.Append(text)
+			If streamOutput Then WriteStderr text
+		End If
 	Wend
 	process.Close()
 	Return output.ToString()
+End Function
+
+Function PicoUploadOutputShowsSuccess:Int(output:String)
+	output = output.Replace("~r", "")
+	Return output.Contains("Loading into Flash:") And ..
+		output.Contains("Verifying Flash:") And ..
+		output.Contains("~n  OK")
 End Function
 
 Function PicoMemoryPercent:String(used:Long, capacity:Long)
@@ -690,7 +699,8 @@ End Function
 Function UploadPicoFirmware(picotool:String, uf2Path:String)
 	Print "Uploading Pico firmware: " + StripDir(uf2Path)
 	Local command:String = CQuote(picotool) + " load -f -u -v -x " + CQuote(uf2Path)
-	If Not processor.Sys(command) Then
+	Local output:String = PicoCaptureCommand(command, True)
+	If PicoUploadOutputShowsSuccess(output) Then
 		Print "Pico upload complete; firmware was started."
 		Return
 	End If
