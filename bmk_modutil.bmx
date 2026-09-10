@@ -1045,6 +1045,7 @@ Function SetCompilerValues()
 	compilerOptions.Add("raspberrypiarm64", processor.Platform() = "raspberrypi" And processor.CPU()="arm64")
 	compilerOptions.Add("pico", processor.Platform() = "pico")
 	compilerOptions.Add("picoarm", processor.Platform() = "pico" And processor.CPU()="arm")
+	compilerOptions.Add("embedded", processor.Platform() = "pico")
 
 	compilerOptions.Add("haiku", processor.Platform() = "haiku")
 	compilerOptions.Add("haikux86", processor.Platform() = "haiku" And processor.CPU()="x86")
