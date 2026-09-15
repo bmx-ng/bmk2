@@ -4,6 +4,7 @@
 SuperStrict
 
 Import "bmk_pico.bmx"
+Import "bmk_esp32_heap.bmx"
 Import "bmk_esp32_profiles.bmx"
 Include "bmk_esp32_paths.bmx"
 
@@ -256,7 +257,7 @@ Function MakeEsp32Application(mainSource:String, outputPath:String, compileOnly:
 	Local arenaSize:String = ParsePicoHeapSize(opt_pico_heap)
 	If arenaSize = "auto" Then
 		If arenaRegion = "psram" Then
-			Local automaticBytes:Long = psramBytes - 65536
+			Local automaticBytes:Long = Esp32AutomaticPSRAMHeapBytes(psramBytes)
 			If automaticBytes < 1024 Then Throw "ESP32 PSRAM is too small for an automatic managed heap"
 			arenaSize = String(automaticBytes)
 		Else
