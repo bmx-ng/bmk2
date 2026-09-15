@@ -6,6 +6,8 @@ Import BlitzMax.Locale
 Import "bmk_messages.generated.bmx"
 Import "bmk_make.bmx"
 Import "bmk_pico.bmx"
+Import "bmk_esp32.bmx"
+Import "bmk_deviceinfo.bmx"
 Import "bmk_zap.bmx"
 
 ?MacOS
@@ -31,8 +33,8 @@ If opt_clean And cmd.ToLower() <> "makeapp" Then
 	CmdError TBmkMessages.CommandCleanOnlyMakeapp().Render()
 End If
 
-' validate the platform configuration
-ValidatePlatformArchitecture()
+' Device and board inspection do not compile code, so their target CPU is irrelevant.
+If cmd.ToLower() <> "deviceinfo" And cmd.ToLower() <> "boardinfo" Then ValidatePlatformArchitecture()
 
 ' preload the default options
 processor.RunCommand("default_cc_opts", Null)
@@ -40,8 +42,8 @@ processor.RunCommand("default_cc_opts", Null)
 ' load any global custom options (in BlitzMax/bin)
 LoadOptions
 
-' pre-init gcc version cache
-processor.GCCVersion(False, False, True)
+' pre-init gcc version cache for operations that can compile code
+If cmd.ToLower() <> "deviceinfo" And cmd.ToLower() <> "boardinfo" Then processor.GCCVersion(False, False, True)
 
 If opt_verbose Then
 	Print "bmk: startup/configuration: " + (MilliSecs() - startupStartMillis) + " ms"
@@ -125,6 +127,10 @@ Case "makebootstrap"
 Case "compile"
 	SetConfigMung
 	MakeApplication args,False,True
+Case "deviceinfo"
+	ReportEmbeddedDeviceInfo args
+Case "boardinfo"
+	ReportEsp32BoardInfo args
 Case "cleanmods"
 	CleanModules args
 Case "zapmod"
@@ -306,6 +312,8 @@ Function IsModuleOutputPlatformArchitecture:Int(platform:String, architecture:St
 			Return architecture = "arm" Or architecture = "arm64"
 		Case "pico"
 			Return architecture = "arm"
+		Case "esp32"
+			Return architecture = "xtensa" Or architecture = "riscv32"
 		Case "emscripten"
 			Return architecture = "js"
 		Case "nx"
@@ -418,6 +426,10 @@ Function MakeApplication( args$[],makelib:Int,compileOnly:Int = False )
 
 	If processor.Platform() = "pico" Then
 		MakePicoApplication(Main, opt_outfile, compileOnly)
+		Return
+	End If
+	If processor.Platform() = "esp32" Then
+		MakeEsp32Application(Main, opt_outfile, compileOnly)
 		Return
 	End If
 	If opt_pico_heap_set Then CmdError TBmkMessages.OptionHeapRequiresPico().Render()

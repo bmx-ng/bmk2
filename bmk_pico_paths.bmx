@@ -35,6 +35,13 @@ Function PicoPreferredConfiguredValue:String(optionValue:String, environmentValu
 	Return environmentValue.Trim()
 End Function
 
+Function PicoSdkOwnsPath:Int(sdkPath:String, candidatePath:String)
+	sdkPath = RealPath(sdkPath)
+	candidatePath = RealPath(candidatePath)
+	If Not sdkPath.length Or Not candidatePath.length Then Return False
+	Return candidatePath.StartsWith(sdkPath + "/")
+End Function
+
 Function PicoExecutableFromValue:String(value:String, name:String, platform:String)
 	value = value.Trim()
 	If Not value.length Then Return ""

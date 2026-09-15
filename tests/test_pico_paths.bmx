@@ -21,6 +21,7 @@ CreateDir(root + "/managed/.pico-sdk/tools/2.2.0/pioasm", True)
 CreateDir(root + "/managed/.pico-sdk/tools/2.3.0-rc1/pioasm", True)
 CreateDir(root + "/managed/.pico-sdk/tools/2.3.0/pioasm", True)
 CreateDir(root + "/package", True)
+CreateDir(root + "/managed/.pico-sdk/sdk/2.3.0/cmake/preload/toolchains", True)
 SaveText "", root + "/path-tools/cmake.exe"
 SaveText "", root + "/path-tools/ninja"
 SaveText "", root + "/path-tools/pioasm"
@@ -37,6 +38,8 @@ Check(PicoExecutableName("cmake.exe", "win32") = "cmake.exe", "Windows executabl
 Check(PicoPathSeparator("win32") = ";" And PicoPathSeparator("linux") = ":", "host PATH separators are portable")
 Check(PicoPreferredConfiguredValue(" /custom/cmake ", "/environment/cmake") = "/custom/cmake", "custom.bmk takes precedence over the environment")
 Check(PicoPreferredConfiguredValue("", " /environment/cmake ") = "/environment/cmake", "the environment is used when custom.bmk is unset")
+Check(PicoSdkOwnsPath(root + "/managed/.pico-sdk/sdk/2.3.0", root + "/managed/.pico-sdk/sdk/2.3.0/cmake/preload/toolchains/pico_arm_gcc.cmake"), "the selected SDK owns its CMake toolchain path")
+Check(Not PicoSdkOwnsPath(root + "/managed/.pico-sdk/sdk/2.3.0", root + "/managed/.pico-sdk/sdk/2.2.0/cmake/preload/toolchains/pico_arm_gcc.cmake"), "a stale CMake toolchain path is rejected after an SDK upgrade")
 Check(PicoFindExecutableOnPath("cmake", root + "/missing;" + root + "/path-tools", "win32") = root + "/path-tools/cmake.exe", "Windows PATH discovery works")
 Check(PicoFindExecutableOnPath("ninja", root + "/missing:" + root + "/path-tools", "linux") = root + "/path-tools/ninja", "Unix PATH discovery works")
 Check(PicoExecutableFromValue(root + "/package", "picotool", "linux") = root + "/package/picotool", "a tool directory resolves its executable")

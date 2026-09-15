@@ -286,7 +286,7 @@ Function DiscoverPicoSourceUnit(moduleName:String, source:String, sourceUnitPath
 		If Not importedUnitPath.length Then Throw TBmkMessages.PicoModuleQuotedSourceEscapesRoot(importedPath).Render()
 		Local importedSource:String = RealPath(ExtractDir(source) + "/" + importedPath)
 		If FileType(importedSource) <> FILETYPE_FILE Then Throw TBmkMessages.PicoQuotedSourceReadFailed(importedPath, source).Render()
-		Local importedInterface:String = ExtractDir(importedSource) + "/.bmx/" + StripDir(importedSource) + "." + PicoBuildModeName() + ".pico.arm.i"
+		Local importedInterface:String = ExtractDir(importedSource) + "/.bmx/" + StripDir(importedSource) + "." + EmbeddedTargetMung() + ".i"
 		DiscoverPicoSourceUnit(moduleName, importedSource, importedUnitPath, importedInterface, units, visitedModules, visitedSources)
 	Next
 
@@ -308,7 +308,7 @@ Function DiscoverPicoModule(moduleName:String, units:TList, visitedModules:TMap,
 	Local moduleDirectory:String = InstalledModulePath(normalized)
 	Local ident:String = ModuleIdent(normalized)
 	Local source:String = moduleDirectory + "/" + ident + ".bmx"
-	Local interfacePath:String = moduleDirectory + "/" + ident + "." + PicoBuildModeName() + ".pico.arm.i"
+	Local interfacePath:String = moduleDirectory + "/" + ident + "." + EmbeddedTargetMung() + ".i"
 	DiscoverPicoSourceUnit(normalized, source, ident + ".bmx", interfacePath, units, visitedModules, visitedSources, True)
 End Function
 
@@ -341,7 +341,7 @@ Function DiscoverPicoApplicationModules(sourcePath:String, sourceUnitPath:String
 		Local applicationUnit:TPicoApplicationUnit = New TPicoApplicationUnit
 		applicationUnit.source = source
 		applicationUnit.sourceUnitPath = sourceUnitPath
-		applicationUnit.interfacePath = ExtractDir(source) + "/.bmx/" + StripDir(source) + "." + PicoBuildModeName() + ".pico.arm.i"
+		applicationUnit.interfacePath = ExtractDir(source) + "/.bmx/" + StripDir(source) + "." + EmbeddedTargetMung() + ".i"
 		applicationUnits.AddLast(applicationUnit)
 	End If
 End Function
@@ -424,6 +424,10 @@ End Function
 Function PicoBuildModeName:String()
 	If PicoDebugBuild() Then Return "debug"
 	Return "release"
+End Function
+
+Function EmbeddedTargetMung:String()
+	Return PicoBuildModeName() + "." + processor.Platform() + "." + processor.CPU()
 End Function
 
 Function ValidatePicoBoardName:String(board:String)
@@ -539,6 +543,18 @@ Function PicoCMakeCacheValue:String(cachePath:String, key:String)
 		If equals >= 0 Then Return line[equals + 1..].Trim()
 	Next
 	Throw TBmkMessages.PicoSdkTargetKeyMissing(key, cachePath).Render()
+End Function
+
+Function PicoCMakeCacheOptionalValue:String(cachePath:String, key:String)
+	Local text:String = LoadText(cachePath)
+	If Not text.length Then Return ""
+	Local prefix:String = key + ":"
+	For Local line:String = EachIn text.Replace("~r", "").Split("~n")
+		If Not line.StartsWith(prefix) Then Continue
+		Local equals:Int = line.Find("=")
+		If equals >= 0 Then Return line[equals + 1..].Trim()
+	Next
+	Return ""
 End Function
 
 Function PicoCMakeCacheLong:Long(cachePath:String, key:String)
@@ -722,7 +738,7 @@ Function GeneratePicoInterface(bcc:String, sdk:String, moduleName:String, source
 		" --sdk " + CQuote(sdk) + ..
 		" --module " + moduleName
 	If sourceUnitPath.length Then command :+ " --source-unit " + CQuote(sourceUnitPath)
-	command :+ " --platform pico --arch arm --single-threaded"
+	command :+ " --platform " + processor.Platform() + " --arch " + processor.CPU() + " --single-threaded"
 	If PicoDebugBuild() Then
 		command :+ " --debug --no-debug-instrumentation --gdb-debug"
 	Else
@@ -733,7 +749,7 @@ Function GeneratePicoInterface(bcc:String, sdk:String, moduleName:String, source
 End Function
 
 Function PicoRuntimeHeaderPath:String(source:String)
-	Return ExtractDir(source) + "/.bmx/" + StripDir(source) + "." + PicoBuildModeName() + ".pico.arm.h"
+	Return ExtractDir(source) + "/.bmx/" + StripDir(source) + "." + EmbeddedTargetMung() + ".h"
 End Function
 
 Function GeneratePicoBuildBundle:TPicoBuildBundle(bcc:String, sdk:String, source:String, bundleRoot:String, generatedCName:String, moduleName:String = "", sourceUnitPath:String = "", interfaceOutput:String = "", applicationIdentity:String = "", applicationSource:Int = False, frameworkModule:String = "", runtimeHeaderOutput:String = "")
@@ -742,7 +758,7 @@ Function GeneratePicoBuildBundle:TPicoBuildBundle(bcc:String, sdk:String, source
 	Local command:String = CQuote(bcc) + ..
 		" --emit-build" + ..
 		" --sdk " + CQuote(sdk) + ..
-		" --platform pico --arch arm --single-threaded" + ..
+		" --platform " + processor.Platform() + " --arch " + processor.CPU() + " --single-threaded" + ..
 		" --build-c " + CQuote(generatedCName) + ..
 		" --build-manifest " + CQuote(manifestName)
 	If moduleName.length Then command :+ " --module " + moduleName
@@ -1037,12 +1053,15 @@ Function MakePicoApplication(mainSource:String, outputPath:String, compileOnly:I
 	Local buildDir:String = ExtractDir(mainSource) + "/.bmx/" + StripDir(StripExt(mainSource)) + "." + buildVariant + ".pico.arm." + picoBoard
 	If picoFloatABI = "hard" Then buildDir :+ ".hardfloat"
 	Local cachedPicoSdk:String
+	Local cachedPicoToolchain:String
 	If FileType(buildDir + "/CMakeCache.txt") = FILETYPE_FILE Then
 		cachedPicoSdk = PicoCMakeCacheValue(buildDir + "/CMakeCache.txt", "PICO_SDK_PATH")
+		cachedPicoToolchain = PicoCMakeCacheOptionalValue(buildDir + "/CMakeCache.txt", "CMAKE_TOOLCHAIN_FILE")
 	End If
-	If cachedPicoSdk.length And RealPath(cachedPicoSdk) <> RealPath(picoSdk) Then
+	If cachedPicoSdk.length And (RealPath(cachedPicoSdk) <> RealPath(picoSdk) Or ..
+		Not PicoSdkOwnsPath(picoSdk, cachedPicoToolchain)) Then
 		' CMake retains absolute SDK source paths in its generated build graph and
-		' cannot safely reconfigure that graph across SDK installations.
+		' can leave a partially updated cache after an interrupted SDK transition.
 		If Not DeleteDir(buildDir, True) Then Throw TBmkMessages.PicoOutputDirectoryCreationFailed(buildDir).Render()
 	End If
 	CreateDir(buildDir, True)

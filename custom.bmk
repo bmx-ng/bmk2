@@ -44,3 +44,11 @@
 #addoption pico.board.cmake.dirs "/PATH/TO/CUSTOM/BOARD/CMAKE"
 #addoption pico.storage "256k"
 #addoption pico.float.abi "hard"
+
+# ** ESP32 configuration **
+# Values in custom.bmk take precedence over environment variables and PATH.
+
+#addoption esp32.idf "/PATH/TO/esp-idf"
+#addoption esp32.target "esp32s3"
+#addoption esp32.port "/dev/cu.usbmodem..."
+#addoption esp32.board.dirs "/PATH/TO/CUSTOM/ESP32/BOARDS"

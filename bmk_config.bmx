@@ -36,6 +36,7 @@ Global opt_universal=False
 Global opt_target_platform:String
 Global opt_target_platform_set=False
 Global opt_target_board:String = "pico2"
+Global opt_target_board_set:Int
 Global opt_pico_heap:String = "auto"
 Global opt_pico_heap_set:Int
 Global opt_pico_heap_region:String = "sram"
@@ -268,6 +269,7 @@ Function ParseConfigArgs$[]( args$[], legacyMax:Int = False )
 			n:+1
 			If n=args.length MissingArg(argv)
 			opt_target_board=args[n]
+			opt_target_board_set = True
 		Case "gdb"
 			opt_gdbdebug = True
 			opt_gdbdebug_set = True
@@ -397,6 +399,14 @@ Function Usage:String(fullUsage:Int = False)
 		s:+ "~t~tRemoves compiler caches, archives, interfaces, manifests, and stamps from all~n"
 		s:+ "~t~tmodules, or only the selected module or namespace when one is supplied."
 		s:+ "~n~n"
+		s:+ "~tdeviceinfo -l <pico|esp32> [-board <profile>]~n"
+		s:+ "~t~tReports facts detected from a connected embedded device. A supplied board profile~n"
+		s:+ "~t~tis shown separately as build configuration and is never inferred from the silicon."
+		s:+ "~n~n"
+		s:+ "~tboardinfo -l esp32 [-board <profile>]~n"
+		s:+ "~t~tReports the selected ESP32 board's build settings, default buses, onboard resources,~n"
+		s:+ "~t~tconstraints, and named pins without requiring a connected device."
+		s:+ "~n~n"
 		s:+ "Options :~n"
 		s:+ "~t-a | -all~n"
 		s:+ "~t~tRecompile all source/modules regardless of timestamp. By default, only those modified~n" + ..
@@ -479,22 +489,22 @@ Function Usage:String(fullUsage:Int = False)
 		s:+ "~n~n"
 		s:+ "~t-l <target platfom> | -platform <target platform>~n"
 		s:+ "~t~tCross-compiles to the specific target platform.~n"
-		s:+ "~t~tValid targets are win32, linux, macos, ios, android, raspberrypi, pico and haiku.~n"
+		s:+ "~t~tValid targets are win32, linux, macos, ios, android, raspberrypi, pico, esp32 and haiku.~n"
 		s:+ "~t~t(see documentation for full list of requirements)"
 		s:+ "~n~n"
 		s:+ "~t-locale <locale>~n"
 		s:+ "~t~tSelects the locale for user-facing compiler and build errors (for example, de-de).~n"
 		s:+ "~n~n"
 		s:+ "~t-board <board>~n"
-		s:+ "~t~tSelects the Pico SDK board definition. The default for the pico target is pico2.~n"
+		s:+ "~t~tSelects the embedded board profile. The default is pico2 for Pico and esp32 for ESP32.~n"
 		s:+ "~n~n"
 		s:+ "~t-heap <auto|size>~n"
-		s:+ "~t~tSelects the Pico managed heap. Sizes accept byte, k/KiB, and m/MiB suffixes;~n"
-		s:+ "~t~tthe default is a board-aware automatic size. (Pico only)~n"
+		s:+ "~t~tSelects the embedded managed heap. Sizes accept byte, k/KiB, and m/MiB suffixes;~n"
+		s:+ "~t~tthe default is a target-aware automatic size. (Pico and ESP32)~n"
 		s:+ "~n~n"
 		s:+ "~t-heap-region <sram|psram>~n"
-		s:+ "~t~tPlaces the Pico managed heap in internal SRAM or external PSRAM;~n"
-		s:+ "~t~tthe default is sram. (Pico only)~n"
+		s:+ "~t~tPlaces the embedded managed heap in internal SRAM or profile-defined external PSRAM;~n"
+		s:+ "~t~tthe default is sram. (Pico and ESP32)~n"
 		s:+ "~n~n"
 		s:+ "~t-storage <none|size>~n"
 		s:+ "~t~tReserves persistent flash storage at a stable, sector-aligned location.~n"
@@ -572,7 +582,7 @@ Function Usage:String(fullUsage:Int = False)
 		s:+ "~t~tWith this warning enabled you may have issues with method overloading."
 		s:+ "~n~n"
 		s:+ "~t-x~n"
-		s:+ "~t~tExecute the built application, or upload and start Pico firmware. (makeapp only)"
+		s:+ "~t~tExecute the built application, or upload and start embedded firmware. (makeapp only)"
 		s:+ "~n~n"
 	End If
 
@@ -765,6 +775,7 @@ Function ValidateArch(arch:String)
 		Case "js"
 		Case "riscv32"
 		Case "riscv64"
+		Case "xtensa"
 		Default
 			CmdError TBmkMessages.TargetArchitectureInvalid(arch).Render()
 	End Select
@@ -780,6 +791,7 @@ Function ValidatePlatform(platform:String)
 		Case "android"
 		Case "raspberrypi"
 		Case "pico"
+		Case "esp32"
 		Case "emscripten"
 		Case "nx"
 		Case "haiku"
