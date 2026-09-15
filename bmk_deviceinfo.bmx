@@ -127,7 +127,8 @@ End Function
 
 Function ReportEsp32DeviceInfo()
 	Local idfPath:String = Esp32IdfPath()
-	Local python:String = Esp32Python(idfPath)
+	Local idfToolsRoot:String = Esp32ToolsRoot(idfPath)
+	Local python:String = Esp32Python(idfPath, idfToolsRoot)
 	Local command:String = CQuote(python) + " -m esptool --chip auto"
 	Local configuredPort:String = Esp32SerialPort()
 	If configuredPort.length Then command :+ " -p " + CQuote(configuredPort)
