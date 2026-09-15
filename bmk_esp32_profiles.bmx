@@ -54,6 +54,10 @@ Type TEsp32BoardProfile
 		If consoleTransport = "usb_serial_jtag" Then Return "usb-reset"
 		Return ""
 	End Method
+
+	Method RequiresManualPostFlashReset:Int()
+		Return idfTarget = "esp32h2" And consoleTransport = "usb_serial_jtag"
+	End Method
 End Type
 
 Type TEsp32BoardProfileRegistry

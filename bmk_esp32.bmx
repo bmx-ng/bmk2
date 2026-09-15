@@ -394,6 +394,10 @@ Function MakeEsp32Application(mainSource:String, outputPath:String, compileOnly:
 		Else
 			RunPicoCommand(flashCommand, "Uploading ESP32 firmware")
 		End If
-		Print "ESP32 upload complete; firmware was started."
+		If profile.RequiresManualPostFlashReset()
+			Print "ESP32 upload complete; press the board's RESET button to start the firmware."
+		Else
+			Print "ESP32 upload complete; firmware was started."
+		End If
 	End If
 End Function

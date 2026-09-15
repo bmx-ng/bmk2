@@ -38,6 +38,7 @@ Check(profile.flashSize = "8MiB", "flash size is loaded")
 Check(profile.partitions = "partitions.csv", "partition table is loaded")
 Check(profile.consoleTransport = "usb_serial_jtag", "console transport is loaded")
 Check(profile.EsptoolResetMode() = "usb-reset", "native USB console selects USB reset for flashing")
+Check(Not profile.RequiresManualPostFlashReset(), "non-H2 native USB targets start normally after flashing")
 Check(profile.PinNumber("sda") = 47, "pin names resolve case-insensitively")
 Check(profile.Pin("SCL").connector = "J1", "physical connector metadata is loaded")
 Check(String(profile.Bus("bus.i2c.default").ValueForKey("scl")) = "SCL", "default bus is loaded")
@@ -49,6 +50,10 @@ Check(registry.Names() = "example_s3", "canonical names are reported")
 
 Local uartProfile:TEsp32BoardProfile = ParseEsp32BoardProfile("format=1~n[board]~nname=UART Board~nkind=board~ntarget=esp32s3~n[console]~ntransport=uart~n", "uart_board", "fixture")
 Check(uartProfile.EsptoolResetMode() = "", "UART console retains ESP-IDF's default reset mode")
+
+Local h2Profile:TEsp32BoardProfile = ParseEsp32BoardProfile("format=1~n[board]~nname=H2 Board~nkind=board~ntarget=esp32h2~n[console]~ntransport=usb_serial_jtag~n", "h2_board", "fixture")
+Check(h2Profile.EsptoolResetMode() = "usb-reset", "H2 native USB selects USB reset before flashing")
+Check(h2Profile.RequiresManualPostFlashReset(), "H2 native USB reports its required post-flash reset")
 
 Local rejected:Int
 Try
