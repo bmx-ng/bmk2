@@ -238,6 +238,14 @@ or `esp32.port` when more than one serial device is available. The operation
 does not erase or program flash and restarts the installed application after
 inspection.
 
+ESP32 tooling supports both Espressif's installer-managed layout and a manual
+checkout stored independently from its downloaded tools. `IDF_PATH` identifies
+the checkout, `IDF_TOOLS_PATH` identifies the tools root, and
+`IDF_PYTHON_ENV_PATH` identifies the matching Python virtual environment. If
+the latter two are unset, bmk checks the standard `.espressif` manual-install
+layout and the installer-managed layout, using ESP-IDF's version metadata to
+select a compatible Python environment.
+
 For ESP32, `makeapp -x` also uses the selected board profile's console
 transport. Profiles declaring native USB Serial/JTAG use esptool's USB reset
 sequence; conventional UART profiles retain ESP-IDF's default DTR/RTS reset.

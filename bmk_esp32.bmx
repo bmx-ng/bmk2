@@ -5,6 +5,7 @@ SuperStrict
 
 Import "bmk_pico.bmx"
 Import "bmk_esp32_profiles.bmx"
+Include "bmk_esp32_paths.bmx"
 
 Global esp32BoardProfiles:TEsp32BoardProfileRegistry
 
@@ -58,14 +59,30 @@ Function Esp32IdfPath:String()
 	Throw "Unable to locate ESP-IDF. Set IDF_PATH or esp32.idf in custom.bmk."
 End Function
 
-Function Esp32Python:String(idfPath:String)
-	Local installationName:String = StripDir(ExtractDir(idfPath))
-	Local toolsRoot:String = ExtractDir(ExtractDir(idfPath)) + "/tools"
-	Local executableName:String = "python"
-	If PicoHostPlatform() = "win32" Then executableName :+ ".exe"
-	Local candidate:String = toolsRoot + "/python/" + installationName + "/venv/bin/" + executableName
-	If FileType(candidate) = FILETYPE_FILE Then Return candidate
-	Throw "Unable to locate the ESP-IDF " + installationName + " Python environment under " + toolsRoot
+Function Esp32ToolsRoot:String(idfPath:String)
+	Local configured:String = getenv_("IDF_TOOLS_PATH").Trim()
+	If configured.length
+		Local explicitRoot:String = Esp32ToolsRootCandidate(configured)
+		If explicitRoot.length Then Return explicitRoot
+		Throw "IDF_TOOLS_PATH does not contain an ESP-IDF tools directory: " + configured
+	End If
+	Local root:String = Esp32ResolveToolsRoot("", PicoUserHome(PicoHostPlatform()), idfPath)
+	If root.length Then Return root
+	Throw "Unable to locate the ESP-IDF tools root. Set IDF_TOOLS_PATH; its default is the .espressif directory in the user's home."
+End Function
+
+Function Esp32Python:String(idfPath:String, toolsRoot:String)
+	Local configured:String = getenv_("IDF_PYTHON_ENV_PATH").Trim()
+	If configured.length
+		Local explicitPython:String = Esp32PythonExecutable(configured, PicoHostPlatform())
+		If explicitPython.length Then Return explicitPython
+		Throw "IDF_PYTHON_ENV_PATH does not contain a Python executable: " + configured
+	End If
+	Local version:String = Esp32IdfVersion(idfPath)
+	If Not version.length Then Throw "Unable to determine the ESP-IDF version from " + idfPath + "/tools/cmake/version.cmake"
+	Local python:String = Esp32ResolvePython("", toolsRoot, idfPath, PicoHostPlatform())
+	If python.length Then Return python
+	Throw "Unable to locate the ESP-IDF " + Esp32IdfMajorMinor(version) + " Python environment under " + toolsRoot + "/python_env or " + toolsRoot + "/python"
 End Function
 
 Function Esp32BoardProfile:String()
@@ -198,7 +215,8 @@ Function Esp32ToolchainBin:String(idfToolsPath:String, targetArchitecture:String
 		Default
 			Throw "Unsupported ESP32 toolchain architecture: " + targetArchitecture
 	End Select
-	Local toolRoot:String = idfToolsPath + "/" + toolName
+	Local toolRoot:String = Esp32ToolDirectory(idfToolsPath, toolName)
+	If Not toolRoot.length Then Throw "Unable to locate the ESP-IDF " + targetArchitecture + " toolchain under " + idfToolsPath
 	Local selected:String
 	For Local version:String = EachIn LoadDir(toolRoot)
 		Local candidate:String = toolRoot + "/" + version + "/" + toolName + "/bin"
@@ -206,7 +224,7 @@ Function Esp32ToolchainBin:String(idfToolsPath:String, targetArchitecture:String
 		If Not selected.length Or version > StripDir(ExtractDir(ExtractDir(selected))) Then selected = candidate
 	Next
 	If selected.length Then Return selected
-	Throw "Unable to locate the ESP-IDF " + targetArchitecture + " toolchain under " + toolRoot
+	Throw "Unable to locate the ESP-IDF " + targetArchitecture + " compiler under " + toolRoot
 End Function
 
 Function Esp32SerialPort:String()
@@ -258,12 +276,11 @@ Function MakeEsp32Application(mainSource:String, outputPath:String, compileOnly:
 	If FileType(cmakeTemplate + "/CMakeLists.txt") <> FILETYPE_FILE Then Throw "The ESP32 CMake application template is missing"
 
 	Local idfPath:String = Esp32IdfPath()
-	Local python:String = Esp32Python(idfPath)
+	Local idfToolsRoot:String = Esp32ToolsRoot(idfPath)
+	Local python:String = Esp32Python(idfPath, idfToolsRoot)
 	Local pythonEnvironment:String = ExtractDir(ExtractDir(python))
-	Local idfVersion:String = StripDir(ExtractDir(idfPath))
-	If idfVersion.StartsWith("v") Then idfVersion = idfVersion[1..]
-	Local idfToolsPath:String = ExtractDir(ExtractDir(idfPath)) + "/tools"
-	Local toolchainBin:String = Esp32ToolchainBin(idfToolsPath, targetArchitecture, idfTarget)
+	Local idfVersion:String = Esp32IdfVersion(idfPath)
+	Local toolchainBin:String = Esp32ToolchainBin(idfToolsRoot, targetArchitecture, idfTarget)
 	Local idfPy:String = idfPath + "/tools/idf.py"
 
 	Local outputBase:String = outputPath
@@ -312,7 +329,7 @@ Function MakeEsp32Application(mainSource:String, outputPath:String, compileOnly:
 	Local nativeCMake:String = GeneratePicoNativeCMake(nativeImports, nativeLinkOptions, buildDir)
 	Local sdkconfigDefaults:String = GenerateEsp32SdkconfigDefaults(profile, buildDir, bleEnabled)
 
-	Local idfEnvironment:String = "PATH=" + CQuote(toolchainBin + ":" + getenv_("PATH")) + " IDF_PATH=" + CQuote(idfPath) + " IDF_TOOLS_PATH=" + CQuote(idfToolsPath) + " IDF_PYTHON_ENV_PATH=" + CQuote(pythonEnvironment) + " ESP_IDF_VERSION=" + idfVersion + " IDF_VERSION=" + idfVersion + " "
+	Local idfEnvironment:String = "PATH=" + CQuote(toolchainBin + PicoPathSeparator(PicoHostPlatform()) + getenv_("PATH")) + " IDF_PATH=" + CQuote(idfPath) + " IDF_TOOLS_PATH=" + CQuote(idfToolsRoot) + " IDF_PYTHON_ENV_PATH=" + CQuote(pythonEnvironment) + " ESP_IDF_VERSION=" + idfVersion + " IDF_VERSION=" + idfVersion + " "
 	Local idfCommand:String = idfEnvironment + CQuote(python) + " " + CQuote(idfPy) + ..
 		" -C " + CQuote(cmakeTemplate) + " -B " + CQuote(buildDir)
 	Local command:String = idfCommand + ..
