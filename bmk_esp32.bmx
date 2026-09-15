@@ -60,10 +60,12 @@ Function Esp32IdfPath:String()
 End Function
 
 Function Esp32ToolsRoot:String(idfPath:String)
-	Local configured:String = getenv_("IDF_TOOLS_PATH").Trim()
+	Local optionValue:String = processor.Option("esp32.tools", "").Trim()
+	Local configured:String = PicoPreferredConfiguredValue(optionValue, getenv_("IDF_TOOLS_PATH"))
 	If configured.length
 		Local explicitRoot:String = Esp32ToolsRootCandidate(configured)
 		If explicitRoot.length Then Return explicitRoot
+		If optionValue.length Then Throw "The esp32.tools path does not contain an ESP-IDF tools directory: " + configured
 		Throw "IDF_TOOLS_PATH does not contain an ESP-IDF tools directory: " + configured
 	End If
 	Local root:String = Esp32ResolveToolsRoot("", PicoUserHome(PicoHostPlatform()), idfPath)
@@ -72,10 +74,12 @@ Function Esp32ToolsRoot:String(idfPath:String)
 End Function
 
 Function Esp32Python:String(idfPath:String, toolsRoot:String)
-	Local configured:String = getenv_("IDF_PYTHON_ENV_PATH").Trim()
+	Local optionValue:String = processor.Option("esp32.python", "").Trim()
+	Local configured:String = PicoPreferredConfiguredValue(optionValue, getenv_("IDF_PYTHON_ENV_PATH"))
 	If configured.length
 		Local explicitPython:String = Esp32PythonExecutable(configured, PicoHostPlatform())
 		If explicitPython.length Then Return explicitPython
+		If optionValue.length Then Throw "The esp32.python path does not contain a Python executable: " + configured
 		Throw "IDF_PYTHON_ENV_PATH does not contain a Python executable: " + configured
 	End If
 	Local version:String = Esp32IdfVersion(idfPath)

@@ -246,6 +246,11 @@ the latter two are unset, bmk checks the standard `.espressif` manual-install
 layout and the installer-managed layout, using ESP-IDF's version metadata to
 select a compatible Python environment.
 
+The equivalent persistent `custom.bmk` options are `esp32.idf`, `esp32.tools`,
+and `esp32.python`. A configured Python value may name either its virtual
+environment directory or the Python executable itself. Configuration options
+take precedence over their corresponding environment variables.
+
 For ESP32, `makeapp -x` also uses the selected board profile's console
 transport. Profiles declaring native USB Serial/JTAG use esptool's USB reset
 sequence; conventional UART profiles retain ESP-IDF's default DTR/RTS reset.

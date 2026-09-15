@@ -12,7 +12,12 @@ cp "$bmk" "$test_sdk/bin/bmk"
 ln -s "$sdk/mod" "$test_sdk/mod"
 for config in "$sdk/bin"/*.bmk
 do
-	ln -s "$config" "$test_sdk/bin/$(basename "$config")"
+	config_name=$(basename "$config")
+	if test "$config_name" = custom.bmk
+	then
+		continue
+	fi
+	ln -s "$config" "$test_sdk/bin/$config_name"
 done
 bmk="$test_sdk/bin/bmk"
 
@@ -56,9 +61,13 @@ printf '%s\n' 'set(IDF_VERSION_MAJOR 6)' 'set(IDF_VERSION_MINOR 1)' 'set(IDF_VER
 cp "$(dirname "$0")/fixtures/fake_esp32_python.sh" "$manual_python/bin/python"
 chmod +x "$manual_python/bin/python"
 printf '%s\n' '6.1' >"$manual_python/idf_version.txt"
+printf 'addoption esp32.tools "%s"\naddoption esp32.python "%s"\n' \
+	"$manual_tools" "$manual_python" >"$test_sdk/bin/custom.bmk"
 
 manual_log="$temporary/deviceinfo-manual-layout.log"
-HOME="$manual_home" IDF_PATH="$manual_idf" IDF_TOOLS_PATH= IDF_PYTHON_ENV_PATH= \
+HOME="$manual_home" IDF_PATH="$manual_idf" \
+	IDF_TOOLS_PATH="$temporary/ignored-tools" \
+	IDF_PYTHON_ENV_PATH="$temporary/ignored-python" \
 	"$bmk" deviceinfo -l esp32 >"$manual_log"
 grep -q 'Port: /dev/ttyACM0' "$manual_log"
 grep -q 'Chip: ESP32-S3' "$manual_log"
