@@ -950,6 +950,10 @@ Function ValidatePlatformArchitecture()
 			If arch = "arm" Then
 				valid = True
 			End If
+		Case "esp32"
+			If arch = "xtensa" Or arch = "riscv32" Then
+				valid = True
+			End If
 		Case "emscripten"
 			If arch = "js" Then
 				valid = True
@@ -988,14 +992,15 @@ Function SetCompilerValues()
 	compilerOptions.Add("arm64", processor.CPU()="arm64")
 	compilerOptions.Add("riscv32", processor.CPU()="riscv32")
 	compilerOptions.Add("riscv64", processor.CPU()="riscv64")
+	compilerOptions.Add("xtensa", processor.CPU()="xtensa")
 	compilerOptions.Add("js", processor.CPU()="js")
 
-	compilerOptions.Add("ptr32", processor.CPU()="x86" Or processor.CPU()="ppc" Or processor.CPU()="arm" Or processor.CPU()="armeabi" Or processor.CPU()="armeabiv7a" Or processor.CPU()="armv7" Or processor.CPU()="js" Or processor.CPU()="riscv32")
+	compilerOptions.Add("ptr32", processor.CPU()="x86" Or processor.CPU()="ppc" Or processor.CPU()="arm" Or processor.CPU()="armeabi" Or processor.CPU()="armeabiv7a" Or processor.CPU()="armv7" Or processor.CPU()="js" Or processor.CPU()="riscv32" Or processor.CPU()="xtensa")
 	compilerOptions.Add("ptr64", processor.CPU()="x64" Or processor.CPU()="arm64v8a" Or processor.CPU()="arm64" Or processor.CPU()="riscv64")
 
 	Local longInt8:Int = True
 	' on windows and 32-bit platforms longint is 4 bytes
-	If processor.Platform()="win32" Or processor.Platform()="win64" Or processor.Platform()="pico" Or processor.CPU()="x86" Or processor.CPU()="ppc" Then
+	If processor.Platform()="win32" Or processor.Platform()="win64" Or processor.Platform()="pico" Or processor.Platform()="esp32" Or processor.CPU()="x86" Or processor.CPU()="ppc" Then
 		longInt8 = False
 	End If
 	compilerOptions.Add("longint8", longInt8)
@@ -1045,7 +1050,10 @@ Function SetCompilerValues()
 	compilerOptions.Add("raspberrypiarm64", processor.Platform() = "raspberrypi" And processor.CPU()="arm64")
 	compilerOptions.Add("pico", processor.Platform() = "pico")
 	compilerOptions.Add("picoarm", processor.Platform() = "pico" And processor.CPU()="arm")
-	compilerOptions.Add("embedded", processor.Platform() = "pico")
+	compilerOptions.Add("esp32", processor.Platform() = "esp32")
+	compilerOptions.Add("esp32xtensa", processor.Platform() = "esp32" And processor.CPU() = "xtensa")
+	compilerOptions.Add("esp32riscv32", processor.Platform() = "esp32" And processor.CPU() = "riscv32")
+	compilerOptions.Add("embedded", processor.Platform() = "pico" Or processor.Platform() = "esp32")
 
 	compilerOptions.Add("haiku", processor.Platform() = "haiku")
 	compilerOptions.Add("haikux86", processor.Platform() = "haiku" And processor.CPU()="x86")

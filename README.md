@@ -222,6 +222,49 @@ Probe launching is still a
 separate OpenOCD/GDB step; `-x` currently retains its documented picotool
 upload behaviour for both build modes.
 
+## Embedded device inspection
+
+`bmk boardinfo -l esp32 -board <profile>` reports the static information bmk
+uses for a board: its ESP-IDF target and architecture, build settings, default
+buses, onboard resources, pin constraints, and named GPIO map. The supplied
+profiles live under `esp32.mod/boards`, one directory per board. Additional
+profile roots can be supplied through `esp32.board.dirs` in `custom.bmk` or
+`ESP32_BOARD_DIRS`, so a local or vendor profile does not require changing bmk.
+
+`bmk deviceinfo -l esp32` uses the installed ESP-IDF `esptool` to report facts
+read from one connected ESP32 device, including its chip, revision, features,
+flash capacity and interface, crystal, USB mode, and MAC address. Set `ESPPORT`
+or `esp32.port` when more than one serial device is available. The operation
+does not erase or program flash and restarts the installed application after
+inspection.
+
+For ESP32, `makeapp -x` also uses the selected board profile's console
+transport. Profiles declaring native USB Serial/JTAG use esptool's USB reset
+sequence; conventional UART profiles retain ESP-IDF's default DTR/RTS reset.
+This keeps upload and restart board-driven rather than hardcoding individual
+board names.
+
+ESP32 applications which import `Embedded.Network.BLE` automatically enable
+the ESP-IDF Bluetooth controller and NimBLE host through generated build
+defaults. Applications which do not import BLE keep those components disabled.
+
+`bmk deviceinfo -l pico` similarly uses the installed `picotool` to report the
+RP-series chip, revision, physical flash capacity, and identifiers that the
+device exposes. It can temporarily request BOOTSEL mode from compatible running
+firmware and returns the device to application mode afterward.
+
+The detected silicon does not identify a retail development board. If `-board`
+is supplied, bmk displays it separately as selected build configuration; it
+never infers a board profile from a matching chip and flash combination. On
+ESP32, bmk warns when that profile's configured firmware flash size differs
+from the capacity reported by the device. `deviceinfo` fails for non-embedded
+targets.
+
+Board selection remains explicit: `-board baguette_s3` selects build defaults,
+while `deviceinfo` describes attached silicon and flash. bmk compares the two
+when both are available, but deliberately does not guess a retail board from
+chip characteristics shared by many products.
+
 ## Tests
 
 The `tests` directory contains focused unit and integration runners. Most
