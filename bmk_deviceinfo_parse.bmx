@@ -35,5 +35,9 @@ Function Esp32DetectedTarget:String(chip:String)
 	Local result:String = chip.Trim().ToLower().Replace("-", "")
 	Local separator:Int = result.Find(" ")
 	If separator >= 0 Then result = result[..separator]
+	For Local target:String = EachIn ["esp32s2", "esp32s3", "esp32c2", "esp32c3", "esp32c5", "esp32c6", "esp32h2", "esp32p4"]
+		If result.StartsWith(target) Then Return target
+	Next
+	If result.StartsWith("esp32") Then Return "esp32"
 	Return result
 End Function

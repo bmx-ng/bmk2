@@ -27,6 +27,8 @@ Check(EmbeddedDeviceInfoField(esp32Output, "Chip type") = "ESP32-S3 (QFN56) (rev
 Check(EmbeddedDeviceInfoField(esp32Output, "Detected flash size") = "8MB", "ESP32 flash size is parsed")
 Check(EmbeddedDeviceInfoField(esp32Output, "Flash type set in eFuse") = "quad (4 data lines)", "ESP32 flash bus is parsed")
 Check(Esp32DetectedTarget(EmbeddedDeviceInfoField(esp32Output, "Chip type")) = "esp32s3", "ESP32 target is normalized from the detailed chip label")
+Check(Esp32DetectedTarget("ESP32-C6FH4 (QFN32) (revision v0.2)") = "esp32c6", "ESP32 target is normalized from a package-qualified C6 chip label")
+Check(Esp32DetectedTarget("ESP32-D0WD-V3 (revision v3.1)") = "esp32", "Original ESP32 package names map to the base target")
 
 Local picoOutput:String = "Program Information~n" + ..
 	" name:          sample~n" + ..
