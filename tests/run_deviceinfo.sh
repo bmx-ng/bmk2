@@ -51,6 +51,41 @@ grep -q 'Baguette S3 (baguette_s3)' "$board_log"
 grep -q 'SDA (GPIO47)' "$board_log"
 grep -q 'LED (GPIO8)' "$board_log"
 
+inferred_board_log="$temporary/boardinfo-inferred-baguette-s3.log"
+"$bmk" boardinfo -board baguette_s3 >"$inferred_board_log"
+grep -q 'ESP-IDF target: esp32s3' "$inferred_board_log"
+grep -q 'Architecture: xtensa' "$inferred_board_log"
+
+unknown_board_log="$temporary/boardinfo-unknown.log"
+if "$bmk" boardinfo -board definitely_not_a_board >"$unknown_board_log" 2>&1
+then
+	echo "boardinfo unexpectedly inferred an unknown board" >&2
+	exit 1
+fi
+grep -q "Unable to infer an embedded target from board 'definitely_not_a_board'" "$unknown_board_log"
+
+conflicting_board_log="$temporary/boardinfo-conflicting.log"
+if "$bmk" boardinfo -board baguette_s3 -g riscv32 >"$conflicting_board_log" 2>&1
+then
+	echo "boardinfo unexpectedly accepted a conflicting inferred architecture" >&2
+	exit 1
+fi
+grep -q "selects the xtensa architecture, but -g riscv32 was supplied" "$conflicting_board_log"
+
+fake_pico_sdk="$temporary/pico-sdk"
+fake_picotool="$temporary/picotool"
+mkdir -p "$fake_pico_sdk/src/boards/include/boards"
+touch "$fake_pico_sdk/src/boards/include/boards/pico.h"
+cp "$(dirname "$0")/fixtures/fake_picotool.sh" "$fake_picotool"
+chmod +x "$fake_picotool"
+printf 'addoption pico.sdk "%s"\naddoption pico.picotool "%s"\n' \
+	"$fake_pico_sdk" "$fake_picotool" >"$test_sdk/bin/custom.bmk"
+
+inferred_pico_log="$temporary/deviceinfo-inferred-pico.log"
+"$bmk" deviceinfo -board pico >"$inferred_pico_log"
+grep -q 'Chip: RP2040' "$inferred_pico_log"
+grep -q 'Board profile: pico' "$inferred_pico_log"
+
 manual_idf="$temporary/manual/esp-idf-v6.1"
 manual_home="$temporary/manual-home"
 manual_tools="$manual_home/.espressif"

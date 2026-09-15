@@ -180,7 +180,9 @@ For example, `#addoption pico.sdk "/opt/pico-sdk"` selects a non-default SDK.
 Executable options may name either the executable or its containing directory.
 The SDK and toolchain options name their respective roots.
 
-`-board` accepts any board definition available to the selected Pico SDK. The
+`-board` accepts any board definition available to the selected Pico SDK. When
+the named definition can be found, `bmk` infers the `pico` target and its
+currently supported `arm` architecture, so `-l pico -g arm` may be omitted. The
 board definition selects its RP2040 or ARM RP2350 platform, flash configuration,
 default pins, and other board-level settings. Custom board definitions can be
 made available through `pico.board.header.dirs` and
@@ -230,6 +232,13 @@ buses, onboard resources, pin constraints, and named GPIO map. The supplied
 profiles live under `esp32.mod/boards`, one directory per board. Additional
 profile roots can be supplied through `esp32.board.dirs` in `custom.bmk` or
 `ESP32_BOARD_DIRS`, so a local or vendor profile does not require changing bmk.
+
+An explicit recognised board is sufficient for normal embedded builds. For
+example, `bmk makeapp -board baguette_s3 app.bmx` infers both `-l esp32` and
+`-g xtensa`. If a name exists in both catalogues, `bmk` asks for `-l pico` or
+`-l esp32`; if it exists in neither, an explicit platform supplies the missing
+context for a custom Pico definition while ESP32 continues to require a loaded
+profile.
 
 `bmk deviceinfo -l esp32` uses the installed ESP-IDF `esptool` to report facts
 read from one connected ESP32 device, including its chip, revision, features,

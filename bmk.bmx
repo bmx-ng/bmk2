@@ -7,6 +7,7 @@ Import "bmk_messages.generated.bmx"
 Import "bmk_make.bmx"
 Import "bmk_pico.bmx"
 Import "bmk_esp32.bmx"
+Import "bmk_embedded_board.bmx"
 Import "bmk_deviceinfo.bmx"
 Import "bmk_zap.bmx"
 
@@ -33,14 +34,19 @@ If opt_clean And cmd.ToLower() <> "makeapp" Then
 	CmdError TBmkMessages.CommandCleanOnlyMakeapp().Render()
 End If
 
-' Device and board inspection do not compile code, so their target CPU is irrelevant.
-If cmd.ToLower() <> "deviceinfo" And cmd.ToLower() <> "boardinfo" Then ValidatePlatformArchitecture()
-
 ' preload the default options
 processor.RunCommand("default_cc_opts", Null)
 
 ' load any global custom options (in BlitzMax/bin)
 LoadOptions
+
+' An explicit embedded board is authoritative when platform or architecture
+' were omitted. Resolve it after loading configuration so custom profile and
+' Pico SDK locations participate without evaluating additive options twice.
+ResolveExplicitBoardTarget()
+
+' Device and board inspection do not compile code, so their target CPU is irrelevant.
+If cmd.ToLower() <> "deviceinfo" And cmd.ToLower() <> "boardinfo" Then ValidatePlatformArchitecture()
 
 ' pre-init gcc version cache for operations that can compile code
 If cmd.ToLower() <> "deviceinfo" And cmd.ToLower() <> "boardinfo" Then processor.GCCVersion(False, False, True)
