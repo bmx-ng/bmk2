@@ -1,3 +1,13 @@
+## [4.03] - 2026-09-15
+### Added
+ - ESP32 application builds, uploads, board profiles, and device/board inspection.
+ - Shared `embedded` compiler configuration for code used by Pico and ESP32 targets.
+ - Board-driven platform and architecture inference for recognised Pico and ESP32 boards.
+ - Configurable Pico floating-point ABI selection.
+### Changed
+ - Pico uploads now verify the transferred firmware before starting it.
+ - ESP-IDF discovery supports separate checkout, downloaded-tool, and Python-environment locations, including explicit `custom.bmk` options.
+
 ## [4.02] - 2026-09-07
 ### Added
  - Localized error messages.
