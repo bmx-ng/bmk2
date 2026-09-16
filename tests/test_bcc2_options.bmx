@@ -26,6 +26,11 @@ For Local index:Int = 0 Until expectedValues.length
 	Check(values[index] = expectedValues[index], "engine configuration preserves argument " + index)
 Next
 
+Local warningArgs:String = Bcc2CompilerConfigurationArgs("macos", "arm64", True, True, False, False, False, False, "", "", "", True)
+Check(warningArgs.Contains(" --warn-argument-casts"), "command-line compiler receives argument-cast warning mode")
+Local warningValues:String[] = Bcc2CompilerConfigurationValues("macos", "arm64", True, True, False, False, False, False, "", "", "", True)
+Check(warningValues.length = 7 And warningValues[6] = "--warn-argument-casts", "persistent compiler engine receives argument-cast warning mode")
+
 Local noisyFingerprint:String = Bcc2GenerationFingerprintOptions(" -g x64 -m brl.test -q -v -r -h -ud feature=1")
 Local plainFingerprint:String = Bcc2GenerationFingerprintOptions(" -g x64 -m brl.test -r -h -ud feature=1")
 Check(noisyFingerprint = plainFingerprint, "quiet and verbose reporting flags do not invalidate compiler generation freshness")
