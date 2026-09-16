@@ -143,6 +143,7 @@ Type TSourceFile
 	'cache calculated MaxLinkTime()-value for faster lookups
 	Field maxLinkTimeCache:Int = -1
 	Field maxIfaceTimeCache:Int = -1
+	Field maxIfaceTimeRevision:Int
 	Field maxGeneratedHeaderTimeCache:Int = -1
 	
 	Field isInclude:Int
@@ -438,12 +439,20 @@ Type TSourceFile
 
 	End Method
 
-	Method MaxIfaceTime:Int()
+	Method MaxIfaceTime:Int(freshnessRevision:Int = -1)
+		If freshnessRevision >= 0 And maxIfaceTimeRevision <> freshnessRevision Then
+			' Link and object stages copy their interface metadata from the semantic
+			' source. A module can replace that interface later in the same build, so
+			' refresh copied nodes lazily when the build's publication revision moves.
+			If iface_path2 Then iface_time = FileTime(iface_path2)
+			maxIfaceTimeCache = -1
+			maxIfaceTimeRevision = freshnessRevision
+		End If
 		If maxIfaceTimeCache = -1 Then
 			Local t:Int = iface_time
 			If depsList Then
 				For Local s:TSourceFile = EachIn depsList
-					Local st:Int = s.MaxIFaceTime()
+					Local st:Int = s.MaxIFaceTime(freshnessRevision)
 					If st > t Then
 						t = st
 					End If
@@ -451,7 +460,7 @@ Type TSourceFile
 			End If
 			If moddeps Then
 				For Local s:TSourceFile = EachIn moddeps.Values()
-					Local st:Int = s.MaxIFaceTime()
+					Local st:Int = s.MaxIFaceTime(freshnessRevision)
 					If st > t Then
 						t = st
 					End If
@@ -522,6 +531,7 @@ Type TSourceFile
 		source.CopyIncludePaths(includePaths)
 		source.maxLinkTimeCache = maxLinkTimeCache
 		source.maxIfaceTimeCache = maxIfaceTimeCache
+		source.maxIfaceTimeRevision = maxIfaceTimeRevision
 		source.maxGeneratedHeaderTimeCache = maxGeneratedHeaderTimeCache
 	End Method
 	

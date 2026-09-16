@@ -433,6 +433,9 @@ Type TBuildManager Extends TCallback
 	' compiler successfully republishes them; the final application link still
 	' performs a strict ownership pass over every manifest.
 	Field pendingForcedBcc2Manifests:TMap = New TMap
+	' Advances only when an existing compatibility interface is replaced. It lets
+	' consumers lazily refresh copied dependency metadata without a whole-graph scan.
+	Field bcc2InterfaceFreshnessRevision:Int
 	
 	Field buildAll:Int
 	
@@ -1022,7 +1025,7 @@ Type TBuildManager Extends TCallback
 
 	Method Bcc2GenerationRequired:Int(source:TSourceFile)
 		If Not source Then Return False
-		Local maxIfaceTime:Int = source.MaxIfaceTime()
+		Local maxIfaceTime:Int = source.MaxIfaceTime(bcc2InterfaceFreshnessRevision)
 		Local required:Int = source.requiresBuild Or source.time > source.gen_time Or source.gen_time < maxIfaceTime
 		If required Then
 			TraceBuild("bcc2 generation freshness: " + source.path + "; forced=" + source.requiresBuild + "; source=" + source.time + "; generation=" + source.gen_time + "; maximum-interface=" + maxIfaceTime)
@@ -3256,7 +3259,8 @@ Type TBuildManager Extends TCallback
 
 	Method PublishBcc2CompatibilityInterface(m:TSourceFile)
 		If Not m Or Not m.modid Or FileType(m.iface_path) <> FILETYPE_FILE Then Return
-		Local update:Int = FileType(m.iface_path2) <> FILETYPE_FILE
+		Local compatibilityExisted:Int = FileType(m.iface_path2) = FILETYPE_FILE
+		Local update:Int = Not compatibilityExisted
 		If Not update And FileSize(m.iface_path) = FileSize(m.iface_path2) Then
 			Local interfaceBytes:Byte[] = LoadByteArray(m.iface_path)
 			Local compatibilityBytes:Byte[] = LoadByteArray(m.iface_path2)
@@ -3280,6 +3284,7 @@ Type TBuildManager Extends TCallback
 		m.iface_time = FileTime(m.iface_path2)
 		m.maxIfaceTimeCache = -1
 		m.gen_time = time_(Null)
+		If compatibilityExisted Then bcc2InterfaceFreshnessRevision :+ 1
 	End Method
 
 End Type
