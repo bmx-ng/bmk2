@@ -71,4 +71,34 @@ test "$freshness_interface" -nt "$freshness_snapshot"
 public_consumer_output=$("$test_sdk/bin/bmk" makemods -r BCC2ManifestTest.InterfaceFreshnessConsumer)
 printf '%s' "$public_consumer_output" | grep -q 'Processing:interfacefreshnessconsumer.bmx'
 
+# A public symbol removed while building its application dependency must be
+# observed by that application in the same invocation. The dependency planner
+# has already inspected the previous compatibility interface before rebuilding
+# the provider, so this guards against retaining that cached interface time.
+visibility_root="$test_sdk/mod/bcc2manifesttest.mod/interfacevisibility.mod"
+visibility_app="$output_root/interface_visibility_app.bmx"
+mkdir -p "$visibility_root"
+cp "$fixture_dir/module_interface_visibility_public.bmx" "$visibility_root/interfacevisibility.bmx"
+cp "$fixture_dir/module_interface_visibility_app.bmx" "$visibility_app"
+"$test_sdk/bin/bmk" makeapp -a -r -o "$output_root/interface_visibility_app" "$visibility_app"
+
+sleep 1
+cp "$fixture_dir/module_interface_visibility_local.bmx" "$visibility_root/interfacevisibility.bmx"
+if visibility_output=$("$test_sdk/bin/bmk" makeapp -r -o "$output_root/interface_visibility_app" "$visibility_app" 2>&1)
+then
+	echo "application accepted a symbol removed from its rebuilt module dependency" >&2
+	exit 1
+fi
+if ! printf '%s' "$visibility_output" | grep -q 'BMX3300'
+then
+	echo "application rebuild did not report the removed symbol through BMX3300" >&2
+	printf '%s\n' "$visibility_output" >&2
+	exit 1
+fi
+if printf '%s' "$visibility_output" | grep -q 'undeclared identifier'
+then
+	echo "application compiled stale generated C after its module interface changed" >&2
+	exit 1
+fi
+
 echo "bmk bcc interface freshness tests passed"
