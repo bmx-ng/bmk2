@@ -5,7 +5,7 @@ Import BRL.FileSystem
 ' Builds the semantic/code-generation configuration suffix for a bcc2
 ' invocation. Arguments which may contain spaces are quoted by the caller
 ' using bmk's platform-aware command quoting.
-Function Bcc2CompilerConfigurationArgs:String(platform:String, architecture:String, releaseBuild:Int, threadedBuild:Int, coverageBuild:Int, gdbDebugBuild:Int, muslBuild:Int, verboseBuild:Int, applicationType:String = "", frameworkArgument:String = "", definitionsArgument:String = "")
+Function Bcc2CompilerConfigurationArgs:String(platform:String, architecture:String, releaseBuild:Int, threadedBuild:Int, coverageBuild:Int, gdbDebugBuild:Int, muslBuild:Int, verboseBuild:Int, applicationType:String = "", frameworkArgument:String = "", definitionsArgument:String = "", warnArgumentCasts:Int = False)
 	Local result:String = " --platform " + platform.ToLower()
 	result :+ " --arch " + architecture.ToLower()
 	If releaseBuild Then result :+ " --release" Else result :+ " --debug"
@@ -14,6 +14,7 @@ Function Bcc2CompilerConfigurationArgs:String(platform:String, architecture:Stri
 	If gdbDebugBuild Then result :+ " --gdb-debug"
 	If muslBuild Then result :+ " --musl"
 	If verboseBuild Then result :+ " --verbose"
+	If warnArgumentCasts Then result :+ " --warn-argument-casts"
 	If definitionsArgument.length Then result :+ " --user-defs " + definitionsArgument
 	If applicationType.length Then
 		result :+ " --app-type " + applicationType.ToLower()
@@ -25,7 +26,7 @@ End Function
 ' Returns the same configuration as discrete values for the persistent bcc2
 ' engine protocol. Unlike the command-line helper, values are deliberately
 ' unquoted because the protocol transports argument boundaries explicitly.
-Function Bcc2CompilerConfigurationValues:String[](platform:String, architecture:String, releaseBuild:Int, threadedBuild:Int, coverageBuild:Int, gdbDebugBuild:Int, muslBuild:Int, verboseBuild:Int, applicationType:String = "", frameworkValue:String = "", definitions:String = "")
+Function Bcc2CompilerConfigurationValues:String[](platform:String, architecture:String, releaseBuild:Int, threadedBuild:Int, coverageBuild:Int, gdbDebugBuild:Int, muslBuild:Int, verboseBuild:Int, applicationType:String = "", frameworkValue:String = "", definitions:String = "", warnArgumentCasts:Int = False)
 	Local result:String[]
 	result :+ ["--platform", platform.ToLower()]
 	result :+ ["--arch", architecture.ToLower()]
@@ -35,6 +36,7 @@ Function Bcc2CompilerConfigurationValues:String[](platform:String, architecture:
 	If gdbDebugBuild Then result :+ ["--gdb-debug"]
 	If muslBuild Then result :+ ["--musl"]
 	If verboseBuild Then result :+ ["--verbose"]
+	If warnArgumentCasts Then result :+ ["--warn-argument-casts"]
 	If definitions.length Then result :+ ["--user-defs", definitions]
 	If applicationType.length Then
 		result :+ ["--app-type", applicationType.ToLower()]
