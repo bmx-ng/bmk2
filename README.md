@@ -203,6 +203,11 @@ After linking, bmk reports the board's configured flash capacity, the managed
 arena actually retained by the image, application/SDK RAM, the C heap reserve,
 and remaining internal-RAM headroom.
 
+For ESP32 profiles with `-heap-region psram`, `-heap auto` keeps one eighth of
+the declared PSRAM capacity available to ESP-IDF and native services, with a
+minimum reserve of 256 KiB. The remaining PSRAM is used for the BlitzMax
+managed arena.
+
 For Pico, `makeapp -x` means build, upload, verify, and start. bmk invokes the
 installed picotool with automatic USB reset enabled. If the running firmware
 does not expose a compatible reset interface, connect the Pico's own USB port
