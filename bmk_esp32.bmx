@@ -274,7 +274,7 @@ Function MakeEsp32Application(mainSource:String, outputPath:String, compileOnly:
 	Local sdk:String = BlitzMaxPath()
 	Local esp32ModuleRoot:String = sdk + "/mod/esp32.mod"
 	Local blitzModuleRoot:String = sdk + "/mod/brl.mod/blitz.mod"
-	Local bcc:String = sdk + "/bin/bcc"
+	Local bcc:String = EmbeddedBccExecutablePath(sdk, PicoHostPlatform())
 	Local cmakeTemplate:String = esp32ModuleRoot + "/cmake/application"
 	If FileType(esp32ModuleRoot) <> FILETYPE_DIR Then Throw "ESP32 modules were not found at " + esp32ModuleRoot
 	If FileType(bcc) <> FILETYPE_FILE Then Throw "bcc2 was not found at " + bcc

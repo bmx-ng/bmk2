@@ -1001,7 +1001,7 @@ Function MakePicoApplication(mainSource:String, outputPath:String, compileOnly:I
 	Local sdk:String = BlitzMaxPath()
 	Local picoModuleRoot:String = sdk + "/mod/pico.mod"
 	Local blitzModuleRoot:String = sdk + "/mod/brl.mod/blitz.mod"
-	Local bcc:String = sdk + "/bin/bcc"
+	Local bcc:String = EmbeddedBccExecutablePath(sdk, PicoHostPlatform())
 	Local cmakeTemplate:String = picoModuleRoot + "/cmake/application"
 	If FileType(picoModuleRoot) <> FILETYPE_DIR Then Throw TBmkMessages.PicoTargetModulesNotFound(picoModuleRoot).Render()
 	If FileType(bcc) <> FILETYPE_FILE Then Throw TBmkMessages.PicoTargetCompilerNotFound(bcc).Render()
