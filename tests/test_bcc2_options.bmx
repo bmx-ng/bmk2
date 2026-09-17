@@ -31,9 +31,15 @@ Check(warningArgs.Contains(" --warn-argument-casts"), "command-line compiler rec
 Local warningValues:String[] = Bcc2CompilerConfigurationValues("macos", "arm64", True, True, False, False, False, False, "", "", "", True)
 Check(warningValues.length = 7 And warningValues[6] = "--warn-argument-casts", "persistent compiler engine receives argument-cast warning mode")
 
+Local strictArgs:String = Bcc2CompilerConfigurationArgs("macos", "arm64", True, True, False, False, False, False, "", "", "", False, True)
+Check(strictArgs.Contains(" --no-auto-superstrict"), "command-line compiler receives -nas mode")
+Local strictValues:String[] = Bcc2CompilerConfigurationValues("macos", "arm64", True, True, False, False, False, False, "", "", "", False, True)
+Check(strictValues.length = 7 And strictValues[6] = "--no-auto-superstrict", "persistent compiler engine receives -nas mode")
+
 Local noisyFingerprint:String = Bcc2GenerationFingerprintOptions(" -g x64 -m brl.test -q -v -r -h -ud feature=1")
 Local plainFingerprint:String = Bcc2GenerationFingerprintOptions(" -g x64 -m brl.test -r -h -ud feature=1")
 Check(noisyFingerprint = plainFingerprint, "quiet and verbose reporting flags do not invalidate compiler generation freshness")
+Check(Bcc2GenerationFingerprintOptions(" -r -nas") <> Bcc2GenerationFingerprintOptions(" -r"), "changing automatic SuperStrict mode invalidates generated bundles")
 
 Check(Bcc2ApplicationIdentity("/work/tools/bmk.bmx") = "application.bmk", "application linkage identity uses the main source basename")
 Check(Bcc2ApplicationIdentity("/work/tools/My-App.bmx") = "application.my_app", "application linkage identity is path-independent and C-identifier safe")
