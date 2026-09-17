@@ -8,7 +8,7 @@ Import "bmk_esp32_heap.bmx"
 Import "bmk_esp32_profiles.bmx"
 Include "bmk_esp32_paths.bmx"
 
-Global esp32BoardProfiles:TEsp32BoardProfileRegistry
+Global _esp32BoardProfiles:TEsp32BoardProfileRegistry
 
 Function LoadEsp32BoardProfileRoot(registry:TEsp32BoardProfileRegistry, root:String, required:Int)
 	If FileType(root) <> FILETYPE_DIR
@@ -23,9 +23,9 @@ Function LoadEsp32BoardProfileRoot(registry:TEsp32BoardProfileRegistry, root:Str
 End Function
 
 Function Esp32BoardProfiles:TEsp32BoardProfileRegistry()
-	If esp32BoardProfiles Then Return esp32BoardProfiles
-	esp32BoardProfiles = New TEsp32BoardProfileRegistry
-	LoadEsp32BoardProfileRoot(esp32BoardProfiles, BlitzMaxPath() + "/mod/esp32.mod/boards", True)
+	If _esp32BoardProfiles Then Return _esp32BoardProfiles
+	_esp32BoardProfiles = New TEsp32BoardProfileRegistry
+	LoadEsp32BoardProfileRoot(_esp32BoardProfiles, BlitzMaxPath() + "/mod/esp32.mod/boards", True)
 	Local configured:String = processor.Option("esp32.board.dirs", "").Trim()
 	If Not configured.length Then configured = getenv_("ESP32_BOARD_DIRS").Trim()
 	If configured.length
@@ -33,11 +33,11 @@ Function Esp32BoardProfiles:TEsp32BoardProfileRegistry()
 		If PicoHostPlatform() = "win32" Then separator = ";"
 		For Local root:String = EachIn configured.Split(separator)
 			root = root.Trim()
-			If root.length Then LoadEsp32BoardProfileRoot(esp32BoardProfiles, root, True)
+			If root.length Then LoadEsp32BoardProfileRoot(_esp32BoardProfiles, root, True)
 		Next
 	End If
-	If esp32BoardProfiles.profiles.IsEmpty() Then Throw "No ESP32 board profiles were found"
-	Return esp32BoardProfiles
+	If _esp32BoardProfiles.profiles.IsEmpty() Then Throw "No ESP32 board profiles were found"
+	Return _esp32BoardProfiles
 End Function
 
 Function Esp32IdfPath:String()
