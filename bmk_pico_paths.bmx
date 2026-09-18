@@ -13,6 +13,10 @@ Function PicoExecutableName:String(name:String, platform:String)
 	Return name
 End Function
 
+Function EmbeddedBccExecutablePath:String(sdk:String, platform:String)
+	Return sdk + "/bin/" + PicoExecutableName("bcc", platform)
+End Function
+
 Function PicoPathSeparator:String(platform:String)
 	If platform = "win32" Then Return ";"
 	Return ":"

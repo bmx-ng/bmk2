@@ -35,6 +35,8 @@ SaveText "", root + "/package/picotoolConfig.cmake"
 
 Check(PicoExecutableName("cmake", "win32") = "cmake.exe", "Windows executable suffix is added")
 Check(PicoExecutableName("cmake.exe", "win32") = "cmake.exe", "Windows executable suffix is not duplicated")
+Check(EmbeddedBccExecutablePath(root, "win32") = root + "/bin/bcc.exe", "Windows embedded builds locate bcc.exe")
+Check(EmbeddedBccExecutablePath(root, "linux") = root + "/bin/bcc", "Unix embedded builds locate bcc")
 Check(PicoPathSeparator("win32") = ";" And PicoPathSeparator("linux") = ":", "host PATH separators are portable")
 Check(PicoPreferredConfiguredValue(" /custom/cmake ", "/environment/cmake") = "/custom/cmake", "custom.bmk takes precedence over the environment")
 Check(PicoPreferredConfiguredValue("", " /environment/cmake ") = "/environment/cmake", "the environment is used when custom.bmk is unset")
