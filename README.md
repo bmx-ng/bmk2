@@ -100,7 +100,7 @@ cross-compilation.
 
 ### Module-local configuration
 
-A module may ship a `module.bmk` beside its main `.bmx` file. BMK executes it
+Since BMK2 4.04, a module may ship a `module.bmk` beside its main `.bmx` file. BMK executes it
 before discovering that module's conditional imports, including when compiled
 module artifacts already exist. No second module-local override file is needed.
 Existing SDK `bin/custom.bmk` and application `pre.bmk` settings are visible to it.
