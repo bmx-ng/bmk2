@@ -54,6 +54,7 @@ End Function
 Type TBMK
 
 	Field commands:TMap = New TMap
+	Field loadingModuleConfig:Int
 
 	Field buildLog:TList
 	Field sourceList:TList
@@ -164,6 +165,7 @@ Type TBMK
 
 			' anything else?
 		Wend
+		If loadingModuleConfig And inDefine Then Throw "Unterminated definition in module configuration: " + path
 	End Method
 	
 	' processes a pragma
@@ -243,6 +245,8 @@ Type TBMK
 			Local variable:String = line[..i].Trim()
 			Local value:String = Parse(line[i+1..].Trim())
 			globals.SetVar(variable, value)
+		Else If loadingModuleConfig Then
+			Throw "Unknown module configuration command: " + line
 		End If
 	
 	End Method
@@ -1270,7 +1274,9 @@ Type TBMKGlobals
 	
 	' adds value to the end of variable
 	Method Add(variable:String, value:String, once:Int = False)
-		If Not AsConfigurable(variable.ToLower(), value) Then
+		Local handled:Int
+		If Not processor.loadingModuleConfig Then handled = AsConfigurable(variable.ToLower(), value)
+		If Not handled Then
 			variable = variable.ToUpper()
 	
 			Local v:Object = vars.ValueForKey(variable)
@@ -1286,7 +1292,9 @@ Type TBMKGlobals
 
 	' adds comma separated value to the end of variable
 	Method AddC(variable:String, value:String)
-		If Not AsConfigurable(variable.ToLower(), value) Then
+		Local handled:Int
+		If Not processor.loadingModuleConfig Then handled = AsConfigurable(variable.ToLower(), value)
+		If Not handled Then
 			variable = variable.ToUpper()
 	
 			Local v:Object = vars.ValueForKey(variable)
@@ -1464,12 +1472,25 @@ Type TBMKCommand
 		cmd = WrapVariables(ParseArgs(cmd))
 		
 	
+		If processor.loadingModuleConfig Then
+			cmd = "local function module_body()~n" + cmd + "~nend~n" + ..
+				"local ok,result = pcall(module_body)~n" + ..
+				"if not ok then globals.Add('_MODULE_CONFIG_ERROR', tostring(result), 1) end~nreturn result~n"
+		End If
 		Local code:String = "function bmk_" + name + "(...)~n" + ..
 			GetArgs() + ..
 			"nvl = function(a1,a2) if a1 == nil then return a2 else return a1 end end~n" + ..
 			cmd + ..
 			"end"
 
+		If processor.loadingModuleConfig Then
+			Local state:Byte Ptr = luaL_newstate()
+			Local status:Int = luaL_loadstring(state, code)
+			Local message:String
+			If status Then message = lua_tostring(state, -1)
+			lua_close(state)
+			If status Then Throw "Invalid module configuration function " + name + ": " + message
+		End If
 		class = New TLuaClass.SetSourceCode( code )
 		instance = New TLuaObject.Init( class, Null )
 
@@ -1481,7 +1502,11 @@ Type TBMKCommand
 	
 	' This assumes we have arg0 + other args
 	Method RunCommandArgs:Object(args:Object[])
-		Return instance.invoke("bmk_" + name, args)
+		Local result:Object = instance.invoke("bmk_" + name, args)
+		If processor.loadingModuleConfig And globals.Get("_MODULE_CONFIG_ERROR") Then
+			Throw "Module configuration failed: " + globals.Get("_MODULE_CONFIG_ERROR")
+		End If
+		Return result
 	End Method
 
 	' handles quotes and arrays [].

@@ -1404,6 +1404,7 @@ Type TBuildManager Extends TCallback
 								max_lnk_time = Max(FileTime(icon), max_lnk_time)
 							End If
 						
+							If ModuleConfigApplicationChanged(opt_outfile + ".module-config") Then m.SetRequiresBuild(True)
 							If m.requiresBuild Or max_lnk_time > FileTime(opt_outfile) Or opt_all Then
 
 								' generate manifest for app
@@ -1545,6 +1546,7 @@ Type TBuildManager Extends TCallback
 		' makemods and compile-only builds have no application link stage to
 		' force publication, so flush their accumulated archives here.
 		FlushPendingArchives(pendingArchives)
+		PublishModuleConfigStamps()
 
 		' The intermediate ownership view deliberately omits old manifests that a
 		' forced build has promised to replace. Re-read the complete graph after
@@ -1944,7 +1946,7 @@ Type TBuildManager Extends TCallback
 		Local source:TSourceFile = TSourceFile(sources.ValueForKey(source_path))
 
 		If Not source And doCreate Then
-			source = ParseSourceFile(source_path)
+			source = ParseSourceFile(source_path, isMod)
 			
 			If source Then
 				Local ext:String = ExtractExt(source_path)
@@ -2093,6 +2095,12 @@ Type TBuildManager Extends TCallback
 		End If
 		
 		If Not source.processed Then
+			Local config:TModuleBuildConfig = source.moduleConfig
+			Local configStamp:String = arc_path + ".module-config"
+			If config And (config.active Or FileType(configStamp) = FILETYPE_FILE) Then
+				If FileType(configStamp) <> FILETYPE_FILE Or LoadText(configStamp) <> config.fingerprint Then rebuild = True
+				moduleConfigStamps.Insert(configStamp, config.fingerprint)
+			End If
 
 			source.arc_path = arc_path
 			source.arc_time = arc_time
@@ -2123,6 +2131,13 @@ Type TBuildManager Extends TCallback
 				End If
 			End If
 
+			If config And config.active Then
+				source.AddModOpt("CC_OPTS: " + config.ccOptions)
+				source.AddModOpt("C_OPTS: " + config.cOptions)
+				source.AddModOpt("CPP_OPTS: " + config.cppOptions)
+				source.AddModOpt("ASM_OPTS: " + config.asmOptions)
+				source.AddModOpt("LD_OPTS: " + config.ldOptions)
+			End If
 			source.cc_opts = ""
 			If source.mod_opts Then
 				source.cc_opts :+ source.mod_opts.cc_opts
@@ -2168,6 +2183,10 @@ Type TBuildManager Extends TCallback
 						defs :+ ","
 					End If
 					defs :+ globals.Get("user_defs")
+				End If
+				If config And config.definitions Then
+					If defs Then defs :+ ","
+					defs :+ config.definitions
 				End If
 				If defs Then
 					sb.Append(" -ud ").Append(defs)
@@ -2399,6 +2418,10 @@ Type TBuildManager Extends TCallback
 		If globals.Get("user_defs") Then
 			If definitions.length Then definitions :+ ","
 			definitions :+ globals.Get("user_defs")
+		End If
+		If source.moduleConfig And source.moduleConfig.definitions Then
+			If definitions Then definitions :+ ","
+			definitions :+ source.moduleConfig.definitions
 		End If
 		Local applicationType:String
 		Local frameworkArgument:String
@@ -2952,6 +2975,7 @@ Type TBuildManager Extends TCallback
 
 	Method Bcc2GenerationStamp:String(source:TSourceFile)
 		Local configuration:String = processor.Platform() + "~n" + Bcc2GenerationFingerprintOptions(source.bcc_opts)
+		If source.moduleConfig And source.moduleConfig.active Then configuration :+ "~n" + source.moduleConfig.fingerprint
 		Return "BMXGEN 1~nsource " + source.time + "~noptions " + TBcc2BuildManifestCodec.Digest(configuration) + "~n"
 	End Method
 

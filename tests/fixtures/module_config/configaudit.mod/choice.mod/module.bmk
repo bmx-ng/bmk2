@@ -1,0 +1,9 @@
+@define configuremodule
+	local backend = globals.Get("backend")
+	if backend == "" then backend = "one" end
+	if backend ~= "one" and backend ~= "two" then error("Invalid backend: " .. backend) end
+	globals.AddC("user_defs", "config_" .. backend)
+	globals.SetOption("cc_opts", "backend", "-DCONFIG_VALUE=" .. (backend == "one" and "1" or "2"))
+@end
+
+configuremodule
