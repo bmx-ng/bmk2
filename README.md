@@ -98,6 +98,60 @@ in BlitzMax line-comment pragmas, for example:
 On Linux and macOS, an optional `bin/config.bmk` supplies toolchain settings for
 cross-compilation.
 
+### Module-local configuration
+
+Since BMK2 4.04, a module may ship a `module.bmk` beside its main `.bmx` file. BMK executes it
+before discovering that module's conditional imports, including when compiled
+module artifacts already exist. No second module-local override file is needed.
+Existing SDK `bin/custom.bmk` and application `pre.bmk` settings are visible to it.
+
+For example, `module.bmk` can read an existing setting and default it locally:
+
+```text
+@define configurebackend
+	local backend = globals.Get("example.backend")
+	if backend == "" then backend = "both" end
+	if backend ~= "both" and backend ~= "x11" and backend ~= "wayland" then
+		error("Unsupported example.backend: " .. backend)
+	end
+	if backend ~= "wayland" then globals.AddC("user_defs", "example_x11") end
+	if backend ~= "x11" then globals.AddC("user_defs", "example_wayland") end
+@end
+configurebackend
+```
+
+An application's `pre.bmk`, or the SDK's existing `custom.bmk`, can select:
+
+```text
+setoption example.backend x11
+```
+
+The module can use `?example_x11` / `?example_wayland` in its source imports and
+ModuleInfo dependency options. Module-local `adddef`, `addccopt`, `addasmopt` and `addldopt` settings apply to
+its compilation units; Lua can also set the `c_opts` and `cpp_opts` option lists.
+Link options accompany the module into the final application. They do not change
+the options of separately imported modules. Native options are additive to the
+SDK's toolchain settings, not a replacement for them.
+
+The script runs in the module directory and `%MODPATH%` identifies that directory.
+Settings, option stacks and BMK command definitions are restored afterward.
+Use configuration scripts to select build inputs; do not change the target
+architecture, compiler toolchain or process environment, or perform compilation
+side effects there. This is configuration scoping, not a security sandbox for Lua.
+Module-local definitions also apply to quoted source files inside the module tree.
+
+BMK fingerprints the script and its effective compiler/link/conditional options.
+Changing or removing it rebuilds the module's sources. Application link tracking
+also handles a module rebuilt separately through `makemods`, even when filesystem
+timestamps fall in the same second. Successful builds publish `.module-config`
+sidecars; keep those out of version control. A module without configuration keeps
+its existing build behaviour. Switching a shared module's configuration affects
+that SDK's cached module; concurrently building different configurations into the
+same module directory is not supported.
+
+Run `sh tests/run_module_config.sh /path/to/bin/bmk /new/test/output` for the
+isolated integration fixtures.
+
 ## Bootstrap sources
 
 `bmk makebootstrap` creates a clean source snapshot in `dist/bootstrap`, with

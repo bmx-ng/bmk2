@@ -10,6 +10,8 @@ Import "options_parser.bmx"
 Import "bmk_bcc2_manifest.bmx"
 Import "bmk_messages.generated.bmx"
 
+Include "bmk_module_config.bmx"
+
 Global installedModulePaths:TMap
 
 Function InitializeInstalledModuleCatalogue()
@@ -124,6 +126,7 @@ Type TSourceFile
 	Field merge_path:String
 	Field merge_time:Int
 	
+	Field moduleConfig:TModuleBuildConfig
 	Field cc_opts:String
 	Field bcc_opts:String
 	Field cpp_opts:String
@@ -514,6 +517,7 @@ Type TSourceFile
 		source.gen_time = gen_time
 		source.requiresBuild = requiresBuild
 		source.dontBuild = dontBuild
+		source.moduleConfig = moduleConfig
 		source.cc_opts = cc_opts
 		source.bcc_opts = bcc_opts
 		source.merge_path = merge_path
@@ -670,7 +674,7 @@ Function ValidSourceExt( ext:Int )
 	Return False
 End Function
 
-Function ParseSourceFile:TSourceFile( path$ )
+Function ParseSourceFile:TSourceFile( path$, moduleOwned:Int = False )
 
 	Local info:SFileStat
 	If Not FileStat(path, info) Or info.fileType <> FILETYPE_FILE Then Return
@@ -694,7 +698,11 @@ Function ParseSourceFile:TSourceFile( path$ )
 	Local pos,in_rem,cc=True
 	Local in_multiline:Int = False
 
+	If moduleOwned Then file.moduleConfig = ModuleBuildConfigForPath(path)
+	Local savedDefinitions:Object = globals.GetRawVar("user_defs")
+	If file.moduleConfig And file.moduleConfig.definitions Then globals.AddC("user_defs", file.moduleConfig.definitions)
 	SetCompilerValues()
+	globals.SetVar("user_defs", savedDefinitions)
 	
 	Local lineCount:Int
 	Local importCcState:TOptionVariable = New TOptionVariable
