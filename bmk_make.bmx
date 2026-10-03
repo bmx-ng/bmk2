@@ -2429,7 +2429,7 @@ Type TBuildManager Extends TCallback
 			applicationType = opt_apptype
 			If opt_framework.length Then frameworkArgument = opt_framework
 		End If
-		arguments :+ Bcc2CompilerConfigurationValues(processor.Platform(), processor.CPU(), opt_release, opt_threaded, opt_coverage, opt_gdbdebug, opt_musl, opt_verbose, applicationType, frameworkArgument, definitions, opt_warnover, opt_no_auto_superstrict)
+		arguments :+ Bcc2CompilerConfigurationValues(processor.Platform(), processor.CPU(), opt_release, opt_threaded, opt_coverage, opt_gdbdebug, opt_musl, opt_verbose, applicationType, frameworkArgument, definitions, opt_warnover, opt_no_auto_superstrict, opt_nostrictupgrade)
 		arguments :+ [source.path]
 		Local work:TBcc2CompileWork = New TBcc2CompileWork
 		work.source = source
