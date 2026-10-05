@@ -13,22 +13,20 @@
 
 # ** android configuration **
 # ** architecture is determined by build settings **
-# ** NOTE : android build requires bmk resources folder at BlitzMax/resources **
+# ** requires the Gradle template in BlitzMax/resources/android **
+# ** custom.bmk is the recommended place for machine-local paths **
 
-#addoption android.home "/PATH/TO/SDK/android-sdk-macosx"
-#addoption android.sdk "/PATH/TO/SDK/android-sdk-macosx"
-#addoption android.ndk "/PATH/TO/NDK/android-ndk-r10c"
-#addoption android.toolchain.version "4.9"
-#addoption android.platform "12"
+#addoption android.java.home "/PATH/TO/JDK-17"
+#addoption android.sdk "/PATH/TO/Android/sdk"
+#addoption android.ndk.version "28.2.13676358"
+#addoption android.platform "21"
 
 # ** Optional SDK target **
-#    Will try to determine valid target to update project.properties, if not set.
-#addoption android.sdk.target "23"
+#    Defaults to the newest installed Android SDK platform.
+#addoption android.sdk.target "35"
 
-# ** optional ant location **
-# ** defaults to resources/apache-ant **
-
-#addoption ant.home "/PATH/TO/ANT/HOME"
+# ** Optional adb device serial. Required only when multiple devices are connected. **
+#addoption android.device "DEVICE_SERIAL"
 
 # ** Raspberry Pi Pico configuration **
 # Values in custom.bmk take precedence over environment variables and PATH.

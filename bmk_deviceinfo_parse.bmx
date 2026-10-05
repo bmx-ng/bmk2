@@ -1,5 +1,67 @@
 SuperStrict
 
+Type TAndroidDeviceInfo
+	Field serial:String
+	Field state:String
+	Field product:String
+	Field model:String
+	Field device:String
+	Field transportId:String
+End Type
+
+Function AndroidDeviceInfoWords:String[](line:String)
+	Local words:String[] = New String[0]
+	For Local word:String = EachIn line.Replace("~t", " ").Split(" ")
+		word = word.Trim()
+		If word.length Then words :+ [word]
+	Next
+	Return words
+End Function
+
+Function ParseAndroidDevices:TAndroidDeviceInfo[](output:String)
+	Local devices:TAndroidDeviceInfo[] = New TAndroidDeviceInfo[0]
+	For Local rawLine:String = EachIn output.Replace("~r", "").Split("~n")
+		Local line:String = rawLine.Trim()
+		If Not line.length Or line.StartsWith("*") Or line.ToLower().StartsWith("list of devices") Then Continue
+		Local words:String[] = AndroidDeviceInfoWords(line)
+		If words.length < 2 Then Continue
+		Local state:String = words[1].ToLower()
+		Local detailStart:Int = 2
+		If state = "no" And words.length > 2 And words[2].ToLower() = "permissions" Then
+			state = "no permissions"
+			detailStart = 3
+		End If
+		If state <> "device" And state <> "offline" And state <> "unauthorized" And state <> "authorizing" And state <> "connecting" And state <> "recovery" And state <> "sideload" And state <> "bootloader" And state <> "no permissions" Then Continue
+		Local info:TAndroidDeviceInfo = New TAndroidDeviceInfo
+		info.serial = words[0]
+		info.state = state
+		For Local index:Int = detailStart Until words.length
+			Local separator:Int = words[index].Find(":")
+			If separator < 1 Then Continue
+			Local key:String = words[index][..separator]
+			Local value:String = words[index][separator + 1..]
+			Select key
+				Case "product" info.product = value
+				Case "model" info.model = value.Replace("_", " ")
+				Case "device" info.device = value
+				Case "transport_id" info.transportId = value
+			End Select
+		Next
+		devices :+ [info]
+	Next
+	Return devices
+End Function
+
+Function AndroidDeviceProperty:String(output:String, key:String)
+	Local prefix:String = "[" + key + "]: ["
+	For Local rawLine:String = EachIn output.Replace("~r", "").Split("~n")
+		Local line:String = rawLine.Trim()
+		If Not line.StartsWith(prefix) Or Not line.EndsWith("]") Then Continue
+		Return line[prefix.length..line.length - 1]
+	Next
+	Return ""
+End Function
+
 Function EmbeddedDeviceInfoField:String(output:String, label:String, section:String = "")
 	Local active:Int = Not section.length
 	Local wantedLabel:String = label.ToLower()

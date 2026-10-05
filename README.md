@@ -98,6 +98,95 @@ in BlitzMax line-comment pragmas, for example:
 On Linux and macOS, an optional `bin/config.bmk` supplies toolchain settings for
 cross-compilation.
 
+### Android
+
+Android builds use the LLVM toolchain from a modern side-by-side NDK and the
+Gradle project in `resources/android/android-project`. Keep the Android tools
+outside the BlitzMax installation; bmk only needs their locations. The current
+baseline is JDK 17, Android SDK 35, NDK r28c (`28.2.13676358`), Gradle 8.12 and
+Android Gradle Plugin 8.7.3. Applications target API 35 and support API 21 or
+newer.
+
+The recommended setup is to configure the SDK installation's `bin/custom.bmk`.
+This keeps the Android toolchain selection with BlitzMax and works consistently
+on macOS, Linux, and Windows. Use forward slashes in Windows paths:
+
+```text
+addoption android.java.home "/path/to/jdk-17"
+addoption android.sdk "/path/to/Android/sdk"
+addoption android.ndk.version "28.2.13676358"
+addoption android.platform "21"
+addoption android.sdk.target "35"
+# Optional; select a device when more than one is connected.
+addoption android.device "DEVICE_SERIAL"
+```
+
+`android.ndk.version`, `android.platform`, and `android.sdk.target` are optional.
+bmk otherwise chooses the newest side-by-side NDK and SDK platform, with API 21
+as the native minimum. If the NDK is installed outside the SDK, use its full
+path instead:
+
+```text
+addoption android.ndk "/path/to/android-ndk"
+```
+
+The same configuration can be supplied through environment variables, which is
+useful for CI or temporary overrides:
+
+```sh
+export JAVA_HOME=/path/to/jdk-17
+export ANDROID_HOME=/path/to/Android/sdk
+export ANDROID_NDK_VERSION=28.2.13676358  # optional; newest installed NDK otherwise
+export ANDROID_PLATFORM=21               # optional; native minimum API
+export ANDROID_SDK_TARGET=35              # optional; newest installed platform otherwise
+export ANDROID_SERIAL=DEVICE_SERIAL       # optional; select among multiple devices
+```
+
+`ANDROID_SDK_ROOT` is also accepted for the SDK. For an NDK outside the SDK,
+set `ANDROID_NDK_HOME` or `ANDROID_NDK_ROOT`. Configuration keys take precedence
+over environment variables. Keep machine-specific paths in the installed SDK's
+`bin/custom.bmk`, rather than a project file intended for source control.
+
+Build an ARM64 debug APK with:
+
+```sh
+bmk makeapp -l android -g arm64v8a -o build/myapp app.bmx
+```
+
+The result is `build/myapp.apk`. Supported ABI selectors are `arm64v8a`,
+`armeabiv7a`, `x86`, and `x64`. The generated Gradle project is placed beside
+the output temporarily and contains the native library under the matching
+`jniLibs` ABI directory. Apache Ant, GCC-era NDK toolchains, STLPort, and the
+removed `armeabi` ABI are not used.
+
+Inspect the connected device with:
+
+```sh
+bmk deviceinfo -l android
+```
+
+With one authorized device connected, build, install, and launch a debug APK in
+one step by adding `-x`:
+
+```sh
+bmk makeapp -x -l android -g arm64v8a -o build/myapp app.bmx
+```
+
+bmk uses `adb install -r` so an existing copy is updated, then starts the
+configured package's `.BlitzMaxApp` activity. If several authorized devices are
+connected, select one persistently with `android.device` in `bin/custom.bmk`, or
+temporarily with `ANDROID_SERIAL`. Unauthorized and offline devices are reported
+but are never selected. Automatic installation is limited to debug APKs because
+the generated release APK is unsigned.
+
+The equivalent manual commands, substituting the configured package if changed,
+are:
+
+```sh
+adb install -r build/myapp.apk
+adb shell am start -n com.blitzmax.app/.BlitzMaxApp
+```
+
 ### Module-local configuration
 
 Since BMK2 4.04, a module may ship a `module.bmk` beside its main `.bmx` file. BMK executes it

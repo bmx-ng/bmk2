@@ -771,22 +771,19 @@ Function MakeApplication( args$[],makelib:Int,compileOnly:Int = False )
 	End If
 
 	If opt_execute And Not compileOnly
+		If processor.Platform() = "android" Then
+			Local settings:TMap = ParseApplicationIniFile()
+			DeployAndroidApplication(opt_outfile + ".apk", String(settings.ValueForKey("app.package")))
+		Else
+			Print "Executing:"+StripDir( opt_outfile )
 
-?Not android
-		Print "Executing:"+StripDir( opt_outfile )
+			Local cmd$=CQuote( opt_outfile )
+			For Local i=1 Until args.length
+				cmd:+" "+CQuote( args[i] )
+			Next
 
-		Local cmd$=CQuote( opt_outfile )
-		For Local i=1 Until args.length
-			cmd:+" "+CQuote( args[i] )
-		Next
-
-		Sys cmd
-?android
-		' on android we'll deploy the apk
-
-?
-
-
+			Sys cmd
+		End If
 	EndIf
 
 End Function

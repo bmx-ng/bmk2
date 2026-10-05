@@ -27,7 +27,7 @@ then
 	echo "deviceinfo unexpectedly accepted a desktop target" >&2
 	exit 1
 fi
-grep -q 'deviceinfo is available only for embedded device targets' "$desktop_log"
+grep -q 'deviceinfo is available for android, pico and esp32 targets' "$desktop_log"
 
 source_log="$temporary/deviceinfo-source.log"
 if "$bmk" deviceinfo -l esp32 unwanted.bmx >"$source_log" 2>&1
@@ -36,6 +36,21 @@ then
 	exit 1
 fi
 grep -q 'deviceinfo does not accept a source file' "$source_log"
+
+fake_android_sdk="$temporary/android-sdk"
+mkdir -p "$fake_android_sdk/platform-tools"
+cp "$(dirname "$0")/fixtures/fake_adb.sh" "$fake_android_sdk/platform-tools/adb"
+chmod +x "$fake_android_sdk/platform-tools/adb"
+printf 'addoption android.sdk "%s"\n' "$fake_android_sdk" >"$test_sdk/bin/custom.bmk"
+
+android_log="$temporary/deviceinfo-android.log"
+"$bmk" deviceinfo -l android >"$android_log"
+grep -q 'Serial: TESTSERIAL' "$android_log"
+grep -q 'Manufacturer: Example' "$android_log"
+grep -q 'Model: Test Phone' "$android_log"
+grep -q 'Android: 15' "$android_log"
+grep -q 'API level: 35' "$android_log"
+grep -q 'ABIs: arm64-v8a' "$android_log"
 
 board_desktop_log="$temporary/boardinfo-desktop.log"
 if "$bmk" boardinfo >"$board_desktop_log" 2>&1

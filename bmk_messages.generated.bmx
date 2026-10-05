@@ -387,10 +387,10 @@ Type TBmkMessages
 		Return TLocalisedMessage.Create("bmk", BMK_MSG_ANDROID_HOME_NOT_SET, "ANDROID_HOME or 'android.home' config option not set")
 	End Function
 	Function AndroidSdkNotSet:TLocalisedMessage()
-		Return TLocalisedMessage.Create("bmk", BMK_MSG_ANDROID_SDK_NOT_SET, "ANDROID_SDK or 'android.sdk' config option not set")
+		Return TLocalisedMessage.Create("bmk", BMK_MSG_ANDROID_SDK_NOT_SET, "Android SDK not configured; set android.sdk, ANDROID_SDK_ROOT, or ANDROID_HOME")
 	End Function
 	Function AndroidNdkNotSet:TLocalisedMessage()
-		Return TLocalisedMessage.Create("bmk", BMK_MSG_ANDROID_NDK_NOT_SET, "ANDROID_NDK or 'android.ndk' config option not set")
+		Return TLocalisedMessage.Create("bmk", BMK_MSG_ANDROID_NDK_NOT_SET, "Android NDK not configured; set android.ndk/ANDROID_NDK_HOME or install a side-by-side NDK")
 	End Function
 	Function AndroidToolchainVersionNotSet:TLocalisedMessage()
 		Return TLocalisedMessage.Create("bmk", BMK_MSG_ANDROID_TOOLCHAIN_VERSION_NOT_SET, "ANDROID_TOOLCHAIN_VERSION or 'android.toolchain.version' config option not set")
