@@ -25,6 +25,9 @@
 #    Defaults to the newest installed Android SDK platform.
 #addoption android.sdk.target "35"
 
+# ** Optional adb device serial. Required only when multiple devices are connected. **
+#addoption android.device "DEVICE_SERIAL"
+
 # ** Raspberry Pi Pico configuration **
 # Values in custom.bmk take precedence over environment variables and PATH.
 # Executable values may name either the executable itself or its containing folder.

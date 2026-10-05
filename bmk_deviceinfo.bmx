@@ -6,6 +6,7 @@ Import "bmk_config.bmx"
 Import "bmk_pico.bmx"
 Import "bmk_esp32.bmx"
 Import "bmk_deviceinfo_parse.bmx"
+Import "bmk_android_device.bmx"
 
 Function PrintEmbeddedDeviceInfoField(label:String, value:String)
 	If value.length Then Print "  " + label + ": " + value
@@ -207,11 +208,13 @@ End Function
 Function ReportEmbeddedDeviceInfo(args:String[])
 	If args.length Then CmdError "deviceinfo does not accept a source file"
 	Select processor.Platform()
+		Case "android"
+			ReportAndroidDeviceInfo()
 		Case "esp32"
 			ReportEsp32DeviceInfo()
 		Case "pico"
 			ReportPicoDeviceInfo()
 		Default
-			CmdError "deviceinfo is available only for embedded device targets (pico and esp32)"
+			CmdError "deviceinfo is available for android, pico and esp32 targets"
 	End Select
 End Function

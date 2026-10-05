@@ -43,4 +43,28 @@ Check(EmbeddedDeviceInfoField(picoOutput, "type", "device information") = "RP235
 Check(EmbeddedDeviceInfoField(picoOutput, "flash size", "device information") = "4096K", "Pico flash size is parsed")
 Check(Not EmbeddedDeviceInfoField(picoOutput, "features", "device information").length, "Pico program fields do not leak into device information")
 
-Print "bmk embedded device-info parser tests passed"
+Local androidOutput:String = "List of devices attached~n" + ..
+	"R58M1234567 device usb:1-2 product:a54x model:SM_A546B device:a54x transport_id:7~n" + ..
+	"emulator-5554 offline transport_id:8~n" + ..
+	"ZY22ABC unauthorized usb:1-3~n" + ..
+	"LINUX123 no permissions (user in plugdev group)~n"
+Local androidDevices:TAndroidDeviceInfo[] = ParseAndroidDevices(androidOutput)
+Check(androidDevices.length = 4, "Android devices in every state are parsed")
+Check(androidDevices[0].serial = "R58M1234567", "Android serial is parsed")
+Check(androidDevices[0].state = "device", "Android authorization state is parsed")
+Check(androidDevices[0].model = "SM A546B", "Android model is made readable")
+Check(androidDevices[0].product = "a54x", "Android product is parsed")
+Check(androidDevices[0].transportId = "7", "Android transport ID is parsed")
+Check(androidDevices[1].state = "offline", "Offline Android devices remain visible")
+Check(androidDevices[2].state = "unauthorized", "Unauthorized Android devices remain visible")
+Check(androidDevices[3].state = "no permissions", "Android devices blocked by host permissions remain visible")
+
+Local androidProperties:String = "[ro.product.manufacturer]: [Google]~n" + ..
+	"[ro.product.model]: [Pixel 8]~n" + ..
+	"[ro.build.version.release]: [16]~n" + ..
+	"[ro.product.cpu.abilist]: [arm64-v8a,armeabi-v7a]~n"
+Check(AndroidDeviceProperty(androidProperties, "ro.product.model") = "Pixel 8", "Android properties are parsed")
+Check(AndroidDeviceProperty(androidProperties, "ro.build.version.release") = "16", "Android version is parsed")
+Check(Not AndroidDeviceProperty(androidProperties, "ro.hardware").length, "Missing Android properties are empty")
+
+Print "bmk device-info parser tests passed"

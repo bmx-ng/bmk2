@@ -117,6 +117,8 @@ addoption android.sdk "/path/to/Android/sdk"
 addoption android.ndk.version "28.2.13676358"
 addoption android.platform "21"
 addoption android.sdk.target "35"
+# Optional; select a device when more than one is connected.
+addoption android.device "DEVICE_SERIAL"
 ```
 
 `android.ndk.version`, `android.platform`, and `android.sdk.target` are optional.
@@ -137,6 +139,7 @@ export ANDROID_HOME=/path/to/Android/sdk
 export ANDROID_NDK_VERSION=28.2.13676358  # optional; newest installed NDK otherwise
 export ANDROID_PLATFORM=21               # optional; native minimum API
 export ANDROID_SDK_TARGET=35              # optional; newest installed platform otherwise
+export ANDROID_SERIAL=DEVICE_SERIAL       # optional; select among multiple devices
 ```
 
 `ANDROID_SDK_ROOT` is also accepted for the SDK. For an NDK outside the SDK,
@@ -156,8 +159,28 @@ the output temporarily and contains the native library under the matching
 `jniLibs` ABI directory. Apache Ant, GCC-era NDK toolchains, STLPort, and the
 removed `armeabi` ABI are not used.
 
-Install and launch with Android platform tools, substituting the package and
-activity configured by the application if changed:
+Inspect the connected device with:
+
+```sh
+bmk deviceinfo -l android
+```
+
+With one authorized device connected, build, install, and launch a debug APK in
+one step by adding `-x`:
+
+```sh
+bmk makeapp -x -l android -g arm64v8a -o build/myapp app.bmx
+```
+
+bmk uses `adb install -r` so an existing copy is updated, then starts the
+configured package's `.BlitzMaxApp` activity. If several authorized devices are
+connected, select one persistently with `android.device` in `bin/custom.bmk`, or
+temporarily with `ANDROID_SERIAL`. Unauthorized and offline devices are reported
+but are never selected. Automatic installation is limited to debug APKs because
+the generated release APK is unsigned.
+
+The equivalent manual commands, substituting the configured package if changed,
+are:
 
 ```sh
 adb install -r build/myapp.apk
