@@ -107,7 +107,29 @@ baseline is JDK 17, Android SDK 35, NDK r28c (`28.2.13676358`), Gradle 8.12 and
 Android Gradle Plugin 8.7.3. Applications target API 35 and support API 21 or
 newer.
 
-Set machine-local paths in the environment:
+The recommended setup is to configure the SDK installation's `bin/custom.bmk`.
+This keeps the Android toolchain selection with BlitzMax and works consistently
+on macOS, Linux, and Windows. Use forward slashes in Windows paths:
+
+```text
+addoption android.java.home "/path/to/jdk-17"
+addoption android.sdk "/path/to/Android/sdk"
+addoption android.ndk.version "28.2.13676358"
+addoption android.platform "21"
+addoption android.sdk.target "35"
+```
+
+`android.ndk.version`, `android.platform`, and `android.sdk.target` are optional.
+bmk otherwise chooses the newest side-by-side NDK and SDK platform, with API 21
+as the native minimum. If the NDK is installed outside the SDK, use its full
+path instead:
+
+```text
+addoption android.ndk "/path/to/android-ndk"
+```
+
+The same configuration can be supplied through environment variables, which is
+useful for CI or temporary overrides:
 
 ```sh
 export JAVA_HOME=/path/to/jdk-17
@@ -118,9 +140,9 @@ export ANDROID_SDK_TARGET=35              # optional; newest installed platform 
 ```
 
 `ANDROID_SDK_ROOT` is also accepted for the SDK. For an NDK outside the SDK,
-set `ANDROID_NDK_HOME` or `ANDROID_NDK_ROOT`. Equivalent `custom.bmk` keys are
-`android.sdk`, `android.ndk`, `android.ndk.version`, `android.platform`, and
-`android.sdk.target`; do not commit personal absolute paths.
+set `ANDROID_NDK_HOME` or `ANDROID_NDK_ROOT`. Configuration keys take precedence
+over environment variables. Keep machine-specific paths in the installed SDK's
+`bin/custom.bmk`, rather than a project file intended for source control.
 
 Build an ARM64 debug APK with:
 

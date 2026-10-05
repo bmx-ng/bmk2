@@ -219,6 +219,9 @@ End Function
 
 Function CheckAndroidPaths()
 	' check envs and paths
+	Local androidJavaHome:String = processor.Option("android.java.home", "").Trim()
+	If androidJavaHome Then putenv_("JAVA_HOME=" + androidJavaHome)
+
 	Local androidSDK:String = processor.Option("android.sdk", "").Trim()
 	If Not androidSDK Then androidSDK = getenv_("ANDROID_SDK_ROOT").Trim()
 	If Not androidSDK Then androidSDK = getenv_("ANDROID_HOME").Trim()

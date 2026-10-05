@@ -14,8 +14,9 @@
 # ** android configuration **
 # ** architecture is determined by build settings **
 # ** requires the Gradle template in BlitzMax/resources/android **
-# ** environment variables are preferred for machine-local paths **
+# ** custom.bmk is the recommended place for machine-local paths **
 
+#addoption android.java.home "/PATH/TO/JDK-17"
 #addoption android.sdk "/PATH/TO/Android/sdk"
 #addoption android.ndk.version "28.2.13676358"
 #addoption android.platform "21"
