@@ -1,0 +1,34 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace '${app.package}'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId '${app.package}'
+        minSdk 21
+        targetSdk 35
+        versionCode ${app.version.code}
+        versionName '${app.version.name}'
+    }
+
+    sourceSets.main {
+        assets.srcDir 'src/main/assets'
+        jniLibs.srcDir 'src/main/jniLibs'
+    }
+
+    buildTypes {
+        debug {
+            debuggable true
+        }
+        release {
+            minifyEnabled false
+        }
+    }
+
+    lint {
+        abortOnError false
+    }
+}

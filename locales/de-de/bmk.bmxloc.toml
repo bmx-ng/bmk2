@@ -320,14 +320,14 @@ placeholders = []
 id = 46
 name = "android.sdk_not_set"
 translated = false
-text = "ANDROID_SDK or 'android.sdk' config option not set"
+text = "Android SDK not configured; set android.sdk, ANDROID_SDK_ROOT, or ANDROID_HOME"
 placeholders = []
 
 [[message]]
 id = 47
 name = "android.ndk_not_set"
 translated = false
-text = "ANDROID_NDK or 'android.ndk' config option not set"
+text = "Android NDK not configured; set android.ndk/ANDROID_NDK_HOME or install a side-by-side NDK"
 placeholders = []
 
 [[message]]

@@ -98,6 +98,50 @@ in BlitzMax line-comment pragmas, for example:
 On Linux and macOS, an optional `bin/config.bmk` supplies toolchain settings for
 cross-compilation.
 
+### Android
+
+Android builds use the LLVM toolchain from a modern side-by-side NDK and the
+Gradle project in `resources/android/android-project`. Keep the Android tools
+outside the BlitzMax installation; bmk only needs their locations. The current
+baseline is JDK 17, Android SDK 35, NDK r28c (`28.2.13676358`), Gradle 8.12 and
+Android Gradle Plugin 8.7.3. Applications target API 35 and support API 21 or
+newer.
+
+Set machine-local paths in the environment:
+
+```sh
+export JAVA_HOME=/path/to/jdk-17
+export ANDROID_HOME=/path/to/Android/sdk
+export ANDROID_NDK_VERSION=28.2.13676358  # optional; newest installed NDK otherwise
+export ANDROID_PLATFORM=21               # optional; native minimum API
+export ANDROID_SDK_TARGET=35              # optional; newest installed platform otherwise
+```
+
+`ANDROID_SDK_ROOT` is also accepted for the SDK. For an NDK outside the SDK,
+set `ANDROID_NDK_HOME` or `ANDROID_NDK_ROOT`. Equivalent `custom.bmk` keys are
+`android.sdk`, `android.ndk`, `android.ndk.version`, `android.platform`, and
+`android.sdk.target`; do not commit personal absolute paths.
+
+Build an ARM64 debug APK with:
+
+```sh
+bmk makeapp -l android -g arm64v8a -o build/myapp app.bmx
+```
+
+The result is `build/myapp.apk`. Supported ABI selectors are `arm64v8a`,
+`armeabiv7a`, `x86`, and `x64`. The generated Gradle project is placed beside
+the output temporarily and contains the native library under the matching
+`jniLibs` ABI directory. Apache Ant, GCC-era NDK toolchains, STLPort, and the
+removed `armeabi` ABI are not used.
+
+Install and launch with Android platform tools, substituting the package and
+activity configured by the application if changed:
+
+```sh
+adb install -r build/myapp.apk
+adb shell am start -n com.blitzmax.app/.BlitzMaxApp
+```
+
 ### Module-local configuration
 
 Since BMK2 4.04, a module may ship a `module.bmk` beside its main `.bmx` file. BMK executes it

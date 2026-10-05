@@ -578,13 +578,11 @@ Function LinkApp( path$,lnk_files:TList,makelib:Int,opts$ )
 		sb.Append(processor.Option(processor.BuildName("gpp"), "g++"))
 		
 		Local libso:String = StripDir(path)
-		sb.Append(" -fPIC -shared ")
-		
-		' for stlport shared lib
-		sb.Append(" -L").Append(AndroidSTLPortDir())
-		
+		sb.Append(" -fPIC -shared -static-libstdc++ ")
+
 		sb.Append(" -Wl,-soname,lib").Append(libso).Append(".so ")
-		sb.Append(" -Wl,--export-dynamic -rdynamic ")
+		' SDLActivity locates SDL_main with dlsym, so retain it from appstub's archive.
+		sb.Append(" -Wl,-u,SDL_main -Wl,--export-dynamic -rdynamic ")
 		sb.Append(" -o ").Append(CQuote( ExtractDir(path) + "/lib" + libso + ".so" ))
 		sb.Append(" ").Append(CQuote( tmpfile ))
 		sb.Append(" ").Append(processor.Option("android.platform.sysroot", ""))
@@ -599,8 +597,6 @@ Function LinkApp( path$,lnk_files:TList,makelib:Int,opts$ )
 		Next
 	
 		sb.Append(" -Wl,-Bdynamic -lGLESv2 -lGLESv1_CM ")
-		' libstlport
-		sb.Append(" -lstlport_shared")
 		sb.Append(" -llog -ldl -landroid ")
 	
 		fb.Insert(0,"INPUT(").Append(")")
@@ -742,7 +738,7 @@ Function DeployAndroidProject()
 	End If
 	
 	' create assets dir if missing
-	Local assetsDir:String = projectDir + "/assets"
+	Local assetsDir:String = projectDir + "/app/src/main/assets"
 	
 	If opt_all Then
 		' remove assets if we are doing a full build
@@ -758,7 +754,7 @@ Function DeployAndroidProject()
 	End If
 
 	' create libs/abi dir if missing
-	Local abiDir:String = projectDir + "/libs"
+	Local abiDir:String = projectDir + "/app/src/main/jniLibs"
 
 	If FileType(abiDir) <> FILETYPE_DIR Then
 		CreateDir(abiDir)
@@ -778,24 +774,11 @@ Function DeployAndroidProject()
 		End If
 	End If
 	
-	' copy stlport
-	Local stlportDest:String = abiDir + "/libstlport_shared.so"
-	
-	If opt_all Or Not FileType(stlportDest) Then
-		Local stlportSrc:String = AndroidSTLPortDir() + "/libstlport_shared.so"
-		
-		CopyFile(stlportSrc, stlportDest)
-		
-		If Not FileType(stlportDest) Then
-			Throw TBmkMessages.AndroidStlportCopyFailed(stlportSrc).Render()
-		End If
-	End If
-	
 	Local projectSettings:TMap = ParseApplicationIniFile()
-	
+
 	Local appPackage:String = String(projectSettings.ValueForKey("app.package"))
-	
-	Local packagePath:String = projectDir + "/src/" + PathFromPackage(appPackage)
+
+	Local packagePath:String = projectDir + "/app/src/main/java/" + PathFromPackage(appPackage)
 	
 	' create the package
 	If Not FileType(packagePath) Then
@@ -819,7 +802,7 @@ Function DeployAndroidProject()
 	
 	' merge project data
 	'     update AndroidManifest.xml
-	MergeFile(projectDir, "AndroidManifest.xml", projectSettings)
+	MergeFile(projectDir + "/app/src/main", "AndroidManifest.xml", projectSettings)
 	
 	'     update BlitzMaxApp.java
 	MergeFile(packagePath, "BlitzMaxApp.java", projectSettings)
@@ -827,34 +810,16 @@ Function DeployAndroidProject()
 	Local javaApp:String = LoadString( gameClassFile )
 	' set the package
 	javaApp = ReplaceBlock( javaApp, "app.package","package " + appPackage + ";" )
-	' lib imports
-	javaApp = ReplaceBlock( javaApp, "lib.imports", GetAndroidLibImports() )
 	SaveString(javaApp, gameClassFile)
 
 	'     update strings.xml
-	MergeFile(projectDir + "/res/values", "strings.xml", projectSettings)
+	MergeFile(projectDir + "/app/src/main/res/values", "strings.xml", projectSettings)
 
-	'     update build.xml
-	MergeFile(projectDir, "build.xml", projectSettings)
-
-	' set the sdk target
-	Local projectPropertiesFile:String = projectDir + "/project.properties"
-	Local projectProperties:String = LoadString( projectPropertiesFile )
-	projectProperties = ReplaceBlock( projectProperties, "sdk.target","target=android-" + processor.option("android.sdk.target", ""), "~n#")
-	SaveString(projectProperties, projectPropertiesFile)
+	'     update Gradle application configuration
+	MergeFile(projectDir + "/app", "build.gradle", projectSettings)
 
 	' copy resources to assets
 	CopyAndroidResources(buildDir, assetsDir)
-End Function
-
-Function GetAndroidLibImports:String()
-	Local imports:String
-	
-	imports = "System.loadLibrary( ~qstlport_shared~q);~n"
-	
-	' TODO : others imported via project...
-	
-	Return imports
 End Function
 
 Function GetAndroidArch:String()
@@ -876,10 +841,6 @@ Function GetAndroidArch:String()
 			Throw TBmkMessages.AndroidArchitectureInvalid(processor.CPU()).Render()
 	End Select
 	Return arch
-End Function
-
-Function AndroidSTLPortDir:String()
-	Return processor.Option("android.ndk", "") + "/sources/cxx-stl/stlport/libs/" + GetAndroidArch()
 End Function
 
 Function CopyAndroidResources(buildDir:String, assetsDir:String)

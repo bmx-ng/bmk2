@@ -127,80 +127,66 @@ End Function
 
 Function ConfigureAndroidPaths()
 	CheckAndroidPaths()
-	
-	Local toolchain:String
-	Local toolchainBin:String
-	Local arch:String
+
+	Local compilerTarget:String
 	Local abi:String
-	
+
 	Select processor.CPU()
 		Case "x86"
-			toolchain = "x86-"
-			toolchainBin = "i686-linux-android-"
-			arch = "arch-x86"
+			compilerTarget = "i686-linux-android"
 			abi = "x86"
 		Case "x64"
-			toolchain = "x86_64-"
-			toolchainBin = "x86_64-linux-android-"
-			arch = "arch-x86_64"
+			compilerTarget = "x86_64-linux-android"
 			abi = "x86_64"
 		Case "arm", "armeabi", "armeabiv7a"
-			toolchain = "arm-linux-androideabi-"
-			toolchainBin = "arm-linux-androideabi-"
-			arch = "arch-arm"
-			If processor.CPU() = "armeabi" Then
-				abi = "armeabi"
-			Else
-				abi = "armeabi-v7a"
-			End If
+			compilerTarget = "armv7a-linux-androideabi"
+			abi = "armeabi-v7a"
 		Case "arm64v8a"
-			toolchain = "aarch64-linux-android-"
-			toolchainBin = "aarch64-linux-android-"
-			arch = "arch-arm64"
+			compilerTarget = "aarch64-linux-android"
 			abi = "arm64-v8a"
 	End Select
-	
-	Local native:String
+
+	Local hostTags:String[]
 ?macos
-	native = "darwin"
+	hostTags = ["darwin-arm64", "darwin-x86_64"]
 ?linux
-	native = "linux"
+	hostTags = ["linux-x86_64", "linux-x86"]
 ?win32
-	native = "windows"
+	hostTags = ["windows-x86_64", "windows"]
 ?
 
-	Local toolchainDir:String = processor.Option("android.ndk", "") + "/toolchains/" + ..
-			toolchain + processor.Option("android.toolchain.version", "") + "/prebuilt/" + native
-	
-	' look for 64 bit build first, then x86, then fallback to no architecture (generally on 32-bit dists)
-	If FileType(toolchainDir + "-x86_64") = FILETYPE_DIR Then
-		toolchainDir :+ "-x86_64"
-	Else If FileType(toolchainDir + "-x86") = FILETYPE_DIR Then
-		toolchainDir :+ "-x86"
-	Else If FileType(toolchainDir) <> FILETYPE_DIR Then
-		Throw TBmkMessages.ToolchainDirectoryNotFound(native, toolchainDir).Render()
-	End If
+	Local toolchainRoot:String = processor.Option("android.ndk", "") + "/toolchains/llvm/prebuilt"
+	Local toolchainDir:String
+	For Local hostTag:String = EachIn hostTags
+		Local candidate:String = toolchainRoot + "/" + hostTag
+		If FileType(candidate) = FILETYPE_DIR Then
+			toolchainDir = candidate
+			Exit
+		End If
+	Next
+	If Not toolchainDir Then Throw TBmkMessages.ToolchainDirectoryNotFound(hostTags[0], toolchainRoot).Render()
 
 	Local exe:String	
 ?win32
 	exe = ".exe"
 ?
 	
-	Local gccPath:String = toolchainDir + "/bin/" + toolchainBin + "gcc" + exe
-	Local gppPath:String = toolchainDir + "/bin/" + toolchainBin + "g++" + exe
-	Local arPath:String = toolchainDir + "/bin/" + toolchainBin + "ar" + exe
-	Local libPath:String = toolchainDir + "/lib"
+	Local apiLevel:String = processor.Option("android.platform", "21")
+	Local gccPath:String = toolchainDir + "/bin/" + compilerTarget + apiLevel + "-clang" + exe
+	Local gppPath:String = toolchainDir + "/bin/" + compilerTarget + apiLevel + "-clang++" + exe
+	Local arPath:String = toolchainDir + "/bin/llvm-ar" + exe
+	Local libPath:String = toolchainDir + "/sysroot/usr/lib"
 
 	' check paths
-	If Not FileType(RealPath(gccPath)) Then
+	If FileType(RealPath(gccPath)) <> FILETYPE_FILE Then
 		Throw TBmkMessages.ToolchainGccNotFound(gccPath).Render()
 	End If
 
-	If Not FileType(RealPath(gppPath)) Then
+	If FileType(RealPath(gppPath)) <> FILETYPE_FILE Then
 		Throw TBmkMessages.ToolchainGppNotFound(gppPath).Render()
 	End If
 
-	If Not FileType(RealPath(gccPath)) Then
+	If FileType(RealPath(arPath)) <> FILETYPE_FILE Then
 		Throw TBmkMessages.ToolchainArchiverNotFound(arPath).Render()
 	End If
 	
@@ -209,17 +195,8 @@ Function ConfigureAndroidPaths()
 	globals.SetVar("android." + processor.CPU() + ".ar", arPath)
 	globals.SetVar("android." + processor.CPU() + ".lib", "-L" + libPath)
 
-	' platform
-	Local platformDir:String = processor.Option("android.ndk", "") + "/platforms/android-" + ..
-			processor.Option("android.platform", "") + "/" + arch
-
-	If Not FileType(platformDir) Then
-		Throw TBmkMessages.ToolchainPlatformDirectoryNotFound(arch, platformDir).Render()
-	End If
-	
-	' platform sysroot
-	globals.SetVar("android.platform.sysroot", "--sysroot " + platformDir)
-	globals.AddOption("cc_opts", "android.platform.sysroot", "--sysroot " + platformDir)
+	globals.SetVar("android.platform.sysroot", "")
+	globals.SetOption("cc_opts", "pie", "-fPIC")
 	
 	' abi
 	globals.SetVar("android.abi", abi)
@@ -228,7 +205,7 @@ Function ConfigureAndroidPaths()
 	Local target:String = GetAndroidSDKTarget()
 
 	If Not target Or Not FileType(processor.Option("android.sdk", "") + "/platforms/android-" + target) Then
-		Local sdkPath:String = processor.Option("android.sdk.target", "")
+		Local sdkPath:String = processor.Option("android.sdk", "")
 		If sdkPath Then
 			Throw TBmkMessages.AndroidSdkTargetNotDetermined(sdkPath).Render()
 		Else
@@ -242,23 +219,31 @@ End Function
 
 Function CheckAndroidPaths()
 	' check envs and paths
-	Local androidHome:String = processor.Option("android.home", getenv_("ANDROID_HOME")).Trim()
-	If Not androidHome Then
-		Throw TBmkMessages.AndroidHomeNotSet().Render()
-	End If
-		
-	putenv_("ANDROID_HOME=" + androidHome)
-	globals.SetVar("android.home", androidHome)
-	
-	Local androidSDK:String = processor.Option("android.sdk", getenv_("ANDROID_SDK")).Trim()
+	Local androidSDK:String = processor.Option("android.sdk", "").Trim()
+	If Not androidSDK Then androidSDK = getenv_("ANDROID_SDK_ROOT").Trim()
+	If Not androidSDK Then androidSDK = getenv_("ANDROID_HOME").Trim()
+	If Not androidSDK Then androidSDK = getenv_("ANDROID_SDK").Trim()
 	If Not androidSDK Then
 		Throw TBmkMessages.AndroidSdkNotSet().Render()
 	End If
-		
+	Local androidHome:String = processor.Option("android.home", getenv_("ANDROID_HOME")).Trim()
+	If Not androidHome Then androidHome = androidSDK
+
+	putenv_("ANDROID_HOME=" + androidHome)
+	putenv_("ANDROID_SDK_ROOT=" + androidSDK)
+	globals.SetVar("android.home", androidHome)
 	putenv_("ANDROID_SDK=" + androidSDK)
 	globals.SetVar("android.sdk", androidSDK)
 
-	Local androidNDK:String = processor.Option("android.ndk", getenv_("ANDROID_NDK")).Trim()
+	Local androidNDK:String = processor.Option("android.ndk", "").Trim()
+	If Not androidNDK Then androidNDK = getenv_("ANDROID_NDK_HOME").Trim()
+	If Not androidNDK Then androidNDK = getenv_("ANDROID_NDK_ROOT").Trim()
+	If Not androidNDK Then androidNDK = getenv_("ANDROID_NDK").Trim()
+	If Not androidNDK Then
+		Local ndkVersion:String = processor.Option("android.ndk.version", getenv_("ANDROID_NDK_VERSION")).Trim()
+		If ndkVersion Then androidNDK = androidSDK + "/ndk/" + ndkVersion
+	End If
+	If Not androidNDK Then androidNDK = FindLatestAndroidNdk(androidSDK + "/ndk")
 	If Not androidNDK Then
 		Throw TBmkMessages.AndroidNdkNotSet().Render()
 	End If
@@ -266,18 +251,9 @@ Function CheckAndroidPaths()
 	putenv_("ANDROID_NDK=" + androidNDK)
 	globals.SetVar("android.ndk", androidNDK)
 
-	Local androidToolchainVersion:String = processor.Option("android.toolchain.version", getenv_("ANDROID_TOOLCHAIN_VERSION")).Trim()
-	If Not androidToolchainVersion Then
-		Throw TBmkMessages.AndroidToolchainVersionNotSet().Render()
-	End If
-		
-	putenv_("ANDROID_TOOLCHAIN_VERSION=" + androidToolchainVersion)
-	globals.SetVar("android.toolchain.version", androidToolchainVersion)
-
 	Local androidPlatform:String = processor.Option("android.platform", getenv_("ANDROID_PLATFORM")).Trim()
-	If Not androidPlatform Then
-		Throw TBmkMessages.AndroidPlatformNotSet().Render()
-	End If
+	If androidPlatform.StartsWith("android-") Then androidPlatform = androidPlatform[8..]
+	If Not androidPlatform Then androidPlatform = "21"
 		
 	putenv_("ANDROID_PLATFORM=" + androidPlatform.Trim())
 	globals.SetVar("android.platform", androidPlatform)
@@ -290,23 +266,7 @@ Function CheckAndroidPaths()
 		globals.SetVar("android.sdk.target", androidSDKTarget)
 	End If
 		
-	Local antHome:String = processor.Option("ant.home", getenv_("ANT_HOME")).Trim()
-	If Not antHome Then
-		' as a further fallback, we can use the one from resources folder if it exists.
-		Local antDir:String = RealPath(BlitzMaxPath() + "/resources/android/apache-ant")
-		
-		If FileType(antDir) <> FILETYPE_DIR Then
-			Throw TBmkMessages.AndroidAntNotSet().Render()
-		Else
-			antHome = antDir
-			globals.SetVar("ant.home", antHome)
-		End If
-	End If
-		
-	putenv_("ANT_HOME=" + antHome)
-	globals.SetVar("ant.home", antHome)
-
-?Not win32	
+?Not win32
 	Local pathSeparator:String = ":"
 	Local dirSeparator:String = "/"
 ?win32
@@ -315,11 +275,36 @@ Function CheckAndroidPaths()
 ?
 	Local path:String = getenv_("PATH")
 	path = androidSDK + dirSeparator + "platform-tools" + pathSeparator + path
-	path = androidSDK + dirSeparator + "tools" + pathSeparator + path
-	path = androidNDK + pathSeparator + path
-	path = antHome + dirSeparator + "bin" + pathSeparator + path
+	path = androidSDK + dirSeparator + "cmdline-tools" + dirSeparator + "latest" + dirSeparator + "bin" + pathSeparator + path
 	putenv_("PATH=" + path)
 
+End Function
+
+Function FindLatestAndroidNdk:String(ndkRoot:String)
+	If FileType(ndkRoot) <> FILETYPE_DIR Then Return ""
+	Local latest:String
+	For Local name:String = EachIn LoadDir(ndkRoot, True)
+		Local directory:String = ndkRoot + "/" + name
+		If FileType(directory) <> FILETYPE_DIR Then Continue
+		If Not latest Or CompareAndroidVersions(name, StripDir(latest)) > 0 Then
+			latest = directory
+		End If
+	Next
+	Return latest
+End Function
+
+Function CompareAndroidVersions:Int(left:String, right:String)
+	Local leftParts:String[] = left.Split(".")
+	Local rightParts:String[] = right.Split(".")
+	For Local index:Int = 0 Until Max(leftParts.length, rightParts.length)
+		Local leftValue:Int
+		Local rightValue:Int
+		If index < leftParts.length Then leftValue = leftParts[index].ToInt()
+		If index < rightParts.length Then rightValue = rightParts[index].ToInt()
+		If leftValue < rightValue Then Return -1
+		If leftValue > rightValue Then Return 1
+	Next
+	Return 0
 End Function
 
 Function ConfigureIOSPaths()
@@ -1582,7 +1567,7 @@ Type TBuildManager Extends TCallback
 				Local buildDir:String = ExtractDir(opt_outfile)
 				Local projectDir:String = buildDir + "/android-project-" + appId
 		
-				Local abiPath:String = projectDir + "/libs/" + androidABI
+				Local abiPath:String = projectDir + "/app/src/main/jniLibs/" + androidABI
 		
 				Local sharedObject:String = "lib" + appId
 
@@ -1590,13 +1575,17 @@ Type TBuildManager Extends TCallback
 				
 				CopyFile(buildDir + "/" + sharedObject, abiPath + "/" + sharedObject)
 		
-				' build the apk :
-				Local antHome:String = processor.Option("ant.home", "").Trim()
-				Local cmd:String = "~q" + antHome + "/bin/ant"
+				' build the apk with the template's pinned Gradle wrapper
+				Local buildVariant:String = "debug"
+				If Not opt_debug Then buildVariant = "release"
+				Local gradleExecutable:String = projectDir + "/gradlew"
 ?win32
-				cmd :+ ".bat"
+				gradleExecutable :+ ".bat"
+				Local cmd:String = CQuote(gradleExecutable)
+?Not win32
+				Local cmd:String = "sh " + CQuote(gradleExecutable)
 ?
-				cmd :+ "~q debug"
+				cmd :+ " --no-daemon :app:assemble" + buildVariant[..1].ToUpper() + buildVariant[1..]
 				
 				Local dir:String = CurrentDir()
 				
@@ -1609,8 +1598,16 @@ Type TBuildManager Extends TCallback
 				If Sys( cmd ) Then
 					Throw TBmkMessages.AndroidApkCreationFailed().Render()
 				End If
-				
+
 				ChangeDir(dir)
+
+				Local apkName:String = "app-" + buildVariant + ".apk"
+				If buildVariant = "release" Then apkName = "app-release-unsigned.apk"
+				Local apkSource:String = projectDir + "/app/build/outputs/apk/" + buildVariant + "/" + apkName
+				Local apkDestination:String = buildDir + "/" + appId + ".apk"
+				If Not CopyFile(apkSource, apkDestination) Then
+					Throw TBmkMessages.AndroidApkCreationFailed().Render()
+				End If
 		
 			'End If
 		
