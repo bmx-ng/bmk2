@@ -2,6 +2,12 @@ plugins {
     id 'com.android.application'
 }
 
+def bmxReleaseStoreFile = System.getenv('BMX_ANDROID_SIGNING_STORE_FILE')
+def bmxReleaseStorePassword = System.getenv('BMX_ANDROID_SIGNING_STORE_PASSWORD')
+def bmxReleaseKeyAlias = System.getenv('BMX_ANDROID_SIGNING_KEY_ALIAS')
+def bmxReleaseKeyPassword = System.getenv('BMX_ANDROID_SIGNING_KEY_PASSWORD')
+def bmxReleaseSigningConfigured = bmxReleaseStoreFile && bmxReleaseStorePassword && bmxReleaseKeyAlias && bmxReleaseKeyPassword
+
 android {
     namespace '${app.package}'
     compileSdk 35
@@ -19,12 +25,26 @@ android {
         jniLibs.srcDir 'src/main/jniLibs'
     }
 
+    signingConfigs {
+        release {
+            if (bmxReleaseSigningConfigured) {
+                storeFile file(bmxReleaseStoreFile)
+                storePassword bmxReleaseStorePassword
+                keyAlias bmxReleaseKeyAlias
+                keyPassword bmxReleaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         debug {
             debuggable true
         }
         release {
             minifyEnabled false
+            if (bmxReleaseSigningConfigured) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 

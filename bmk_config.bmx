@@ -806,7 +806,7 @@ Function ParseApplicationIniFile:TMap()
 	Local ids:String[] = [StripDir(StripExt(opt_outfile)), StripDir(StripExt(opt_infile))]
 
 	Local appId:String = ids[0]
-	Local buildDir:String = ExtractDir(opt_infile)
+	Local buildDir:String = ExtractDir(RealPath(opt_infile))
 
 	Local path:String
 	Local found:Int

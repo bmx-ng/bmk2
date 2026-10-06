@@ -28,6 +28,14 @@
 # ** Optional adb device serial. Required only when multiple devices are connected. **
 #addoption android.device "DEVICE_SERIAL"
 
+# ** Optional Android release signing. **
+# Prefer environment variables for passwords in CI, or an untracked
+# <application>.signing.properties beside the main source.
+#addoption android.signing.keystore "/PATH/TO/upload-keystore.jks"
+#addoption android.signing.key.alias "upload"
+#addoption android.signing.store.password "keystore-password"
+#addoption android.signing.key.password "key-password"
+
 # ** Raspberry Pi Pico configuration **
 # Values in custom.bmk take precedence over environment variables and PATH.
 # Executable values may name either the executable itself or its containing folder.

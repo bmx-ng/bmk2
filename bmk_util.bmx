@@ -3,6 +3,7 @@ SuperStrict
 Import "bmk_config.bmx"
 Import "bmk_ng.bmx"
 Import "bmk_messages.generated.bmx"
+Import "bmk_android_signing.bmx"
 Import "file_util.c"
 Import "hash.c"
 
@@ -10,6 +11,8 @@ Import "hash.c"
 Const USE_NASM:Int=False
 
 Const IOS_HAS_MERGE:Int = False
+
+Global androidReleaseSigningConfigured:Int
 
 Type TModOpt ' BaH
 	Field cc_opts:String = ""
@@ -710,6 +713,8 @@ Function MergeApp(file1:String, file2:String, outputFile:String)
 End Function
 
 Function DeployAndroidProject()
+	ConfigureAndroidReleaseSigning()
+
 	Local appId:String = StripDir(StripExt(opt_outfile))
 	If opt_debug And opt_outfile.EndsWith(".debug") Then
 		appId :+ ".debug"
@@ -835,6 +840,87 @@ Function DeployAndroidProject()
 
 	' copy resources to assets
 	CopyAndroidResources(buildDir, assetsDir)
+End Function
+
+Function AndroidSigningPropertiesPath:String()
+	Local ids:String[] = [StripDir(StripExt(opt_outfile)), StripDir(StripExt(opt_infile))]
+	Local sourceDir:String = ExtractDir(RealPath(opt_infile))
+
+	For Local id:String = EachIn ids
+		Local path:String = sourceDir + "/" + id + ".signing.properties"
+		If FileType(path) = FILETYPE_FILE Then Return path
+	Next
+
+	Return ""
+End Function
+
+Function LoadAndroidSigningProperties:TMap(path:String)
+	Local properties:TMap = New TMap
+	If Not path.length Then Return properties
+
+	Local file:TStream = ReadFile(path)
+	If Not file Then Throw "Unable to read Android signing properties: " + path
+
+	While Not Eof(file)
+		Local line:String = ReadLine(file).Trim()
+		If Not line.length Or line.StartsWith("#") Then Continue
+		Local separator:Int = line.Find("=")
+		If separator <= 0 Then Continue
+		properties.Insert(line[..separator].Trim(), line[separator + 1..].Trim())
+	Wend
+
+	file.Close()
+	Return properties
+End Function
+
+Function AndroidSigningValue:String(optionKey:String, environmentKey:String, properties:TMap, propertyKey:String)
+	Return AndroidPreferredSigningValue(..
+		getenv_(environmentKey), ..
+		String(properties.ValueForKey(propertyKey)), ..
+		processor.Option(optionKey, ""))
+End Function
+
+Function ConfigureAndroidReleaseSigning()
+	androidReleaseSigningConfigured = False
+	putenv_ "BMX_ANDROID_SIGNING_STORE_FILE="
+	putenv_ "BMX_ANDROID_SIGNING_STORE_PASSWORD="
+	putenv_ "BMX_ANDROID_SIGNING_KEY_ALIAS="
+	putenv_ "BMX_ANDROID_SIGNING_KEY_PASSWORD="
+
+	If Not opt_release Then Return
+
+	Local propertiesPath:String = AndroidSigningPropertiesPath()
+	Local properties:TMap = LoadAndroidSigningProperties(propertiesPath)
+	Local storeFile:String = AndroidSigningValue("android.signing.keystore", "ANDROID_KEYSTORE_PATH", properties, "storeFile")
+	Local storePassword:String = AndroidSigningValue("android.signing.store.password", "ANDROID_KEYSTORE_PASSWORD", properties, "storePassword")
+	Local keyAlias:String = AndroidSigningValue("android.signing.key.alias", "ANDROID_KEY_ALIAS", properties, "keyAlias")
+	Local keyPassword:String = AndroidSigningValue("android.signing.key.password", "ANDROID_KEY_PASSWORD", properties, "keyPassword")
+
+	Local configured:Int = storeFile.length Or storePassword.length Or keyAlias.length Or keyPassword.length
+	If Not configured Then
+		Print "Android release signing is not configured; creating an unsigned APK."
+		Return
+	End If
+
+	Local missing:String
+	If Not storeFile.length Then missing :+ " storeFile"
+	If Not storePassword.length Then missing :+ " storePassword"
+	If Not keyAlias.length Then missing :+ " keyAlias"
+	If Not keyPassword.length Then missing :+ " keyPassword"
+	If missing.length Then Throw "Android release signing configuration is incomplete; missing:" + missing
+
+	If propertiesPath.length Then
+		Local relativeStoreFile:String = RealPath(ExtractDir(propertiesPath) + "/" + storeFile)
+		If FileType(relativeStoreFile) = FILETYPE_FILE Then storeFile = relativeStoreFile
+	End If
+	storeFile = RealPath(storeFile)
+	If FileType(storeFile) <> FILETYPE_FILE Then Throw "Android signing keystore not found: " + storeFile
+
+	putenv_ "BMX_ANDROID_SIGNING_STORE_FILE=" + storeFile
+	putenv_ "BMX_ANDROID_SIGNING_STORE_PASSWORD=" + storePassword
+	putenv_ "BMX_ANDROID_SIGNING_KEY_ALIAS=" + keyAlias
+	putenv_ "BMX_ANDROID_SIGNING_KEY_PASSWORD=" + keyPassword
+	androidReleaseSigningConfigured = True
 End Function
 
 Function GetAndroidArch:String()

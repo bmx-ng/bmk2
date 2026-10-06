@@ -109,10 +109,10 @@ Function ReportAndroidDeviceInfo()
 	PrintAndroidDeviceInfoField("Fingerprint", AndroidDeviceProperty(properties, "ro.build.fingerprint"))
 End Function
 
-Function DeployAndroidApplication(apkPath:String, appPackage:String)
+Function DeployAndroidApplication(apkPath:String, appPackage:String, releaseSigned:Int = False)
 	If Not FileType(apkPath) Then Throw "Android APK was not created at " + apkPath
 	If Not appPackage.length Then Throw "Android application package is not configured"
-	If opt_release Then Throw "Android release APKs are unsigned and cannot be installed automatically; use a debug build or sign the APK first."
+	If opt_release And Not releaseSigned Then Throw "Android release APKs are unsigned and cannot be installed automatically; configure Android release signing or use a debug build."
 	Local device:TAndroidDeviceInfo = SelectedAndroidDevice()
 	Print "Installing " + StripDir(apkPath) + " on " + AndroidDeviceDescription(device) + "..."
 	If Sys(AndroidAdbCommand(device) + " install -r " + CQuote(apkPath)) Then Throw "Android APK installation failed"

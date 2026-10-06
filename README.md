@@ -176,8 +176,42 @@ bmk uses `adb install -r` so an existing copy is updated, then starts the
 configured package's `.BlitzMaxApp` activity. If several authorized devices are
 connected, select one persistently with `android.device` in `bin/custom.bmk`, or
 temporarily with `ANDROID_SERIAL`. Unauthorized and offline devices are reported
-but are never selected. Automatic installation is limited to debug APKs because
-the generated release APK is unsigned.
+but are never selected. An unsigned release APK is not installed automatically.
+
+Release signing is optional. For per-application configuration, create
+`<application>.signing.properties` beside the main `.bmx` source and keep it out
+of source control:
+
+```properties
+storeFile=/path/to/upload-keystore.jks
+storePassword=keystore-password
+keyAlias=upload
+keyPassword=key-password
+```
+
+A relative `storeFile` is resolved from the directory containing the signing
+properties file. When all four values are available, Gradle produces a signed
+release APK and `-x` may install it:
+
+```sh
+bmk makeapp -a -r -x -l android -g arm64v8a -o build/myapp app.bmx
+```
+
+Machine-local `custom.bmk` options can provide or override individual values:
+
+```text
+addoption android.signing.keystore "/path/to/upload-keystore.jks"
+addoption android.signing.key.alias "upload"
+addoption android.signing.store.password "keystore-password"
+addoption android.signing.key.password "key-password"
+```
+
+For CI and secret injection, the equivalent environment variables are
+`ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and
+`ANDROID_KEY_PASSWORD`. Precedence is environment, then the per-application
+properties file, then `custom.bmk` as a machine-wide default. Avoid placing passwords in a tracked file;
+bmk passes resolved credentials to Gradle through the build process environment
+and does not copy them into the generated project.
 
 The equivalent manual commands, substituting the configured package if changed,
 are:
