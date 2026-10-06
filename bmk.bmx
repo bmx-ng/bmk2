@@ -48,8 +48,11 @@ ResolveExplicitBoardTarget()
 ' Device and board inspection do not compile code, so their target CPU is irrelevant.
 If cmd.ToLower() <> "deviceinfo" And cmd.ToLower() <> "boardinfo" Then ValidatePlatformArchitecture()
 
-' pre-init gcc version cache for operations that can compile code
-If cmd.ToLower() <> "deviceinfo" And cmd.ToLower() <> "boardinfo" Then processor.GCCVersion(False, False, True)
+' Pre-initialize the compiler version for native builds. Android selects its
+' NDK compiler later, once the target ABI and configured NDK are known.
+If cmd.ToLower() <> "deviceinfo" And cmd.ToLower() <> "boardinfo" And processor.Platform() <> "android" Then
+	processor.GCCVersion(False, False, True)
+End If
 
 If opt_verbose Then
 	Print "bmk: startup/configuration: " + (MilliSecs() - startupStartMillis) + " ms"
