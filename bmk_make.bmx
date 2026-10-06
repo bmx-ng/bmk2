@@ -1612,7 +1612,7 @@ Type TBuildManager Extends TCallback
 				ChangeDir(dir)
 
 				Local apkName:String = "app-" + buildVariant + ".apk"
-				If buildVariant = "release" Then apkName = "app-release-unsigned.apk"
+				If buildVariant = "release" And Not androidReleaseSigningConfigured Then apkName = "app-release-unsigned.apk"
 				Local apkSource:String = projectDir + "/app/build/outputs/apk/" + buildVariant + "/" + apkName
 				Local apkDestination:String = buildDir + "/" + appId + ".apk"
 				If Not CopyFile(apkSource, apkDestination) Then

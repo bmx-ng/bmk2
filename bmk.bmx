@@ -776,7 +776,7 @@ Function MakeApplication( args$[],makelib:Int,compileOnly:Int = False )
 	If opt_execute And Not compileOnly
 		If processor.Platform() = "android" Then
 			Local settings:TMap = ParseApplicationIniFile()
-			DeployAndroidApplication(opt_outfile + ".apk", String(settings.ValueForKey("app.package")))
+			DeployAndroidApplication(opt_outfile + ".apk", String(settings.ValueForKey("app.package")), androidReleaseSigningConfigured)
 		Else
 			Print "Executing:"+StripDir( opt_outfile )
 

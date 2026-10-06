@@ -1,6 +1,9 @@
 ## [4.05] - 2026-10-05
+### Added
+ - Configurable Android release signing through per-application properties, `custom.bmk`, or environment variables.
 ### Fixed
  - Android build improvements.
+ - Full Android builds recreate the generated Gradle project so changed application settings are applied.
 
 ## [4.04] - 2026-09-28
 ### Added
