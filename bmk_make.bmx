@@ -166,15 +166,18 @@ Function ConfigureAndroidPaths()
 	Next
 	If Not toolchainDir Then Throw TBmkMessages.ToolchainDirectoryNotFound(hostTags[0], toolchainRoot).Render()
 
-	Local exe:String	
+	Local compilerExt:String
+	Local toolExt:String
 ?win32
-	exe = ".exe"
+	' NDK target compiler drivers are batch wrappers; LLVM utilities are executables.
+	compilerExt = ".cmd"
+	toolExt = ".exe"
 ?
-	
+
 	Local apiLevel:String = processor.Option("android.platform", "21")
-	Local gccPath:String = toolchainDir + "/bin/" + compilerTarget + apiLevel + "-clang" + exe
-	Local gppPath:String = toolchainDir + "/bin/" + compilerTarget + apiLevel + "-clang++" + exe
-	Local arPath:String = toolchainDir + "/bin/llvm-ar" + exe
+	Local gccPath:String = toolchainDir + "/bin/" + compilerTarget + apiLevel + "-clang" + compilerExt
+	Local gppPath:String = toolchainDir + "/bin/" + compilerTarget + apiLevel + "-clang++" + compilerExt
+	Local arPath:String = toolchainDir + "/bin/llvm-ar" + toolExt
 	Local libPath:String = toolchainDir + "/sysroot/usr/lib"
 
 	' check paths
@@ -194,6 +197,8 @@ Function ConfigureAndroidPaths()
 	globals.SetVar("android." + processor.CPU() + ".gpp", gppPath)
 	globals.SetVar("android." + processor.CPU() + ".ar", arPath)
 	globals.SetVar("android." + processor.CPU() + ".lib", "-L" + libPath)
+	' Compiler discovery must happen after the ABI-specific NDK paths exist.
+	processor.GCCVersion(False, False, True)
 
 	globals.SetVar("android.platform.sysroot", "")
 	globals.SetOption("cc_opts", "pie", "-fPIC")
@@ -1586,7 +1591,9 @@ Type TBuildManager Extends TCallback
 				gradleExecutable :+ ".bat"
 				Local cmd:String = CQuote(gradleExecutable)
 ?Not win32
-				Local cmd:String = "sh " + CQuote(gradleExecutable)
+				' The bundled wrapper uses Bash functions and arrays; /bin/sh is
+				' commonly dash on Linux and cannot parse it.
+				Local cmd:String = "bash " + CQuote(gradleExecutable)
 ?
 				cmd :+ " --no-daemon :app:assemble" + buildVariant[..1].ToUpper() + buildVariant[1..]
 				

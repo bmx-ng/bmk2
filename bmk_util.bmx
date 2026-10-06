@@ -736,7 +736,18 @@ Function DeployAndroidProject()
 	If FileType(projectDir) <> FILETYPE_DIR Then
 		Throw TBmkMessages.AndroidProjectDirectoryCreationFailed(projectDir).Render()
 	End If
-	
+
+	' CopyDir does not preserve executable bits on every host/filesystem.
+	' Keep the generated Unix Gradle wrapper directly runnable, and repair
+	' projects produced by older bmk versions when they are reused.
+?Not win32
+	Local gradleWrapper:String = projectDir + "/gradlew"
+	If FileType(gradleWrapper) = FILETYPE_FILE Then
+		Local gradleMode:Int = FileMode(gradleWrapper)
+		If gradleMode >= 0 Then SetFileMode gradleWrapper, gradleMode | %001001001
+	End If
+?
+
 	' create assets dir if missing
 	Local assetsDir:String = projectDir + "/app/src/main/assets"
 	
