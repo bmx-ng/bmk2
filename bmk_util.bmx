@@ -720,6 +720,15 @@ Function DeployAndroidProject()
 	' eg. android-project-test_01
 	Local projectDir:String = buildDir + "/android-project-" + appId '+ "-" + processor.CPU()
 
+	' A full build must start from the resource template again. MergeFile replaces
+	' configuration placeholders in-place, so reusing an existing project would
+	' otherwise retain settings such as the previous application package.
+	If opt_all And FileType(projectDir) = FILETYPE_DIR Then
+		If Not DeleteDir(projectDir, True) Then
+			Throw TBmkMessages.CleanGeneratedDirectoryRemovalFailed(projectDir).Render()
+		End If
+	End If
+
 	' check for dir
 	If Not FileType(projectDir) Then
 		' doesn't exist. create it
@@ -750,11 +759,6 @@ Function DeployAndroidProject()
 
 	' create assets dir if missing
 	Local assetsDir:String = projectDir + "/app/src/main/assets"
-	
-	If opt_all Then
-		' remove assets if we are doing a full build
-		DeleteDir(assetsDir, True)
-	End If
 	
 	If FileType(assetsDir) <> FILETYPE_DIR Then
 		CreateDir(assetsDir)

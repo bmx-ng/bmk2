@@ -156,8 +156,8 @@ bmk makeapp -l android -g arm64v8a -o build/myapp app.bmx
 The result is `build/myapp.apk`. Supported ABI selectors are `arm64v8a`,
 `armeabiv7a`, `x86`, and `x64`. The generated Gradle project is placed beside
 the output temporarily and contains the native library under the matching
-`jniLibs` ABI directory. Apache Ant, GCC-era NDK toolchains, STLPort, and the
-removed `armeabi` ABI are not used.
+`jniLibs` ABI directory. A full build with `-a` recreates this project from the
+template so changes to application settings, such as `app.package`, are applied.
 
 Inspect the connected device with:
 
