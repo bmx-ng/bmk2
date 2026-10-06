@@ -159,6 +159,19 @@ the output temporarily and contains the native library under the matching
 `jniLibs` ABI directory. A full build with `-a` recreates this project from the
 template so changes to application settings, such as `app.package`, are applied.
 
+Android uses the BlitzMax rocket as its default launcher icon. To provide an
+application-specific icon, add `app.icon` to the application's `.settings`
+file:
+
+```text
+app.icon=assets/myapp-icon.png
+```
+
+The icon must be a square PNG. Relative paths are resolved from the directory
+containing the main `.bmx` source file. bmk scales the source image into the
+standard Android launcher-icon density variants. Use `-a` after removing the
+setting to restore the default rocket icon in an existing generated project.
+
 Inspect the connected device with:
 
 ```sh

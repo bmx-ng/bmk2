@@ -4,6 +4,7 @@ Import "bmk_config.bmx"
 Import "bmk_ng.bmx"
 Import "bmk_messages.generated.bmx"
 Import "bmk_android_signing.bmx"
+Import BRL.PNGLoader
 Import "file_util.c"
 Import "hash.c"
 
@@ -13,6 +14,8 @@ Const USE_NASM:Int=False
 Const IOS_HAS_MERGE:Int = False
 
 Global androidReleaseSigningConfigured:Int
+
+Const ANDROID_ICON_MIPMAP_ROOT:String = "/app/src/main/res/mipmap-"
 
 Type TModOpt ' BaH
 	Field cc_opts:String = ""
@@ -795,6 +798,7 @@ Function DeployAndroidProject()
 	End If
 	
 	Local projectSettings:TMap = ParseApplicationIniFile()
+	ConfigureAndroidApplicationIcon(projectDir, projectSettings)
 
 	Local appPackage:String = String(projectSettings.ValueForKey("app.package"))
 
@@ -840,6 +844,44 @@ Function DeployAndroidProject()
 
 	' copy resources to assets
 	CopyAndroidResources(buildDir, assetsDir)
+End Function
+
+Function IsAbsoluteApplicationResourcePath:Int(path:String)
+	If Not path.length Then Return False
+	If path[0] = Asc("/") Or path[0] = Asc("\") Then Return True
+	Return path.length > 1 And path[1] = Asc(":")
+End Function
+
+Function ApplicationResourcePath:String(path:String)
+	If IsAbsoluteApplicationResourcePath(path) Then Return RealPath(path)
+	Return RealPath(ExtractDir(RealPath(opt_infile)) + "/" + path)
+End Function
+
+Function ConfigureAndroidApplicationIcon(projectDir:String, projectSettings:TMap)
+	Local configuredIcon:String = String(projectSettings.ValueForKey("app.icon")).Trim()
+	If Not configuredIcon.length Then Return
+
+	Local iconPath:String = ApplicationResourcePath(configuredIcon)
+	If FileType(iconPath) <> FILETYPE_FILE Then
+		Throw "Android application icon not found: " + iconPath
+	End If
+
+	Local icon:TPixmap = LoadPixmapPNG(iconPath)
+	If Not icon Then
+		Throw "Unable to load Android application icon as PNG: " + iconPath
+	End If
+	If icon.width <> icon.height Then
+		Throw "Android application icon must be square: " + iconPath
+	End If
+
+	Local densities:String[] = ["mdpi", "hdpi", "xhdpi", "xxhdpi", "xxxhdpi"]
+	Local sizes:Int[] = [48, 72, 96, 144, 192]
+	For Local i:Int = 0 Until densities.length
+		Local destination:String = projectDir + ANDROID_ICON_MIPMAP_ROOT + densities[i] + "/ic_launcher.png"
+		If Not SavePixmapPNG(ResizePixmap(icon, sizes[i], sizes[i]), destination) Then
+			Throw "Unable to write Android application icon: " + destination
+		End If
+	Next
 End Function
 
 Function AndroidSigningPropertiesPath:String()
