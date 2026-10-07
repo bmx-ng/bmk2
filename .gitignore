@@ -6,5 +6,6 @@
 /bmk.exe
 /bmk.debug.exe
 /bmk.app
+/build/
 .DS_Store
 *.bmxcat

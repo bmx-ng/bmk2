@@ -79,6 +79,68 @@ two paths which differ only by case are an error. A `.mod` directory may be a
 namespace-only container, and parent and child modules may coexist. Imports
 always resolve one exact module; importing a parent does not import descendants.
 
+## iOS
+
+iOS builds use the Xcode selected by `xcode-select` and discover the current SDK
+through `xcrun`; SDK paths are not embedded in bmk. The generated Xcode project
+uses libc++, an asset-catalog application icon, a launch storyboard, automatic
+signing, and an SDL3 entry point. The default deployment target is iOS 13.0.
+
+An ARM64 build targets a physical device by default. To compile for an
+Apple-silicon Simulator, put this in the installed SDK's `bin/custom.bmk`:
+
+```text
+addoption ios.sdk "iphonesimulator"
+addoption ios.deployment.target "13.0"
+```
+
+`BMX_IOS_SDK` and `IPHONEOS_DEPLOYMENT_TARGET` are equivalent environment
+fallbacks. Valid SDK values are `iphoneos` and `iphonesimulator`; `device` and
+`simulator` are accepted aliases. Intel Simulator builds use `-g x64`. Native
+objects and module archives are cached separately for device and Simulator, so
+switching SDKs cannot reuse an incompatible ARM64 Mach-O slice.
+
+Build an SDL3 or Max2D application and generate its Xcode project with:
+
+```sh
+bmk makeapp -a -l ios -g arm64 -o build/hello examples/ios/hello_sdl3.bmx
+```
+
+For a Simulator build, select `iphonesimulator` first and then build the
+generated project without signing:
+
+```sh
+xcodebuild -project build/hello.xcodeproj -scheme hello \
+  -sdk iphonesimulator -configuration Debug \
+  -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO build
+```
+
+Open the generated `.xcodeproj` in Xcode to select and run a simulator. Xcode
+must have the matching iOS platform/runtime installed (Xcode Settings >
+Components) before it can compile the launch storyboard or run a Simulator.
+
+For a physical device, set a unique bundle identifier and development team in
+the application's `.settings` file, then select the connected device in Xcode:
+
+```text
+app.name=Hello iOS
+app.package=org.example.hello-ios
+app.version.name=1.0.0
+app.version.code=1
+app.orientation=landscape
+app.icon=assets/icon-1024.png
+ios.developer.team=ABCDE12345
+ios.deployment.target=13.0
+```
+
+`ios.bundle.identifier` can be used instead of `app.package` when Android and
+iOS need different identifiers. Machine-specific defaults such as the team,
+SDK, and deployment target can also be set as `ios.developer.team`, `ios.sdk`,
+and `ios.deployment.target` in `custom.bmk`. Application settings take
+precedence for project metadata. `app.icon` must name a square PNG; bmk writes
+the 1024-pixel asset-catalog icon. A full build is not required after changing
+these settings because the generated project metadata is refreshed each time.
+
 ## Configuration
 
 An optional `bin/custom.bmk` can override compiler options. Its general form is:

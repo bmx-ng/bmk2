@@ -1,3 +1,11 @@
+## [4.06] - 2026-10-07
+### Added
+ - Current Xcode iOS project generation, SDL3 startup glue, asset catalogs, launch storyboard, and SDL3/Max2D examples.
+ - Configurable iOS SDK, deployment target, bundle identifier, development team, version, orientation, and application icon.
+### Changed
+ - iOS SDK locations are discovered through `xcrun`, with correct device and Simulator target triples.
+ - Device and Simulator native caches are isolated even when both use ARM64.
+
 ## [4.05] - 2026-10-05
 ### Added
  - Configurable Android release signing through per-application properties, `custom.bmk`, or environment variables.

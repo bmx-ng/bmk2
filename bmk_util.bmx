@@ -4,6 +4,7 @@ Import "bmk_config.bmx"
 Import "bmk_ng.bmx"
 Import "bmk_messages.generated.bmx"
 Import "bmk_android_signing.bmx"
+Import "bmk_ios.bmx"
 Import BRL.PNGLoader
 Import "file_util.c"
 Import "hash.c"
@@ -1272,19 +1273,20 @@ Function PackageIOSApp( path$, lnk_files:TList, opts$ )
 	
 	Local appId:String = StripDir(StripExt(opt_outfile))
 	Local appPath:String = ExtractDir(opt_outfile)
-	
+	Local projectName:String = iOSFixAppId(appId)
+	If Not projectName Then projectName = "BlitzMaxApp"
+	Local projectSettings:TMap = ParseApplicationIniFile()
+
 	Local appProjectDir:String = appPath + "/" + appId + ".xcodeproj"
-
-	If opt_all Then
-		DeleteDir appProjectDir, True
-	End If
-
 	If Not FileType(appProjectDir) Then
 		CopyDir templatePath + "/project.xcodeproj", appProjectDir
 	End If
-	
-	
+
+
 	Local projectPath:String = appProjectDir + "/project.pbxproj"
+	If Not CopyFile(templatePath + "/project.xcodeproj/project.pbxproj", projectPath) Then
+		Throw "Unable to refresh generated iOS project: " + projectPath
+	End If
 	
 	Local uuid:String = "5CABB1EFACE"
 
@@ -1324,16 +1326,39 @@ Function PackageIOSApp( path$, lnk_files:TList, opts$ )
 	project = iOSProjectClean(project, uuid)
 	
 	project = iOSProjectAppendFiles(project, uuid, fileMap)
+	If Not project Then Throw "Unable to populate generated iOS Xcode project from template"
 
-	project = project.Replace("${PROJECT}", appId)
-	project = project.Replace("${PROJECT_STRIPPED}", iOSFixAppId(appId))
-	project = project.Replace("${COMPANY_IDENTIFIER}", processor.option("company_identifier", "com.mycompany"))
-	project = project.Replace("${TEAM_ID}", processor.option("developer_team_id", "developer_team_id"))
-	
+	Local appName:String = String(projectSettings.ValueForKey("app.name")).Trim()
+	If Not appName Then appName = appId
+	Local bundleIdentifier:String = String(projectSettings.ValueForKey("ios.bundle.identifier")).Trim()
+	If Not bundleIdentifier Then bundleIdentifier = String(projectSettings.ValueForKey("app.package")).Trim()
+	If Not bundleIdentifier Then bundleIdentifier = processor.Option("company_identifier", "com.blitzmax") + "." + projectName.ToLower()
+	Local teamId:String = String(projectSettings.ValueForKey("ios.developer.team")).Trim()
+	If Not teamId Then teamId = processor.Option("ios.developer.team", processor.Option("developer_team_id", ""))
+	Local deploymentTarget:String = IOSDeploymentTarget(String(projectSettings.ValueForKey("ios.deployment.target")), processor.Option("ios.deployment.target", getenv_("IPHONEOS_DEPLOYMENT_TARGET")))
+	Local marketingVersion:String = String(projectSettings.ValueForKey("app.version.name")).Trim()
+	If Not marketingVersion Then marketingVersion = "1.0.0"
+	Local buildVersion:String = String(projectSettings.ValueForKey("app.version.code")).Trim()
+	If Not buildVersion Then buildVersion = "1"
+
+	project = project.Replace("${PROJECT}", projectName)
+	project = project.Replace("${APP_NAME}", iOSProjectEscapedValue(appName))
+	project = project.Replace("${BUNDLE_IDENTIFIER}", bundleIdentifier)
+	project = project.Replace("${TEAM_ID}", teamId)
+	project = project.Replace("${DEPLOYMENT_TARGET}", deploymentTarget)
+	project = project.Replace("${MARKETING_VERSION}", marketingVersion)
+	project = project.Replace("${BUILD_VERSION}", buildVersion)
+	project = project.Replace("${IOS_SDK}", processor.Option("ios.sdk", "iphoneos"))
+	project = project.Replace("${IOS_ARCH}", IOSArchitecture(opt_arch))
+
 	SaveString(project, projectPath)
-	
-	iOSCopyDefaultFiles(templatePath, appPath)
-	
+
+	iOSCopyDefaultFiles(templatePath, appPath, projectSettings)
+
+End Function
+
+Function iOSProjectEscapedValue:String(value:String)
+	Return value.Replace("\", "\\").Replace("~q", "\~q")
 End Function
 
 Function iOSFixAppId:String(id:String)
@@ -1342,36 +1367,28 @@ Function iOSFixAppId:String(id:String)
 	Return id
 End Function
 
-Function iOSCopyDefaultFiles(templatePath:String, appPath:String)
+Function iOSCopyDefaultFiles(templatePath:String, appPath:String, projectSettings:TMap)
+	Local assetPath:String = appPath + "/Assets.xcassets"
+	Local iconAssetPath:String = assetPath + "/AppIcon.appiconset"
+	CreateDir iconAssetPath, True
+	If Not CopyFile(templatePath + "/main.m", appPath + "/main.m") Then Throw "Unable to copy iOS SDL3 entry point"
+	If Not CopyFile(templatePath + "/LaunchScreen.storyboard", appPath + "/LaunchScreen.storyboard") Then Throw "Unable to copy iOS launch screen"
+	If Not CopyFile(templatePath + "/Assets.xcassets/Contents.json", assetPath + "/Contents.json") Then Throw "Unable to copy iOS asset catalogue"
+	If Not CopyFile(templatePath + "/Assets.xcassets/AppIcon.appiconset/Contents.json", iconAssetPath + "/Contents.json") Then Throw "Unable to copy iOS application icon metadata"
 
-	Local iconSrc:String = templatePath + "/Icon.png"
-	Local iconDest:String = appPath + "/Icon.png"
-	
-	Local defaultSrc:String = templatePath + "/Default.png"
-	Local defaultDest:String = appPath + "/Default.png"
+	Local plist:String = LoadString(templatePath + "/Info.plist")
+	plist = plist.Replace("${IOS_ORIENTATIONS}", IOSOrientationValues(String(projectSettings.ValueForKey("app.orientation"))))
+	SaveString plist, appPath + "/Info.plist"
 
-	Local default2Src:String = templatePath + "/Default-568h@2x.png"
-	Local default2Dest:String = appPath + "/Default-568h@2x.png"
-
-	Local plistSrc:String = templatePath + "/Info.plist"
-	Local plistDest:String = appPath + "/Info.plist"
-	
-	If opt_all Or Not FileType(iconDest) Then
-		CopyFile iconSrc, iconDest
-	End If
-
-	If opt_all Or Not FileType(defaultDest) Then
-		CopyFile defaultSrc, defaultDest
-	End If
-
-	If opt_all Or Not FileType(default2Dest) Then
-		CopyFile default2Src, default2Dest
-	End If
-
-	If opt_all Or Not FileType(plistDest) Then
-		CopyFile plistSrc, plistDest
-	End If
-
+	Local iconPath:String = String(projectSettings.ValueForKey("app.icon")).Trim()
+	If iconPath And Not iconPath.StartsWith("/") Then iconPath = ExtractDir(RealPath(opt_infile)) + "/" + iconPath
+	If Not iconPath Then iconPath = templatePath + "/Icon.png"
+	If FileType(iconPath) <> FILETYPE_FILE Then Throw "iOS application icon not found: " + iconPath
+	Local icon:TPixmap = LoadPixmapPNG(iconPath)
+	If Not icon Then Throw "Unable to load iOS application icon as PNG: " + iconPath
+	If icon.width <> icon.height Then Throw "iOS application icon must be square: " + iconPath
+	Local destination:String = appPath + "/Assets.xcassets/AppIcon.appiconset/AppIcon.png"
+	If Not SavePixmapPNG(ResizePixmap(icon, 1024, 1024), destination) Then Throw "Unable to write iOS application icon: " + destination
 End Function
 
 Function iOSProjectClean:String(Text:String, uuid:String)

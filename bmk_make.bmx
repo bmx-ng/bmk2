@@ -315,19 +315,45 @@ Function CompareAndroidVersions:Int(left:String, right:String)
 	Return 0
 End Function
 
+Function IOSCaptureCommand:String(command:String)
+	Local process:TProcess = CreateProcess(command)
+	If Not process Then Return ""
+	Local output:TStringBuilder = New TStringBuilder
+	While process.Status() Or Not process.pipe.Eof() Or Not process.err.Eof()
+		Delay 1
+		Local bytes:Byte[] = process.pipe.ReadPipe()
+		If bytes Then output.Append(String.FromBytes(bytes, bytes.length))
+		process.err.ReadPipe()
+	Wend
+	process.Close()
+	Return output.ToString()
+End Function
+
 Function ConfigureIOSPaths()
+	Local sdk:String = IOSConfiguredSDK(processor.CPU(), processor.Option("ios.sdk", ""), getenv_("BMX_IOS_SDK"))
+	Local deploymentTarget:String = IOSDeploymentTarget(processor.AppSetting("ios.deployment.target"), processor.Option("ios.deployment.target", getenv_("IPHONEOS_DEPLOYMENT_TARGET")))
+	Local sdkPath:String = IOSCaptureCommand("xcrun --sdk " + sdk + " --show-sdk-path").Trim()
+	If Not sdkPath Or FileType(sdkPath) <> FILETYPE_DIR Then
+		Throw "Unable to locate the " + sdk + " SDK with xcrun; install Xcode and select it with xcode-select"
+	End If
 
-	Select processor.CPU() 
-		Case "x86", "x64"
-			Local path:String = "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk"
-			globals.SetVar("ios." + processor.CPU() + ".sysroot", path)
-			globals.SetVar("ios." + processor.CPU() + ".syslibroot", path)
-		Case "armv7", "arm64"
-			Local path:String = "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk"
-			globals.SetVar("ios." + processor.CPU() + ".sysroot", path)
-			globals.SetVar("ios." + processor.CPU() + ".syslibroot", path)
-	End Select
+	globals.SetVar("ios.sdk", sdk)
+	globals.SetVar("ios.deployment.target", deploymentTarget)
+	globals.SetVar("ios." + processor.CPU() + ".sysroot", sdkPath)
+	globals.SetVar("ios." + processor.CPU() + ".syslibroot", sdkPath)
+	globals.SetOption("cc_opts", "osversion", "")
+	globals.SetOption("cc_opts", "ostarget", "-target " + IOSTargetTriple(processor.CPU(), sdk, deploymentTarget))
+End Function
 
+Function NativeTargetCacheSuffix:String()
+	Return IOSNativeCacheSuffix(processor.Platform(), processor.CPU(), processor.Option("ios.sdk", ""), getenv_("BMX_IOS_SDK"))
+End Function
+
+Function SharedGeneratedHeaderPath:String(objectPath:String)
+	Local base:String = StripExt(objectPath)
+	Local suffix:String = NativeTargetCacheSuffix()
+	If suffix And base.EndsWith(suffix) Then base = base[..base.length - suffix.length]
+	Return base + ".h"
 End Function
 
 Function ConfigureNXPaths()
@@ -757,9 +783,10 @@ Type TBuildManager Extends TCallback
 			appType = "." + opt_apptype
 		End If
 		
-		source.obj_path = build_path + "/" + StripDir( main_path ) + appType + opt_configmung + processor.CPU() + ".o"
+		Local mainObjectBase:String = build_path + "/" + StripDir( main_path ) + appType + opt_configmung + processor.CPU()
+		source.obj_path = mainObjectBase + NativeTargetCacheSuffix() + ".o"
 		source.obj_time = FileTime(source.obj_path)
-		source.iface_path = StripExt(source.obj_path) + ".i"
+		source.iface_path = mainObjectBase + ".i"
 		source.iface_time = FileTime(source.iface_path)
 		
 		app_iface = source.iface_path
@@ -1321,7 +1348,7 @@ Type TBuildManager Extends TCallback
 									
 									If opt_standalone And opt_boot Then
 										processor.PushSource(csrc_path)
-										Local generatedHeaderPath:String = StripExt(m.obj_path) + ".h"
+										Local generatedHeaderPath:String = SharedGeneratedHeaderPath(m.obj_path)
 										If FileType(generatedHeaderPath) = FILETYPE_FILE Then processor.PushSource(generatedHeaderPath)
 									End If
 
@@ -1972,7 +1999,7 @@ Type TBuildManager Extends TCallback
 						
 						
 						If Match(ext, "bmx") Then
-							source.obj_path = sp + ".o"
+							source.obj_path = sp + NativeTargetCacheSuffix() + ".o"
 							source.obj_time = FileTime(source.obj_path)						
 
 							source.iface_path = sp + ".i"
@@ -1992,7 +2019,7 @@ Type TBuildManager Extends TCallback
 								source.gen_time = FileTime(p)
 							End If
 						Else
-							source.obj_path = PPFix(sp) + ".o"
+							source.obj_path = PPFix(sp) + NativeTargetCacheSuffix() + ".o"
 							source.obj_time = FileTime(source.obj_path)						
 						End If
 					Else
@@ -2066,7 +2093,7 @@ Type TBuildManager Extends TCallback
 		Local mp:String = ConcatString(path, "/", id, opt_configmung, processor.CPU())
 
 		' get the module interface and lib details
-		Local arc_path:String = mp + ".a"
+		Local arc_path:String = mp + NativeTargetCacheSuffix() + ".a"
 		Local arc_time:Int = FileTime(arc_path)
 		Local iface_path:String = mp + ".i"
 		Local iface_path2:String = iface_path + "2"
@@ -2321,6 +2348,9 @@ Type TBuildManager Extends TCallback
 	Method Bcc2ManifestPathForSource:String(source:TSourceFile)
 		If Not source Then Return ""
 		If source.bcc2ManifestPath.length Then Return source.bcc2ManifestPath
+		If processor.Platform() = "ios" Then
+			Return ExtractDir(source.iface_path) + "/" + StripDir(StripExt(source.obj_path)) + ".bmxbuild"
+		End If
 		If source.modid Then
 			Return ExtractDir(source.iface_path) + "/" + StripDir(StripExt(source.iface_path)) + ".bmxbuild"
 		End If
@@ -2390,7 +2420,7 @@ Type TBuildManager Extends TCallback
 
 	Method CreateBcc2CompileWork:TBcc2CompileWork(source:TSourceFile, stagingBuildRoot:String = "")
 		Local generatedCPath:String = StripExt(source.obj_path) + ".c"
-		Local generatedHeaderPath:String = StripExt(source.obj_path) + ".h"
+		Local generatedHeaderPath:String = SharedGeneratedHeaderPath(source.obj_path)
 		Local cPath:String = StripDir(generatedCPath)
 		Local headerPath:String = StripDir(generatedHeaderPath)
 		If source.modid Then
@@ -2885,7 +2915,7 @@ Type TBuildManager Extends TCallback
 
 	Method CreateIncBin:TSourceFile(source:TSourceFile, sourcePath:String)
 	
-		Local path:String = StripDir(sourcePath) + opt_configmung +  processor.CPU()
+		Local path:String = StripDir(sourcePath) + opt_configmung + processor.CPU() + NativeTargetCacheSuffix()
 		If opt_standalone Or (processor.CPU() = "x86" And processor.Platform() = "win32") Then
 			path :+ ".incbin.c"
 		Else
