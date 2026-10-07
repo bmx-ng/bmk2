@@ -9,6 +9,13 @@
 #setmacx86ccopt arch -march=nocona
 #setmacx86ccopt math -msse3
 
+# ** iOS configuration **
+# Xcode is discovered through xcrun, so no SDK path is required.
+# arm64 defaults to iphoneos; select iphonesimulator for Apple-silicon Simulator builds.
+#addoption ios.sdk "iphonesimulator"
+#addoption ios.deployment.target "13.0"
+#addoption ios.developer.team "APPLE_TEAM_ID"
+
 
 
 # ** android configuration **

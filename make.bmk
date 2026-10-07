@@ -527,9 +527,10 @@
 		end
 		
 	elseif bmk.Platform() == "ios" then
-	
-		globals.SetOption("cc_opts", "osversion", "-miphoneos-version-min=10.0.0")
-		globals.SetOption("cc_opts", "ostarget", "-target arm64-apple-ios10.0")
+		# ConfigureIOSPaths replaces this after custom.bmk has been loaded and the
+		# selected Xcode SDK is known.
+		globals.SetOption("cc_opts", "osversion", "")
+		globals.SetOption("cc_opts", "ostarget", "")
 		
 	elseif bmk.Platform() == "win32" then
 	

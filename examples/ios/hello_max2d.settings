@@ -1,0 +1,6 @@
+app.name=BlitzMax Max2D
+app.package=org.blitzmax.examples.max2d-ios
+app.version.name=1.0.0
+app.version.code=1
+app.orientation=landscape
+ios.deployment.target=13.0
