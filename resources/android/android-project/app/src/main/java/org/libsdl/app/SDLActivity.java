@@ -17,6 +17,7 @@ import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
+import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.hardware.Sensor;
 import android.net.Uri;
@@ -1425,6 +1426,8 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
             params.leftMargin = x;
             params.topMargin = y;
 
+            boolean inputTypeChanged = mTextEdit != null && mTextEdit.input_type != input_type;
+
             if (mTextEdit == null) {
                 mTextEdit = new SDLDummyEdit(getContext());
 
@@ -1438,7 +1441,11 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
             mTextEdit.requestFocus();
 
             InputMethodManager imm = (InputMethodManager) getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (inputTypeChanged) {
+                imm.restartInput(mTextEdit);
+            }
             imm.showSoftInput(mTextEdit, 0);
+            mTextEdit.requestRectangleOnScreen(new Rect(0, 0, w, h + HEIGHT_PADDING), false);
 
             if (imm.isAcceptingText()) {
                 onNativeScreenKeyboardShown();
@@ -2237,4 +2244,3 @@ class SDLClipboardHandler implements
         SDLActivity.onNativeClipboardChanged();
     }
 }
-
