@@ -1340,6 +1340,21 @@ Function PackageIOSApp( path$, lnk_files:TList, opts$ )
 	If Not marketingVersion Then marketingVersion = "1.0.0"
 	Local buildVersion:String = String(projectSettings.ValueForKey("app.version.code")).Trim()
 	If Not buildVersion Then buildVersion = "1"
+	Local entitlementsSetting:String
+	Local configuredEntitlements:String = String(projectSettings.ValueForKey("ios.entitlements")).Trim()
+	Local generatedEntitlementsName:String = projectName + ".entitlements"
+	Local generatedEntitlementsPath:String = appPath + "/" + generatedEntitlementsName
+	If configuredEntitlements Then
+		Local entitlementsPath:String = configuredEntitlements
+		If Not entitlementsPath.StartsWith("/") Then entitlementsPath = ExtractDir(RealPath(opt_infile)) + "/" + entitlementsPath
+		If FileType(entitlementsPath) <> FILETYPE_FILE Then Throw "iOS entitlements file not found: " + entitlementsPath
+		If RealPath(entitlementsPath) <> RealPath(generatedEntitlementsPath) Then
+			If Not CopyFile(entitlementsPath, generatedEntitlementsPath) Then Throw "Unable to copy iOS entitlements: " + entitlementsPath
+		End If
+	End If
+	If FileType(generatedEntitlementsPath) = FILETYPE_FILE Then
+		entitlementsSetting = "CODE_SIGN_ENTITLEMENTS = ~q" + iOSProjectEscapedValue(generatedEntitlementsName) + "~q;"
+	End If
 
 	project = project.Replace("${PROJECT}", projectName)
 	project = project.Replace("${APP_NAME}", iOSProjectEscapedValue(appName))
@@ -1350,6 +1365,7 @@ Function PackageIOSApp( path$, lnk_files:TList, opts$ )
 	project = project.Replace("${BUILD_VERSION}", buildVersion)
 	project = project.Replace("${IOS_SDK}", processor.Option("ios.sdk", "iphoneos"))
 	project = project.Replace("${IOS_ARCH}", IOSArchitecture(opt_arch))
+	project = project.Replace("${IOS_ENTITLEMENTS_SETTING}", entitlementsSetting)
 
 	SaveString(project, projectPath)
 

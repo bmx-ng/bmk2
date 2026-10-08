@@ -131,6 +131,7 @@ app.orientation=landscape
 app.icon=assets/icon-1024.png
 ios.developer.team=ABCDE12345
 ios.deployment.target=13.0
+ios.entitlements=Hello.entitlements
 ```
 
 `ios.bundle.identifier` can be used instead of `app.package` when Android and
@@ -140,6 +141,17 @@ and `ios.deployment.target` in `custom.bmk`. Application settings take
 precedence for project metadata. `app.icon` must name a square PNG; bmk writes
 the 1024-pixel asset-catalog icon. A full build is not required after changing
 these settings because the generated project metadata is refreshed each time.
+
+Set `ios.entitlements` to an entitlement plist stored with the application
+sources when the app uses capabilities such as Game Center, iCloud, Sign in
+with Apple, or application groups. Relative paths are resolved from the main
+source file. bmk copies the file to `<project>.entitlements` beside the
+generated Xcode project and sets `CODE_SIGN_ENTITLEMENTS` for both Debug and
+Release, so the configuration survives every project regeneration. If no
+source file is configured, bmk retains and reconnects an existing generated
+`<project>.entitlements` file, including one created by Xcode. Keeping the
+authoritative file with the application sources is recommended for reproducible
+builds and source control.
 
 ## Configuration
 
