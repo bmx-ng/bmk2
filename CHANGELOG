@@ -1,11 +1,13 @@
-## [4.06] - 2026-10-07
-### Added
- - Current Xcode iOS project generation, SDL3 startup glue, asset catalogs, launch storyboard, and SDL3/Max2D examples.
- - Configurable iOS SDK, deployment target, bundle identifier, development team, version, orientation, and application icon.
- - Source-controlled iOS entitlement files through the `ios.entitlements` application setting.
+ ## [4.06] - 2026-10-07
+ ### Added
+  - Current Xcode iOS project generation, SDL3 startup glue, asset catalogs, launch storyboard, and SDL3/Max2D examples.
+ - Configurable iOS SDK, deployment target, bundle identifier, development team, version, orientation, application icon, and optional launch image.
+ - Durable iOS Info.plist and entitlements overlays, Android manifest and resource overlays, and common fullscreen and launch-background settings.
+ - Configurable iOS device family and Android compile, target, and minimum SDK levels.
 ### Changed
  - iOS SDK locations are discovered through `xcrun`, with correct device and Simulator target triples.
  - Device and Simulator native caches are isolated even when both use ARM64.
+ - Generated Android configuration files are refreshed on every build, and partial application settings inherit defaults.
 ### Fixed
  - Regenerating an iOS Xcode project preserves and reconnects its entitlement file.
 

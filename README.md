@@ -128,10 +128,15 @@ app.package=org.example.hello-ios
 app.version.name=1.0.0
 app.version.code=1
 app.orientation=landscape
+app.fullscreen=true
+app.launch.background=#000000
 app.icon=assets/icon-1024.png
+ios.launch.image=assets/launch-logo.png
+ios.device.family=universal
+ios.info.plist=ios/Info.extra.plist
+ios.entitlements=ios/App.entitlements
 ios.developer.team=ABCDE12345
 ios.deployment.target=13.0
-ios.entitlements=Hello.entitlements
 ```
 
 `ios.bundle.identifier` can be used instead of `app.package` when Android and
@@ -139,17 +144,25 @@ iOS need different identifiers. Machine-specific defaults such as the team,
 SDK, and deployment target can also be set as `ios.developer.team`, `ios.sdk`,
 and `ios.deployment.target` in `custom.bmk`. Application settings take
 precedence for project metadata. `app.icon` must name a square PNG; bmk writes
-the 1024-pixel asset-catalog icon. A full build is not required after changing
-these settings because the generated project metadata is refreshed each time.
+the 1024-pixel asset-catalog icon. The optional `ios.launch.image` setting names
+a PNG displayed aspect-fitted inside the safe area of the launch screen.
+`app.launch.background` accepts a `#RRGGBB` colour and defaults to black.
+`app.fullscreen` defaults to `true`; set it to `false` when the application wants
+the platform's normal system UI. `ios.device.family` accepts `iphone`, `ipad`, or
+`universal`.
 
-Set `ios.entitlements` to an entitlement plist stored with the application
-sources when the app uses capabilities such as Game Center, iCloud, Sign in
-with Apple, or application groups. Relative paths are resolved from the main
-source file. bmk copies the file to `<project>.entitlements` beside the
-generated Xcode project and sets `CODE_SIGN_ENTITLEMENTS` for both Debug and
-Release, so the configuration survives every project regeneration. If no
-source file is configured, bmk retains and reconnects an existing generated
-`<project>.entitlements` file, including one created by Xcode. Keeping the
+The generated Xcode project is managed by bmk and is refreshed during builds.
+Put durable native configuration in source-controlled overlay files instead of
+editing generated files. `ios.info.plist` names a plist whose root dictionary is
+merged into the generated `Info.plist`; overlay values replace generated values
+with the same key. `ios.entitlements` names a complete entitlements plist, which
+is copied into the generated project and assigned to both build configurations.
+Relative paths are resolved from the main `.bmx` source file. A full build is not
+required after changing these settings. Entitlements enable capabilities such
+as Game Center, iCloud, Sign in with Apple, and application groups. bmk copies
+the configured file to `<project>.entitlements` beside the generated Xcode
+project. If no source file is configured, bmk retains and reconnects an existing
+generated entitlement file, including one created by Xcode. Keeping the
 authoritative file with the application sources is recommended for reproducible
 builds and source control.
 
@@ -230,8 +243,29 @@ bmk makeapp -l android -g arm64v8a -o build/myapp app.bmx
 The result is `build/myapp.apk`. Supported ABI selectors are `arm64v8a`,
 `armeabiv7a`, `x86`, and `x64`. The generated Gradle project is placed beside
 the output temporarily and contains the native library under the matching
-`jniLibs` ABI directory. A full build with `-a` recreates this project from the
-template so changes to application settings, such as `app.package`, are applied.
+`jniLibs` ABI directory. Generated configuration files are refreshed on every
+build; a full build with `-a` recreates the entire disposable project.
+
+Application-specific Android configuration belongs in the `.settings` file:
+
+```text
+app.fullscreen=true
+app.launch.background=#000000
+android.compile.sdk=35
+android.target.sdk=35
+android.min.sdk=21
+android.manifest=android/AndroidManifest.extra.xml
+android.resources=android/res
+```
+
+The SDK settings override the toolchain-derived defaults for the Gradle
+application. `android.manifest` names a manifest overlay. Root and matching
+element attributes override generated attributes; named permissions, features,
+activities, services, receivers, providers, libraries, and metadata are merged,
+while additional elements are appended. `android.resources` names a directory
+copied over `app/src/main/res` after generated resources, allowing a project to
+provide XML resources, drawables, localized strings, and other Android resource
+variants. Relative paths are resolved from the main source file.
 
 Android uses the BlitzMax rocket as its default launcher icon. To provide an
 application-specific icon, add `app.icon` to the application's `.settings`
@@ -243,8 +277,7 @@ app.icon=assets/myapp-icon.png
 
 The icon must be a square PNG. Relative paths are resolved from the directory
 containing the main `.bmx` source file. bmk scales the source image into the
-standard Android launcher-icon density variants. Use `-a` after removing the
-setting to restore the default rocket icon in an existing generated project.
+standard Android launcher-icon density variants.
 
 Inspect the connected device with:
 

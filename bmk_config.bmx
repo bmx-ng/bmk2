@@ -810,7 +810,7 @@ Function ParseApplicationIniFile:TMap()
 
 	Local path:String
 	Local found:Int
-	Local settings:TMap = New TMap
+	Local settings:TMap = DefaultApplicationSettings()
 	
 	For Local id:String = EachIn ids
 		path = buildDir + "/" + id + ".settings"
@@ -830,7 +830,7 @@ Function ParseApplicationIniFile:TMap()
 		If opt_verbose Then
 			Print "Using defaults."
 		End If
-		Return DefaultApplicationSettings()
+		Return settings
 	End If
 
 	Local file:TStream = ReadFile(path)
@@ -899,10 +899,20 @@ Function DefaultApplicationSettings:TMap()
 	settings.Insert("app.name", appId)
 	settings.Insert("app.icon", "")
 	settings.Insert("app.orientation", "landscape")
+	settings.Insert("app.fullscreen", "true")
+	settings.Insert("app.launch.background", "#000000")
 	settings.Insert("ios.bundle.identifier", "")
 	settings.Insert("ios.developer.team", "")
 	settings.Insert("ios.deployment.target", "")
+	settings.Insert("ios.device.family", "universal")
+	settings.Insert("ios.launch.image", "")
+	settings.Insert("ios.info.plist", "")
 	settings.Insert("ios.entitlements", "")
+	settings.Insert("android.compile.sdk", "")
+	settings.Insert("android.target.sdk", "")
+	settings.Insert("android.min.sdk", "")
+	settings.Insert("android.manifest", "")
+	settings.Insert("android.resources", "")
 	settings.Insert("app.comments", "BlitzMax Application")
 	settings.Insert("app.company", "My company")
 	settings.Insert("app.description", appId)

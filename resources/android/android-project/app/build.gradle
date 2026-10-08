@@ -10,12 +10,12 @@ def bmxReleaseSigningConfigured = bmxReleaseStoreFile && bmxReleaseStorePassword
 
 android {
     namespace '${app.package}'
-    compileSdk 35
+    compileSdk ${android.compile.sdk}
 
     defaultConfig {
         applicationId '${app.package}'
-        minSdk 21
-        targetSdk 35
+        minSdk ${android.min.sdk}
+        targetSdk ${android.target.sdk}
         versionCode ${app.version.code}
         versionName '${app.version.name}'
     }
