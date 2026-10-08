@@ -6,6 +6,7 @@ Import "bmk_messages.generated.bmx"
 Import "bmk_android_signing.bmx"
 Import "bmk_ios.bmx"
 Import BRL.PNGLoader
+Import Text.XML
 Import "file_util.c"
 Import "hash.c"
 
@@ -728,10 +729,13 @@ Function DeployAndroidProject()
 
 	' eg. android-project-test_01
 	Local projectDir:String = buildDir + "/android-project-" + appId '+ "-" + processor.CPU()
+	Local resourceProject:String = BlitzMaxPath() + "/resources/android/android-project"
+	If Not FileType(resourceProject) Then
+		Throw TBmkMessages.AndroidResourcesMissing(resourceProject).Render()
+	End If
 
-	' A full build must start from the resource template again. MergeFile replaces
-	' configuration placeholders in-place, so reusing an existing project would
-	' otherwise retain settings such as the previous application package.
+	' A full build starts from the resource template again and removes stale files.
+	' Normal builds refresh the managed configuration files below in place.
 	If opt_all And FileType(projectDir) = FILETYPE_DIR Then
 		If Not DeleteDir(projectDir, True) Then
 			Throw TBmkMessages.CleanGeneratedDirectoryRemovalFailed(projectDir).Render()
@@ -741,13 +745,7 @@ Function DeployAndroidProject()
 	' check for dir
 	If Not FileType(projectDir) Then
 		' doesn't exist. create it
-
-		Local resourceProject:String = BlitzMaxPath() + "/resources/android/android-project"
-		If Not FileType(resourceProject) Then
-			Throw TBmkMessages.AndroidResourcesMissing(resourceProject).Render()
-		End If
-		
-		CopyDir(resourceProject, projectDir)
+		If Not CopyDir(resourceProject, projectDir) Then Throw "Unable to create generated Android project: " + projectDir
 	End If
 	
 	' check for valid dir
@@ -798,7 +796,29 @@ Function DeployAndroidProject()
 		End If
 	End If
 	
+	' Generated configuration files are refreshed on every build. Keep application
+	' customizations in the .settings file and its declared overlays.
+	If Not CopyFile(resourceProject + "/app/src/main/AndroidManifest.xml", projectDir + "/app/src/main/AndroidManifest.xml") Then Throw "Unable to refresh generated Android manifest"
+	If Not CopyFile(resourceProject + "/app/src/main/res/values/strings.xml", projectDir + "/app/src/main/res/values/strings.xml") Then Throw "Unable to refresh generated Android strings"
+	If Not CopyFile(resourceProject + "/app/src/main/res/values/styles.xml", projectDir + "/app/src/main/res/values/styles.xml") Then Throw "Unable to refresh generated Android styles"
+	If Not CopyFile(resourceProject + "/app/src/main/res/values/colors.xml", projectDir + "/app/src/main/res/values/colors.xml") Then Throw "Unable to refresh generated Android colors"
+	CreateDir projectDir + "/app/src/main/res/values-v31", True
+	If Not CopyFile(resourceProject + "/app/src/main/res/values-v31/styles.xml", projectDir + "/app/src/main/res/values-v31/styles.xml") Then Throw "Unable to refresh generated Android 12 styles"
+	If Not CopyFile(resourceProject + "/app/build.gradle", projectDir + "/app/build.gradle") Then Throw "Unable to refresh generated Android Gradle configuration"
+
 	Local projectSettings:TMap = ParseApplicationIniFile()
+	Local androidCompileSDK:String = ApplicationPositiveInteger(projectSettings, "android.compile.sdk", processor.Option("android.sdk.target", "35"))
+	Local androidTargetSDK:String = ApplicationPositiveInteger(projectSettings, "android.target.sdk", processor.Option("android.sdk.target", "35"))
+	Local androidMinSDK:String = ApplicationPositiveInteger(projectSettings, "android.min.sdk", processor.Option("android.platform", "21"))
+	If androidTargetSDK.ToInt() > androidCompileSDK.ToInt() Then Throw "android.target.sdk cannot be greater than android.compile.sdk"
+	If androidMinSDK.ToInt() > androidTargetSDK.ToInt() Then Throw "android.min.sdk cannot be greater than android.target.sdk"
+	If androidMinSDK.ToInt() < processor.Option("android.platform", "21").ToInt() Then Throw "android.min.sdk cannot be lower than the native android.platform"
+	projectSettings.Insert("android.compile.sdk", androidCompileSDK)
+	projectSettings.Insert("android.target.sdk", androidTargetSDK)
+	projectSettings.Insert("android.min.sdk", androidMinSDK)
+	projectSettings.Insert("android.theme.parent", "android:Theme.NoTitleBar")
+	If ApplicationSettingBool(projectSettings, "app.fullscreen", True) Then projectSettings.Insert("android.theme.parent", "android:Theme.NoTitleBar.Fullscreen")
+	projectSettings.Insert("app.launch.background", ApplicationColor(projectSettings, "app.launch.background", "#000000"))
 	ConfigureAndroidApplicationIcon(projectDir, projectSettings)
 
 	Local appPackage:String = String(projectSettings.ValueForKey("app.package"))
@@ -828,6 +848,8 @@ Function DeployAndroidProject()
 	' merge project data
 	'     update AndroidManifest.xml
 	MergeFile(projectDir + "/app/src/main", "AndroidManifest.xml", projectSettings)
+	Local manifestOverlay:String = String(projectSettings.ValueForKey("android.manifest")).Trim()
+	If manifestOverlay Then MergeAndroidManifest(projectDir + "/app/src/main/AndroidManifest.xml", ApplicationResourcePath(manifestOverlay))
 	
 	'     update BlitzMaxApp.java
 	MergeFile(packagePath, "BlitzMaxApp.java", projectSettings)
@@ -839,9 +861,19 @@ Function DeployAndroidProject()
 
 	'     update strings.xml
 	MergeFile(projectDir + "/app/src/main/res/values", "strings.xml", projectSettings)
+	MergeFile(projectDir + "/app/src/main/res/values", "styles.xml", projectSettings)
+	MergeFile(projectDir + "/app/src/main/res/values", "colors.xml", projectSettings)
+	MergeFile(projectDir + "/app/src/main/res/values-v31", "styles.xml", projectSettings)
 
 	'     update Gradle application configuration
 	MergeFile(projectDir + "/app", "build.gradle", projectSettings)
+
+	Local androidResources:String = String(projectSettings.ValueForKey("android.resources")).Trim()
+	If androidResources Then
+		Local androidResourcesPath:String = ApplicationResourcePath(androidResources)
+		If FileType(androidResourcesPath) <> FILETYPE_DIR Then Throw "Android resource overlay directory not found: " + androidResourcesPath
+		If Not CopyDir(androidResourcesPath, projectDir + "/app/src/main/res") Then Throw "Unable to copy Android resource overlay: " + androidResourcesPath
+	End If
 
 	' copy resources to assets
 	CopyAndroidResources(buildDir, assetsDir)
@@ -856,6 +888,198 @@ End Function
 Function ApplicationResourcePath:String(path:String)
 	If IsAbsoluteApplicationResourcePath(path) Then Return RealPath(path)
 	Return RealPath(ExtractDir(RealPath(opt_infile)) + "/" + path)
+End Function
+
+Function ApplicationSettingBool:Int(projectSettings:TMap, key:String, defaultValue:Int)
+	Local value:String = String(projectSettings.ValueForKey(key)).Trim().ToLower()
+	If Not value Then Return defaultValue
+	Select value
+		Case "1", "true", "yes", "on"
+			Return True
+		Case "0", "false", "no", "off"
+			Return False
+	End Select
+	Throw "Invalid boolean value for " + key + ": " + value
+End Function
+
+Function ApplicationHexDigit:Int(value:Int)
+	If value >= Asc("0") And value <= Asc("9") Then Return value - Asc("0")
+	If value >= Asc("a") And value <= Asc("f") Then Return value - Asc("a") + 10
+	If value >= Asc("A") And value <= Asc("F") Then Return value - Asc("A") + 10
+	Return -1
+End Function
+
+Function ApplicationColor:String(projectSettings:TMap, key:String, defaultValue:String)
+	Local value:String = String(projectSettings.ValueForKey(key)).Trim()
+	If Not value Then value = defaultValue
+	If value.length <> 7 Or value[0] <> Asc("#") Then Throw key + " must use #RRGGBB format"
+	For Local i:Int = 1 Until value.length
+		If ApplicationHexDigit(value[i]) < 0 Then Throw key + " must use #RRGGBB format"
+	Next
+	Return value.ToUpper()
+End Function
+
+Function ApplicationPositiveInteger:String(projectSettings:TMap, key:String, fallback:String)
+	Local value:String = String(projectSettings.ValueForKey(key)).Trim()
+	If Not value Then value = fallback.Trim()
+	If Not value Or value.ToInt() <= 0 Then Throw key + " must be a positive integer"
+	For Local char:Int = EachIn value
+		If char < Asc("0") Or char > Asc("9") Then Throw key + " must be a positive integer"
+	Next
+	Return value
+End Function
+
+Function ApplicationColorComponent:Int(color:String, offset:Int)
+	Return ApplicationHexDigit(color[offset]) * 16 + ApplicationHexDigit(color[offset + 1])
+End Function
+
+Function IOSStoryboardColor:String(color:String)
+	Local red:String = String.FromFloat(Float(ApplicationColorComponent(color, 1)) / 255.0)
+	Local green:String = String.FromFloat(Float(ApplicationColorComponent(color, 3)) / 255.0)
+	Local blue:String = String.FromFloat(Float(ApplicationColorComponent(color, 5)) / 255.0)
+	Return "<color key=~qbackgroundColor~q red=~q" + red + "~q green=~q" + green + "~q blue=~q" + blue + "~q alpha=~q1~q colorSpace=~qcustom~q customColorSpace=~qsRGB~q/>"
+End Function
+
+Function IOSDeviceFamily:String(value:String)
+	Select value.Trim().ToLower()
+		Case "", "universal", "all"
+			Return "1,2"
+		Case "iphone", "phone"
+			Return "1"
+		Case "ipad", "tablet"
+			Return "2"
+	End Select
+	Throw "Invalid ios.device.family '" + value + "'; expected iphone, ipad, or universal"
+End Function
+
+Function PlistRootDictionary:TxmlNode(doc:TxmlDoc, path:String)
+	If Not doc Then Throw "Unable to parse property list: " + path
+	Local root:TxmlNode = doc.getRootElement()
+	While root And root.getName() <> "plist"
+		root = root.nextSibling()
+	Wend
+	If Not root Or root.getName() <> "plist" Then Throw "Property list root must be <plist>: " + path
+	Local dict:TxmlNode = root.findElement("dict", "", "", MXML_DESCEND)
+	If Not dict Then Throw "Property list must contain a root <dict>: " + path
+	Return dict
+End Function
+
+Function ValidatePlistDictionary(children:TObjectList, path:String)
+	If children.Count() Mod 2 Then Throw "Property list dictionary has an unmatched key or value: " + path
+	For Local i:Int = 0 Until children.Count() Step 2
+		Local keyNode:TxmlNode = TxmlNode(children.ValueAtIndex(i))
+		If Not keyNode Or keyNode.getName() <> "key" Then Throw "Property list dictionary entries must begin with <key>: " + path
+	Next
+End Function
+
+Function MergePropertyList:String(baseText:String, overlayPath:String)
+	If Not overlayPath Then Return baseText
+	If FileType(overlayPath) <> FILETYPE_FILE Then Throw "Property list overlay not found: " + overlayPath
+
+	Local baseDoc:TxmlDoc = TxmlDoc.readDoc(baseText)
+	Local overlayDoc:TxmlDoc = TxmlDoc.parseFile(overlayPath)
+	Local baseDict:TxmlNode = PlistRootDictionary(baseDoc, "generated Info.plist")
+	Local overlayDict:TxmlNode = PlistRootDictionary(overlayDoc, overlayPath)
+	Local baseChildren:TObjectList = baseDict.getChildren()
+	Local overlayChildren:TObjectList = overlayDict.getChildren()
+	ValidatePlistDictionary(baseChildren, "generated Info.plist")
+	ValidatePlistDictionary(overlayChildren, overlayPath)
+
+	Local overridden:TMap = New TMap
+	For Local i:Int = 0 Until overlayChildren.Count() Step 2
+		Local keyNode:TxmlNode = TxmlNode(overlayChildren.ValueAtIndex(i))
+		If overridden.Contains(keyNode.getContent()) Then Throw "Duplicate property list key '" + keyNode.getContent() + "' in " + overlayPath
+		overridden.Insert(keyNode.getContent(), keyNode.getContent())
+	Next
+
+	Local result:TStringBuilder = New TStringBuilder
+	result.Append("<?xml version=~q1.0~q encoding=~qUTF-8~q?>~n")
+	result.Append("<!DOCTYPE plist PUBLIC ~q-//Apple//DTD PLIST 1.0//EN~q ~qhttp://www.apple.com/DTDs/PropertyList-1.0.dtd~q>~n")
+	result.Append("<plist version=~q1.0~q>~n<dict>~n")
+	For Local i:Int = 0 Until baseChildren.Count() Step 2
+		Local keyNode:TxmlNode = TxmlNode(baseChildren.ValueAtIndex(i))
+		If overridden.Contains(keyNode.getContent()) Then Continue
+		result.Append("~t").Append(keyNode.ToString()).Append("~n")
+		result.Append("~t").Append(TxmlNode(baseChildren.ValueAtIndex(i + 1)).ToString()).Append("~n")
+	Next
+	For Local i:Int = 0 Until overlayChildren.Count() Step 2
+		result.Append("~t").Append(TxmlNode(overlayChildren.ValueAtIndex(i)).ToString()).Append("~n")
+		result.Append("~t").Append(TxmlNode(overlayChildren.ValueAtIndex(i + 1)).ToString()).Append("~n")
+	Next
+	result.Append("</dict>~n</plist>~n")
+	Local merged:String = result.ToString()
+	baseDoc.Free()
+	overlayDoc.Free()
+	Return merged
+End Function
+
+Function CopyXMLAttributes(source:TxmlNode, destination:TxmlNode)
+	For Local attribute:TxmlAttribute = EachIn source.getAttributeList()
+		destination.setAttribute(attribute.getName(), attribute.getValue())
+	Next
+End Function
+
+Function CloneXMLNode:TxmlNode(source:TxmlNode, parent:TxmlNode)
+	Local clone:TxmlNode = parent.addChild(source.getName())
+	CopyXMLAttributes(source, clone)
+	Local children:TObjectList = source.getChildren()
+	If children.IsEmpty() Then
+		Local content:String = source.getContent()
+		If content Then clone.setContent(content)
+	Else
+		For Local child:TxmlNode = EachIn children
+			CloneXMLNode(child, clone)
+		Next
+	End If
+	Return clone
+End Function
+
+Function AndroidManifestIdentity:String(node:TxmlNode)
+	Select node.getName()
+		Case "application", "uses-sdk", "supports-screens", "compatible-screens", "queries"
+			Return node.getName()
+		Case "uses-permission", "uses-permission-sdk-23", "uses-feature", "permission", "permission-group", "permission-tree", "activity", "activity-alias", "service", "receiver", "provider", "meta-data", "uses-library", "uses-native-library"
+			Return node.getAttribute("android:name")
+	End Select
+	Return ""
+End Function
+
+Function FindAndroidManifestChild:TxmlNode(parent:TxmlNode, source:TxmlNode)
+	Local identity:String = AndroidManifestIdentity(source)
+	If Not identity Then Return Null
+	For Local child:TxmlNode = EachIn parent.getChildren()
+		If child.getName() = source.getName() And AndroidManifestIdentity(child) = identity Then Return child
+	Next
+	Return Null
+End Function
+
+Function MergeAndroidManifestNode(target:TxmlNode, overlay:TxmlNode)
+	CopyXMLAttributes(overlay, target)
+	For Local overlayChild:TxmlNode = EachIn overlay.getChildren()
+		Local targetChild:TxmlNode = FindAndroidManifestChild(target, overlayChild)
+		If targetChild Then
+			MergeAndroidManifestNode(targetChild, overlayChild)
+		Else
+			CloneXMLNode(overlayChild, target)
+		End If
+	Next
+End Function
+
+Function MergeAndroidManifest(basePath:String, overlayPath:String)
+	If Not overlayPath Then Return
+	If FileType(overlayPath) <> FILETYPE_FILE Then Throw "Android manifest overlay not found: " + overlayPath
+	Local baseDoc:TxmlDoc = TxmlDoc.parseFile(basePath)
+	Local overlayDoc:TxmlDoc = TxmlDoc.parseFile(overlayPath)
+	If Not baseDoc Then Throw "Unable to parse generated Android manifest: " + basePath
+	If Not overlayDoc Then Throw "Unable to parse Android manifest overlay: " + overlayPath
+	Local baseRoot:TxmlNode = baseDoc.getRootElement()
+	Local overlayRoot:TxmlNode = overlayDoc.getRootElement()
+	If Not baseRoot Or baseRoot.getName() <> "manifest" Then Throw "Generated Android manifest root must be <manifest>"
+	If Not overlayRoot Or overlayRoot.getName() <> "manifest" Then Throw "Android manifest overlay root must be <manifest>: " + overlayPath
+	MergeAndroidManifestNode(baseRoot, overlayRoot)
+	If Not baseDoc.saveFile(basePath, True, True) Then Throw "Unable to save merged Android manifest: " + basePath
+	baseDoc.Free()
+	overlayDoc.Free()
 End Function
 
 Function ConfigureAndroidApplicationIcon(projectDir:String, projectSettings:TMap)
@@ -1340,6 +1564,20 @@ Function PackageIOSApp( path$, lnk_files:TList, opts$ )
 	If Not marketingVersion Then marketingVersion = "1.0.0"
 	Local buildVersion:String = String(projectSettings.ValueForKey("app.version.code")).Trim()
 	If Not buildVersion Then buildVersion = "1"
+	Local entitlementsSetting:String
+	Local configuredEntitlements:String = String(projectSettings.ValueForKey("ios.entitlements")).Trim()
+	Local generatedEntitlementsName:String = projectName + ".entitlements"
+	Local generatedEntitlementsPath:String = appPath + "/" + generatedEntitlementsName
+	If configuredEntitlements Then
+		Local entitlementsPath:String = ApplicationResourcePath(configuredEntitlements)
+		If FileType(entitlementsPath) <> FILETYPE_FILE Then Throw "iOS entitlements file not found: " + entitlementsPath
+		If RealPath(entitlementsPath) <> RealPath(generatedEntitlementsPath) Then
+			If Not CopyFile(entitlementsPath, generatedEntitlementsPath) Then Throw "Unable to copy iOS entitlements: " + entitlementsPath
+		End If
+	End If
+	If FileType(generatedEntitlementsPath) = FILETYPE_FILE Then
+		entitlementsSetting = "CODE_SIGN_ENTITLEMENTS = ~q" + iOSProjectEscapedValue(generatedEntitlementsName) + "~q;"
+	End If
 
 	project = project.Replace("${PROJECT}", projectName)
 	project = project.Replace("${APP_NAME}", iOSProjectEscapedValue(appName))
@@ -1350,6 +1588,8 @@ Function PackageIOSApp( path$, lnk_files:TList, opts$ )
 	project = project.Replace("${BUILD_VERSION}", buildVersion)
 	project = project.Replace("${IOS_SDK}", processor.Option("ios.sdk", "iphoneos"))
 	project = project.Replace("${IOS_ARCH}", IOSArchitecture(opt_arch))
+	project = project.Replace("${IOS_DEVICE_FAMILY}", IOSDeviceFamily(String(projectSettings.ValueForKey("ios.device.family"))))
+	project = project.Replace("${IOS_ENTITLEMENTS_SETTING}", entitlementsSetting)
 
 	SaveString(project, projectPath)
 
@@ -1370,14 +1610,52 @@ End Function
 Function iOSCopyDefaultFiles(templatePath:String, appPath:String, projectSettings:TMap)
 	Local assetPath:String = appPath + "/Assets.xcassets"
 	Local iconAssetPath:String = assetPath + "/AppIcon.appiconset"
+	Local launchImageAssetPath:String = assetPath + "/LaunchImage.imageset"
 	CreateDir iconAssetPath, True
 	If Not CopyFile(templatePath + "/main.m", appPath + "/main.m") Then Throw "Unable to copy iOS SDL3 entry point"
-	If Not CopyFile(templatePath + "/LaunchScreen.storyboard", appPath + "/LaunchScreen.storyboard") Then Throw "Unable to copy iOS launch screen"
 	If Not CopyFile(templatePath + "/Assets.xcassets/Contents.json", assetPath + "/Contents.json") Then Throw "Unable to copy iOS asset catalogue"
 	If Not CopyFile(templatePath + "/Assets.xcassets/AppIcon.appiconset/Contents.json", iconAssetPath + "/Contents.json") Then Throw "Unable to copy iOS application icon metadata"
 
+	Local launchImageView:String
+	Local launchImageResource:String
+	Local configuredLaunchImage:String = String(projectSettings.ValueForKey("ios.launch.image")).Trim()
+	If configuredLaunchImage Then
+		Local launchImagePath:String = ApplicationResourcePath(configuredLaunchImage)
+		If FileType(launchImagePath) <> FILETYPE_FILE Then Throw "iOS launch image not found: " + launchImagePath
+		Local launchImage:TPixmap = LoadPixmapPNG(launchImagePath)
+		If Not launchImage Then Throw "Unable to load iOS launch image as PNG: " + launchImagePath
+		CreateDir launchImageAssetPath, True
+		If Not CopyFile(templatePath + "/Assets.xcassets/LaunchImage.imageset/Contents.json", launchImageAssetPath + "/Contents.json") Then Throw "Unable to copy iOS launch image metadata"
+		If Not CopyFile(launchImagePath, launchImageAssetPath + "/LaunchImage.png") Then Throw "Unable to copy iOS launch image"
+		launchImageView = "<subviews>~n" + ..
+			"                            <imageView clipsSubviews=~qYES~q userInteractionEnabled=~qNO~q contentMode=~qscaleAspectFit~q image=~qLaunchImage~q translatesAutoresizingMaskIntoConstraints=~qNO~q id=~qBMX-launch-image~q/>~n" + ..
+			"                        </subviews>~n" + ..
+			"                        <constraints>~n" + ..
+			"                            <constraint firstItem=~qBMX-launch-image~q firstAttribute=~qleading~q secondItem=~qBMX-launch-safe-area~q secondAttribute=~qleading~q id=~qBMX-launch-leading~q/>~n" + ..
+			"                            <constraint firstItem=~qBMX-launch-image~q firstAttribute=~qtrailing~q secondItem=~qBMX-launch-safe-area~q secondAttribute=~qtrailing~q id=~qBMX-launch-trailing~q/>~n" + ..
+			"                            <constraint firstItem=~qBMX-launch-image~q firstAttribute=~qtop~q secondItem=~qBMX-launch-safe-area~q secondAttribute=~qtop~q id=~qBMX-launch-top~q/>~n" + ..
+			"                            <constraint firstItem=~qBMX-launch-image~q firstAttribute=~qbottom~q secondItem=~qBMX-launch-safe-area~q secondAttribute=~qbottom~q id=~qBMX-launch-bottom~q/>~n" + ..
+			"                        </constraints>"
+		launchImageResource = "<resources>~n" + ..
+			"        <image name=~qLaunchImage~q width=~q" + launchImage.width + "~q height=~q" + launchImage.height + "~q/>~n" + ..
+			"    </resources>"
+	Else If FileType(launchImageAssetPath) = FILETYPE_DIR Then
+		DeleteDir launchImageAssetPath, True
+	End If
+
+	Local launchStoryboard:String = LoadString(templatePath + "/LaunchScreen.storyboard")
+	launchStoryboard = launchStoryboard.Replace("${IOS_LAUNCH_IMAGE_VIEW}", launchImageView)
+	launchStoryboard = launchStoryboard.Replace("${IOS_LAUNCH_IMAGE_RESOURCE}", launchImageResource)
+	launchStoryboard = launchStoryboard.Replace("${IOS_LAUNCH_BACKGROUND}", IOSStoryboardColor(ApplicationColor(projectSettings, "app.launch.background", "#000000")))
+	SaveString launchStoryboard, appPath + "/LaunchScreen.storyboard"
+
 	Local plist:String = LoadString(templatePath + "/Info.plist")
 	plist = plist.Replace("${IOS_ORIENTATIONS}", IOSOrientationValues(String(projectSettings.ValueForKey("app.orientation"))))
+	Local fullscreenValue:String = "false"
+	If ApplicationSettingBool(projectSettings, "app.fullscreen", True) Then fullscreenValue = "true"
+	plist = plist.Replace("${IOS_FULLSCREEN}", fullscreenValue)
+	Local infoPlistOverlay:String = String(projectSettings.ValueForKey("ios.info.plist")).Trim()
+	If infoPlistOverlay Then plist = MergePropertyList(plist, ApplicationResourcePath(infoPlistOverlay))
 	SaveString plist, appPath + "/Info.plist"
 
 	Local iconPath:String = String(projectSettings.ValueForKey("app.icon")).Trim()
