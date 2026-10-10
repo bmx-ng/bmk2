@@ -13,7 +13,10 @@
 # Xcode is discovered through xcrun, so no SDK path is required.
 # arm64 defaults to iphoneos; select iphonesimulator for Apple-silicon Simulator builds.
 #addoption ios.sdk "iphonesimulator"
-#addoption ios.deployment.target "13.0"
+# Deployment targets default to the selected Xcode SDK's minimum. Uncomment to
+# require a newer target for all builds on this installation.
+#addoption ios.deployment.target "15.0"
+#addoption macos.deployment.target "12.0"
 #addoption ios.developer.team "APPLE_TEAM_ID"
 
 
