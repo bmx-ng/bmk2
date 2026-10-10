@@ -1559,7 +1559,8 @@ Function PackageIOSApp( path$, lnk_files:TList, opts$ )
 	If Not bundleIdentifier Then bundleIdentifier = processor.Option("company_identifier", "com.blitzmax") + "." + projectName.ToLower()
 	Local teamId:String = String(projectSettings.ValueForKey("ios.developer.team")).Trim()
 	If Not teamId Then teamId = processor.Option("ios.developer.team", processor.Option("developer_team_id", ""))
-	Local deploymentTarget:String = IOSDeploymentTarget(String(projectSettings.ValueForKey("ios.deployment.target")), processor.Option("ios.deployment.target", getenv_("IPHONEOS_DEPLOYMENT_TARGET")))
+	Local deploymentTarget:String = processor.Option("ios.deployment.target", "")
+	If Not deploymentTarget Then Throw "The iOS deployment target was not configured"
 	Local marketingVersion:String = String(projectSettings.ValueForKey("app.version.name")).Trim()
 	If Not marketingVersion Then marketingVersion = "1.0.0"
 	Local buildVersion:String = String(projectSettings.ValueForKey("app.version.code")).Trim()

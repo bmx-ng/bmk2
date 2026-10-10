@@ -488,43 +488,11 @@
 	globals.Clear("ld_opts")
 
 	if bmk.Platform() == "macos" or bmk.Platform() == "osx" then
-		
-		if tonumber(%macos_version%) >= 2800 then
-			# macos version >= 10.15.0 ?
-			globals.SetOption("cc_opts", "osversion", "-mmacosx-version-min=10.15")
-			globals.SetOption("ld_opts", "osversion", "-mmacosx-version-min=10.15")
-			globals.SetOption("ld_opts", "stdlib", "-stdlib=libc++")
-		elseif tonumber(%macos_version%) >= 2784 then
-			# macos version >= 10.14.0 ?
-			globals.SetOption("cc_opts", "osversion", "-mmacosx-version-min=10.12")
-			globals.SetOption("ld_opts", "osversion", "-mmacosx-version-min=10.12")
-			globals.SetOption("ld_opts", "stdlib", "-stdlib=libc++")
-		elseif tonumber(%macos_version%) >= 2752 then
-			# macos version >= 10.12.0 ?
-			globals.SetOption("cc_opts", "osversion", "-mmacosx-version-min=10.9")
-			globals.SetOption("ld_opts", "osversion", "-mmacosx-version-min=10.9")
-			globals.SetOption("ld_opts", "stdlib", "-stdlib=libc++")
-		elseif tonumber(%macos_version%) >= 2704 then
-			# macos version >= 10.9.0 ?
-			globals.SetOption("cc_opts", "osversion", "-mmacosx-version-min=10.7")
-			globals.SetOption("ld_opts", "osversion", "-mmacosx-version-min=10.7")
-		elseif tonumber(%macos_version%) >= 2688 then
-			# macos version >= 10.8.0 ?
-			globals.SetOption("cc_opts", "osversion", "-mmacosx-version-min=10.5")
-			globals.SetOption("ld_opts", "osversion", "-mmacosx-version-min=10.5")
-		elseif tonumber(%macos_version%) >= 2672 then
-			# macos version >= 10.7.0 ?
-			globals.SetOption("cc_opts", "osversion", "-mmacosx-version-min=10.4")
-			globals.SetOption("ld_opts", "osversion", "-mmacosx-version-min=10.4")
-		elseif tonumber(%macos_version%) >= 2640 then
-			# macos version >= 10.5.0 ?
-			globals.SetOption("cc_opts", "osversion", "-mmacosx-version-min=10.3")
-			globals.SetOption("ld_opts", "osversion", "-mmacosx-version-min=10.3")
-		else
-			# otherwise, fallback on same as latest (10.6)
-			globals.SetOption("cc_opts", "osversion", "-mmacosx-version-min=10.6")
-			globals.SetOption("ld_opts", "osversion", "-mmacosx-version-min=10.6")
-		end
+		# ConfigureMacOSPaths replaces these after custom.bmk has been loaded and
+		# the selected Xcode SDK is known.
+		globals.SetOption("cc_opts", "osversion", "")
+		globals.SetOption("ld_opts", "osversion", "")
+		globals.SetOption("ld_opts", "stdlib", "-stdlib=libc++")
 		
 	elseif bmk.Platform() == "ios" then
 		# ConfigureIOSPaths replaces this after custom.bmk has been loaded and the

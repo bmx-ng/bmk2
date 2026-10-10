@@ -82,16 +82,16 @@ always resolve one exact module; importing a parent does not import descendants.
 ## iOS
 
 iOS builds use the Xcode selected by `xcode-select` and discover the current SDK
-through `xcrun`; SDK paths are not embedded in bmk. The generated Xcode project
-uses libc++, an asset-catalog application icon, a launch storyboard, automatic
-signing, and an SDL3 entry point. The default deployment target is iOS 13.0.
+through `xcrun`; SDK paths and supported-version ranges are not embedded in bmk.
+The generated Xcode project uses libc++, an asset-catalog application icon, a
+launch storyboard, automatic signing, and an SDL3 entry point. When no target is
+configured, bmk uses the selected SDK's minimum supported deployment target.
 
 An ARM64 build targets a physical device by default. To compile for an
 Apple-silicon Simulator, put this in the installed SDK's `bin/custom.bmk`:
 
 ```text
 addoption ios.sdk "iphonesimulator"
-addoption ios.deployment.target "13.0"
 ```
 
 `BMX_IOS_SDK` and `IPHONEOS_DEPLOYMENT_TARGET` are equivalent environment
@@ -136,14 +136,14 @@ ios.device.family=universal
 ios.info.plist=ios/Info.extra.plist
 ios.entitlements=ios/App.entitlements
 ios.developer.team=ABCDE12345
-ios.deployment.target=13.0
 ```
 
 `ios.bundle.identifier` can be used instead of `app.package` when Android and
 iOS need different identifiers. Machine-specific defaults such as the team,
 SDK, and deployment target can also be set as `ios.developer.team`, `ios.sdk`,
 and `ios.deployment.target` in `custom.bmk`. Application settings take
-precedence for project metadata. `app.icon` must name a square PNG; bmk writes
+precedence for project metadata. An explicit target must fall within the range
+supported by the selected SDK. `app.icon` must name a square PNG; bmk writes
 the 1024-pixel asset-catalog icon. The optional `ios.launch.image` setting names
 a PNG displayed aspect-fitted inside the safe area of the launch screen.
 `app.launch.background` accepts a `#RRGGBB` colour and defaults to black.
@@ -165,6 +165,15 @@ project. If no source file is configured, bmk retains and reconnects an existing
 generated entitlement file, including one created by Xcode. Keeping the
 authoritative file with the application sources is recommended for reproducible
 builds and source control.
+
+## macOS
+
+macOS builds likewise default to the minimum deployment target supported by the
+`macosx` SDK selected by Xcode. Set `macos.deployment.target` in an application's
+`.settings` file or with `addoption macos.deployment.target "13.0"` in
+`custom.bmk` to require a newer version. `MACOSX_DEPLOYMENT_TARGET` is used as an
+environment fallback. Explicit targets outside the selected SDK's supported
+range are rejected before compilation.
 
 ## Configuration
 

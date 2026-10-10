@@ -315,7 +315,7 @@ Function CompareAndroidVersions:Int(left:String, right:String)
 	Return 0
 End Function
 
-Function IOSCaptureCommand:String(command:String)
+Function AppleCaptureCommand:String(command:String)
 	Local process:TProcess = CreateProcess(command)
 	If Not process Then Return ""
 	Local output:TStringBuilder = New TStringBuilder
@@ -329,13 +329,30 @@ Function IOSCaptureCommand:String(command:String)
 	Return output.ToString()
 End Function
 
-Function ConfigureIOSPaths()
-	Local sdk:String = IOSConfiguredSDK(processor.CPU(), processor.Option("ios.sdk", ""), getenv_("BMX_IOS_SDK"))
-	Local deploymentTarget:String = IOSDeploymentTarget(processor.AppSetting("ios.deployment.target"), processor.Option("ios.deployment.target", getenv_("IPHONEOS_DEPLOYMENT_TARGET")))
-	Local sdkPath:String = IOSCaptureCommand("xcrun --sdk " + sdk + " --show-sdk-path").Trim()
+Function AppleSDKDeploymentLimit:String(sdkPath:String, sdk:String, limitName:String)
+	Local settingsPath:String = sdkPath + "/SDKSettings.plist"
+	Local key:String = "SupportedTargets." + sdk + "." + limitName
+	Local value:String = AppleCaptureCommand("/usr/bin/plutil -extract " + key + " raw -o - " + CQuote(settingsPath)).Trim()
+	If Not AppleDeploymentVersionValid(value) Then
+		Throw "Unable to read " + limitName + " for the " + sdk + " SDK from " + settingsPath
+	End If
+	Return value
+End Function
+
+Function AppleSDKPath:String(sdk:String)
+	Local sdkPath:String = AppleCaptureCommand("xcrun --sdk " + sdk + " --show-sdk-path").Trim()
 	If Not sdkPath Or FileType(sdkPath) <> FILETYPE_DIR Then
 		Throw "Unable to locate the " + sdk + " SDK with xcrun; install Xcode and select it with xcode-select"
 	End If
+	Return sdkPath
+End Function
+
+Function ConfigureIOSPaths()
+	Local sdk:String = IOSConfiguredSDK(processor.CPU(), processor.Option("ios.sdk", ""), getenv_("BMX_IOS_SDK"))
+	Local sdkPath:String = AppleSDKPath(sdk)
+	Local minimum:String = AppleSDKDeploymentLimit(sdkPath, sdk, "MinimumDeploymentTarget")
+	Local maximum:String = AppleSDKDeploymentLimit(sdkPath, sdk, "MaximumDeploymentTarget")
+	Local deploymentTarget:String = IOSDeploymentTarget(processor.AppSetting("ios.deployment.target"), processor.Option("ios.deployment.target", getenv_("IPHONEOS_DEPLOYMENT_TARGET")), minimum, maximum)
 
 	globals.SetVar("ios.sdk", sdk)
 	globals.SetVar("ios.deployment.target", deploymentTarget)
@@ -345,8 +362,24 @@ Function ConfigureIOSPaths()
 	globals.SetOption("cc_opts", "ostarget", "-target " + IOSTargetTriple(processor.CPU(), sdk, deploymentTarget))
 End Function
 
+Function ConfigureMacOSPaths()
+	Local sdk:String = "macosx"
+	Local sdkPath:String = AppleSDKPath(sdk)
+	Local minimum:String = AppleSDKDeploymentLimit(sdkPath, sdk, "MinimumDeploymentTarget")
+	Local maximum:String = AppleSDKDeploymentLimit(sdkPath, sdk, "MaximumDeploymentTarget")
+	Local deploymentTarget:String = AppleDeploymentTarget("macOS", processor.AppSetting("macos.deployment.target"), processor.Option("macos.deployment.target", getenv_("MACOSX_DEPLOYMENT_TARGET")), minimum, maximum)
+
+	globals.SetVar("macos.deployment.target", deploymentTarget)
+	globals.SetVar(processor.BuildName("sysroot"), sdkPath)
+	globals.SetOption("cc_opts", "osversion", "-mmacosx-version-min=" + deploymentTarget)
+	globals.SetOption("ld_opts", "osversion", "-mmacosx-version-min=" + deploymentTarget)
+End Function
+
 Function NativeTargetCacheSuffix:String()
-	Return IOSNativeCacheSuffix(processor.Platform(), processor.CPU(), processor.Option("ios.sdk", ""), getenv_("BMX_IOS_SDK"))
+	If processor.Platform() = "ios" Then
+		Return IOSNativeCacheSuffix(processor.Platform(), processor.CPU(), processor.Option("ios.sdk", ""), getenv_("BMX_IOS_SDK"), processor.Option("ios.deployment.target", ""))
+	End If
+	Return AppleDeploymentCacheSuffix(processor.Platform(), processor.Option("macos.deployment.target", ""))
 End Function
 
 Function SharedGeneratedHeaderPath:String(objectPath:String)
@@ -739,6 +772,8 @@ Type TBuildManager Extends TCallback
 			ConfigureAndroidPaths()
 		Else If processor.Platform() = "ios" Then
 			ConfigureIOSPaths()
+		Else If processor.Platform() = "macos" Or processor.Platform() = "osx" Then
+			ConfigureMacOSPaths()
 		Else If processor.Platform() = "nx" Then
 			ConfigureNXPaths()
 		End If
