@@ -459,6 +459,9 @@ Function MakeApplication( args$[],makelib:Int,compileOnly:Int = False )
 
 	' some more useful globals
 	If processor.Platform() = "macos" And opt_apptype="gui" And Not compileOnly Then
+		' Bundle metadata needs the resolved SDK deployment target before the build
+		' manager performs its normal target configuration.
+		ConfigureMacOSPaths()
 		Local appId$=StripDir( opt_outfile )
 		
 		If opt_universal Then
@@ -478,6 +481,7 @@ Function MakeApplication( args$[],makelib:Int,compileOnly:Int = False )
 		' make bundle dirs
 		Local exeDir:String = baseDir + ".app"
 		Local d:String
+		globals.SetVar("MACOS_APP_PATH", exeDir)
 		
 		d=exeDir+"/Contents/MacOS"
 		Select FileType( d )
@@ -552,51 +556,7 @@ Function MakeApplication( args$[],makelib:Int,compileOnly:Int = False )
 				baseDir = StripExt(baseDir)
 			End If
 			Local exeDir:String = baseDir+".app"
-			Local t:TStream
-
-			t=WriteStream( exeDir+"/Contents/Info.plist" )
-			If Not t Throw TBmkMessages.ApplicationInfoPlistCreationFailed().Render()
-			t.WriteLine "<?xml version=~q1.0~q encoding=~qUTF-8~q?>"
-			t.WriteLine "<!DOCTYPE plist PUBLIC ~q-//Apple Computer//DTD PLIST 1.0//EN~q ~qhttp://www.apple.com/DTDs/PropertyList-1.0.dtd~q>"
-			t.WriteLine "<plist version=~q1.0~q>"
-			t.WriteLine "<dict>"
-			t.WriteLine "~t<key>CFBundleExecutable</key>"
-			t.WriteLine "~t<string>"+appId+"</string>"
-			t.WriteLine "~t<key>CFBundleIconFile</key>"
-			t.WriteLine "~t<string>"+appId+"</string>"
-			t.WriteLine "~t<key>CFBundlePackageType</key>"
-			t.WriteLine "~t<string>APPL</string>"
-			t.WriteLine "~t<key>CFBundleIdentifier</key>"
-			t.WriteLine "~t<string>local.blitzmax."+appId+"</string>"
-			t.WriteLine "~t<key>CFBundleName</key>"
-			t.WriteLine "~t<string>"+appId+"</string>"
-			t.WriteLine "~t<key>CFBundleVersion</key>"
-			t.WriteLine "~t<string>1.0</string>"
-			t.WriteLine "~t<key>CFBundleShortVersionString</key>"
-			t.WriteLine "~t<string>1.0</string>"
-			t.WriteLine "~t<key>CFBundleDevelopmentRegion</key>"
-			t.WriteLine "~t<string>en</string>"
-			t.WriteLine "~t<key>LSMinimumSystemVersion</key>"
-			t.WriteLine "~t<string>10.13</string>"
-			t.WriteLine "~t<key>NSPrincipalClass</key>"
-			t.WriteLine "~t<string>NSApplication</string>"
-			If opt_hi Then
-				t.WriteLine "~t<key>NSHighResolutionCapable</key>"
-				t.WriteLine "~t<true/>"
-			End If
-			If globals.Get("custom_plist") Then
-				t.WriteLine "~t" + globals.Get("custom_plist")
-			End If
-			t.WriteLine "</dict>"
-			t.WriteLine "</plist>"
-			t.Close
-
-			t=WriteStream( exeDir+"/Contents/Resources/"+appId+".icns" )
-			If Not t Throw TBmkMessages.ApplicationIconsCreationFailed().Render()
-			Local in:TStream=ReadStream( "incbin::macos.icns" )
-			CopyStream in,t
-			in.Close
-			t.Close
+			ConfigureMacOSApplicationBundle(exeDir, appId)
 
 			opt_outfile=exeDir+"/Contents/MacOS/"+appId
 
@@ -773,10 +733,14 @@ Function MakeApplication( args$[],makelib:Int,compileOnly:Int = False )
 		MakeUpx()
 	End If
 
+	If processor.Platform() = "macos" And opt_apptype = "gui" And Not compileOnly And Not opt_standalone Then
+		SignMacOSApplicationBundle(String(globals.GetRawVar("MACOS_APP_PATH")))
+	End If
+
 	If opt_execute And Not compileOnly
 		If processor.Platform() = "android" Then
 			Local settings:TMap = ParseApplicationIniFile()
-			DeployAndroidApplication(opt_outfile + ".apk", String(settings.ValueForKey("app.package")), androidReleaseSigningConfigured)
+			DeployAndroidApplication(opt_outfile + ".apk", AndroidApplicationId(settings), androidReleaseSigningConfigured)
 		Else
 			Print "Executing:"+StripDir( opt_outfile )
 
