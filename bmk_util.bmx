@@ -1001,6 +1001,10 @@ End Function
 
 Function ConfigureMacOSApplicationBundle(exeDir:String, appId:String)
 	Local projectSettings:TMap = ParseApplicationIniFile()
+	Local staleConfigStamp:String = exeDir + "/Contents/MacOS/" + appId + ".module-config"
+	If FileType(staleConfigStamp) = FILETYPE_FILE And Not DeleteFile(staleConfigStamp) Then
+		Throw "Unable to remove stale macOS application build stamp: " + staleConfigStamp
+	End If
 	Local plist:String = MacOSApplicationInfoPlist(projectSettings, appId)
 	Local plistPath:String = exeDir + "/Contents/Info.plist"
 	SaveString plist, plistPath

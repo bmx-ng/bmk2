@@ -1459,7 +1459,12 @@ Type TBuildManager Extends TCallback
 								max_lnk_time = Max(FileTime(icon), max_lnk_time)
 							End If
 						
-							If ModuleConfigApplicationChanged(opt_outfile + ".module-config") Then m.SetRequiresBuild(True)
+							Local applicationConfigStamp:String = opt_outfile + ".module-config"
+							If processor.Platform() = "macos" And opt_apptype = "gui" Then
+								Local appPath:String = String(globals.GetRawVar("MACOS_APP_PATH"))
+								If appPath Then applicationConfigStamp = appPath + ".module-config"
+							End If
+							If ModuleConfigApplicationChanged(applicationConfigStamp) Then m.SetRequiresBuild(True)
 							If m.requiresBuild Or max_lnk_time > FileTime(opt_outfile) Or opt_all Then
 
 								' generate manifest for app

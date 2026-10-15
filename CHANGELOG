@@ -7,6 +7,9 @@
  - Generated macOS application bundles now use the common application name and version settings and the resolved SDK deployment target.
  - macOS signing is reapplied after every completed GUI build, while removing a signing identity removes a stale generated signature.
  - Android version codes are validated before generating the Gradle project.
+### Fixed
+ - macOS GUI application build stamps are kept beside the bundle instead of being packaged as unsigned content in `Contents/MacOS`.
+ - Stale application build stamps from older bmk versions are removed from generated macOS bundles before signing.
 
 ## [4.06] - 2026-10-10
 ### Added

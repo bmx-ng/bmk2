@@ -18,6 +18,7 @@ plist_buddy=/usr/libexec/PlistBuddy
 
 test ! -e "$output_root"
 mkdir -p "$output_root"
+printf 'stale\n' > "$bundle.module-config"
 "$bmk" makeapp -r -t gui -hi -o "$application" "$fixture_dir/macos_configuration_app.bmx"
 
 plutil -lint "$plist"
@@ -32,10 +33,18 @@ cmp "$bundle/Contents/Resources/AppIcon.icns" "$fixture_dir/../../macos.icns"
 cmp "$bundle/Contents/embedded.provisionprofile" "$fixture_dir/macos_configuration.provisionprofile"
 codesign --verify --strict "$bundle"
 codesign -d --entitlements - "$bundle" 2>/dev/null | grep -q 'com.apple.security.app-sandbox'
+test -f "$bundle.module-config"
+! grep -qx 'stale' "$bundle.module-config"
+test ! -e "$bundle/Contents/MacOS/ConfiguredApp.module-config"
+
+# A bundle produced before the sidecar migration may retain this unsigned build
+# stamp. The next configuration pass must remove it before signing or packaging.
+touch "$bundle/Contents/MacOS/ConfiguredApp.module-config"
 
 "$bmk" makeapp -r -t gui -o "$application" "$fixture_dir/macos_unsigned_app.bmx"
 test ! -e "$bundle/Contents/_CodeSignature"
 test ! -e "$bundle/Contents/embedded.provisionprofile"
+test ! -e "$bundle/Contents/MacOS/ConfiguredApp.module-config"
 if codesign --verify "$bundle" >/dev/null 2>&1
 then
 	echo "macOS bundle retained a stale signature" >&2

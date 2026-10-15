@@ -211,10 +211,40 @@ distribution method. Machine-local signing choices can instead be supplied by
 `MACOS_SIGNING_IDENTITY` and `MACOS_PROVISIONING_PROFILE`. Application settings
 take precedence over those fallbacks.
 
-Game Center on macOS requires a Game Center-enabled Mac App ID, an appropriate
-Mac development or distribution profile, a signing certificate whose private
-key is installed, and an entitlements file containing the Game Center and App
-Sandbox capabilities. A Developer ID signature cannot enable macOS Game Center.
+Game Center on macOS requires an explicit, Game Center-enabled Mac App ID, an
+appropriate Mac development or distribution profile, and a signing certificate
+whose private key is installed. A Developer ID signature cannot enable macOS
+Game Center. Keep the profile path and signing identity in machine-local
+`custom.bmk` rather than committing account-specific values to the application.
+
+The application entitlements need Game Center and App Sandbox. Multiplayer also
+requires both incoming and outgoing network connections:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>com.apple.developer.game-center</key>
+	<true/>
+	<key>com.apple.security.app-sandbox</key>
+	<true/>
+	<key>com.apple.security.network.client</key>
+	<true/>
+	<key>com.apple.security.network.server</key>
+	<true/>
+</dict>
+</plist>
+```
+
+App Store Connect must contain a macOS version whose version number matches
+`app.version.name`, with Game Center enabled for that version. Game Center
+configuration changes may take time to propagate.
+
+Run Game Center test builds from the project output directory or install them in
+`~/Applications` or `/Applications`. Do not launch a sandboxed Game Center app
+from `/private/tmp`: the Game Center daemon may identify the app but omit its
+bundle-version headers, causing a misleading server-communication error.
 
 The generated metadata, profile, entitlements, signing, verification, and stale
 signature removal paths have an isolated integration check:
