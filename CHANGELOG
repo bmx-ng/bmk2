@@ -1,3 +1,13 @@
+## [4.07] - 2026-10-15
+### Added
+ - Durable macOS bundle identifiers, Info.plist overlays, entitlements, provisioning profiles, ICNS icons, code-signing identities, hardened runtime, and secure timestamps.
+ - macOS application-bundle configuration and signing integration coverage.
+ - Optional `android.application.id` overrides for projects whose Android identifier differs from the shared package identifier.
+### Changed
+ - Generated macOS application bundles now use the common application name and version settings and the resolved SDK deployment target.
+ - macOS signing is reapplied after every completed GUI build, while removing a signing identity removes a stale generated signature.
+ - Android version codes are validated before generating the Gradle project.
+
 ## [4.06] - 2026-10-10
 ### Added
  - Current Xcode iOS project generation, SDL3 startup glue, asset catalogs, launch storyboard, and SDL3/Max2D examples.

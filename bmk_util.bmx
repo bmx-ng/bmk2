@@ -816,12 +816,14 @@ Function DeployAndroidProject()
 	projectSettings.Insert("android.compile.sdk", androidCompileSDK)
 	projectSettings.Insert("android.target.sdk", androidTargetSDK)
 	projectSettings.Insert("android.min.sdk", androidMinSDK)
+	projectSettings.Insert("app.version.code", ApplicationPositiveInteger(projectSettings, "app.version.code", "1"))
 	projectSettings.Insert("android.theme.parent", "android:Theme.NoTitleBar")
 	If ApplicationSettingBool(projectSettings, "app.fullscreen", True) Then projectSettings.Insert("android.theme.parent", "android:Theme.NoTitleBar.Fullscreen")
 	projectSettings.Insert("app.launch.background", ApplicationColor(projectSettings, "app.launch.background", "#000000"))
 	ConfigureAndroidApplicationIcon(projectDir, projectSettings)
 
-	Local appPackage:String = String(projectSettings.ValueForKey("app.package"))
+	Local appPackage:String = AndroidApplicationId(projectSettings)
+	projectSettings.Insert("app.package", appPackage)
 
 	Local packagePath:String = projectDir + "/app/src/main/java/" + PathFromPackage(appPackage)
 	
@@ -927,6 +929,120 @@ Function ApplicationPositiveInteger:String(projectSettings:TMap, key:String, fal
 		If char < Asc("0") Or char > Asc("9") Then Throw key + " must be a positive integer"
 	Next
 	Return value
+End Function
+
+Function MacOSPlistText:String(value:String)
+	Return value.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;").Replace("~q", "&quot;").Replace("'", "&apos;")
+End Function
+
+Function MacOSConfiguredValue:String(projectSettings:TMap, key:String, environmentKey:String = "")
+	Local value:String = String(projectSettings.ValueForKey(key)).Trim()
+	If value Then Return value
+	Local environmentValue:String
+	If environmentKey Then environmentValue = getenv_(environmentKey)
+	Return processor.Option(key, environmentValue).Trim()
+End Function
+
+Function MacOSApplicationInfoPlist:String(projectSettings:TMap, appId:String)
+	Local appName:String = String(projectSettings.ValueForKey("app.name")).Trim()
+	If Not appName Then appName = appId
+	Local bundleIdentifier:String = String(projectSettings.ValueForKey("macos.bundle.identifier")).Trim()
+	If Not bundleIdentifier Then bundleIdentifier = String(projectSettings.ValueForKey("app.package")).Trim()
+	If Not bundleIdentifier Then bundleIdentifier = processor.Option("company_identifier", "com.blitzmax") + "." + appId.ToLower()
+	Local marketingVersion:String = String(projectSettings.ValueForKey("app.version.name")).Trim()
+	If Not marketingVersion Then marketingVersion = "1.0.0"
+	Local buildVersion:String = ApplicationPositiveInteger(projectSettings, "app.version.code", "1")
+	Local deploymentTarget:String = processor.Option("macos.deployment.target", "")
+	If Not deploymentTarget Then Throw "The macOS deployment target was not configured"
+
+	Local plist:TStringBuilder = New TStringBuilder
+	plist.Append("<?xml version=~q1.0~q encoding=~qUTF-8~q?>~n")
+	plist.Append("<!DOCTYPE plist PUBLIC ~q-//Apple//DTD PLIST 1.0//EN~q ~qhttp://www.apple.com/DTDs/PropertyList-1.0.dtd~q>~n")
+	plist.Append("<plist version=~q1.0~q>~n<dict>~n")
+	plist.Append("~t<key>CFBundleExecutable</key>~n~t<string>").Append(MacOSPlistText(appId)).Append("</string>~n")
+	plist.Append("~t<key>CFBundleIconFile</key>~n~t<string>AppIcon</string>~n")
+	plist.Append("~t<key>CFBundlePackageType</key>~n~t<string>APPL</string>~n")
+	plist.Append("~t<key>CFBundleIdentifier</key>~n~t<string>").Append(MacOSPlistText(bundleIdentifier)).Append("</string>~n")
+	plist.Append("~t<key>CFBundleName</key>~n~t<string>").Append(MacOSPlistText(appName)).Append("</string>~n")
+	plist.Append("~t<key>CFBundleDisplayName</key>~n~t<string>").Append(MacOSPlistText(appName)).Append("</string>~n")
+	plist.Append("~t<key>CFBundleVersion</key>~n~t<string>").Append(MacOSPlistText(buildVersion)).Append("</string>~n")
+	plist.Append("~t<key>CFBundleShortVersionString</key>~n~t<string>").Append(MacOSPlistText(marketingVersion)).Append("</string>~n")
+	plist.Append("~t<key>CFBundleDevelopmentRegion</key>~n~t<string>en</string>~n")
+	plist.Append("~t<key>LSMinimumSystemVersion</key>~n~t<string>").Append(MacOSPlistText(deploymentTarget)).Append("</string>~n")
+	plist.Append("~t<key>NSPrincipalClass</key>~n~t<string>NSApplication</string>~n")
+	If opt_hi Then plist.Append("~t<key>NSHighResolutionCapable</key>~n~t<true/>~n")
+	If globals.Get("custom_plist") Then plist.Append("~t").Append(globals.Get("custom_plist")).Append("~n")
+	plist.Append("</dict>~n</plist>~n")
+
+	Local result:String = plist.ToString()
+	Local overlay:String = String(projectSettings.ValueForKey("macos.info.plist")).Trim()
+	If overlay Then result = MergePropertyList(result, ApplicationResourcePath(overlay))
+	Return result
+End Function
+
+Function WriteMacOSApplicationIcon(exeDir:String, projectSettings:TMap)
+	Local destination:String = exeDir + "/Contents/Resources/AppIcon.icns"
+	Local configuredIcon:String = String(projectSettings.ValueForKey("macos.icon")).Trim()
+	If Not configuredIcon Then
+		Local output:TStream = WriteStream(destination)
+		If Not output Then Throw TBmkMessages.ApplicationIconsCreationFailed().Render()
+		Local input:TStream = ReadStream("incbin::macos.icns")
+		CopyStream input, output
+		input.Close
+		output.Close
+		Return
+	End If
+
+	Local iconPath:String = ApplicationResourcePath(configuredIcon)
+	If FileType(iconPath) <> FILETYPE_FILE Then Throw "macOS application icon not found: " + iconPath
+	If ExtractExt(iconPath).ToLower() <> "icns" Then Throw "macos.icon must name an .icns file: " + iconPath
+	If Not CopyFile(iconPath, destination) Then Throw "Unable to copy macOS application icon: " + iconPath
+End Function
+
+Function ConfigureMacOSApplicationBundle(exeDir:String, appId:String)
+	Local projectSettings:TMap = ParseApplicationIniFile()
+	Local plist:String = MacOSApplicationInfoPlist(projectSettings, appId)
+	Local plistPath:String = exeDir + "/Contents/Info.plist"
+	SaveString plist, plistPath
+	If FileType(plistPath) <> FILETYPE_FILE Then Throw TBmkMessages.ApplicationInfoPlistCreationFailed().Render()
+	WriteMacOSApplicationIcon(exeDir, projectSettings)
+
+	Local embeddedProfile:String = exeDir + "/Contents/embedded.provisionprofile"
+	Local profile:String = MacOSConfiguredValue(projectSettings, "macos.provisioning.profile", "MACOS_PROVISIONING_PROFILE")
+	If profile Then
+		profile = ApplicationResourcePath(profile)
+		If FileType(profile) <> FILETYPE_FILE Then Throw "macOS provisioning profile not found: " + profile
+		If Not CopyFile(profile, embeddedProfile) Then Throw "Unable to copy macOS provisioning profile: " + profile
+	Else If FileType(embeddedProfile) = FILETYPE_FILE Then
+		DeleteFile embeddedProfile
+	End If
+End Function
+
+Function SignMacOSApplicationBundle(appPath:String)
+	If Not appPath Then Return
+	Local projectSettings:TMap = ParseApplicationIniFile()
+	Local identity:String = MacOSConfiguredValue(projectSettings, "macos.signing.identity", "MACOS_SIGNING_IDENTITY")
+	If Not identity Then
+		Local signaturePath:String = appPath + "/Contents/_CodeSignature"
+		If FileType(signaturePath) = FILETYPE_DIR Then
+			If processor.Sys("codesign --remove-signature " + CQuote(appPath)) Then Throw "Unable to remove stale macOS application signature: " + appPath
+			If FileType(signaturePath) = FILETYPE_DIR And Not DeleteDir(signaturePath, True) Then Throw "Unable to remove stale macOS application signature directory: " + signaturePath
+		End If
+		Return
+	End If
+
+	Local command:String = "codesign --force --sign " + CQuote(identity)
+	If ApplicationSettingBool(projectSettings, "macos.hardened.runtime", False) Then command :+ " --options runtime"
+	If ApplicationSettingBool(projectSettings, "macos.signing.timestamp", False) Then command :+ " --timestamp"
+	Local entitlements:String = String(projectSettings.ValueForKey("macos.entitlements")).Trim()
+	If entitlements Then
+		entitlements = ApplicationResourcePath(entitlements)
+		If FileType(entitlements) <> FILETYPE_FILE Then Throw "macOS entitlements file not found: " + entitlements
+		command :+ " --entitlements " + CQuote(entitlements)
+	End If
+	command :+ " " + CQuote(appPath)
+	If processor.Sys(command) Then Throw "Unable to sign macOS application: " + appPath
+	If processor.Sys("codesign --verify --strict " + CQuote(appPath)) Then Throw "Unable to verify macOS application signature: " + appPath
 End Function
 
 Function ApplicationColorComponent:Int(color:String, offset:Int)

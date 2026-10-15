@@ -1,0 +1,11 @@
+app.name=Configured & Tested
+app.package=org.example.shared
+app.version.name=2.3.4
+app.version.code=17
+macos.bundle.identifier=org.example.macos-configuration
+macos.icon=../../macos.icns
+macos.info.plist=macos_configuration_info.plist
+macos.entitlements=macos_configuration.entitlements
+macos.provisioning.profile=macos_configuration.provisionprofile
+macos.signing.identity=-
+macos.hardened.runtime=true

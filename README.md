@@ -175,6 +175,54 @@ macOS builds likewise default to the minimum deployment target supported by the
 environment fallback. Explicit targets outside the selected SDK's supported
 range are rejected before compilation.
 
+A GUI build creates a complete `.app` bundle. Its identity, metadata,
+capabilities and signing can be kept outside the generated bundle:
+
+```text
+app.name=Example Game
+app.package=org.example.game
+app.version.name=1.2.0
+app.version.code=12
+macos.bundle.identifier=org.example.game.macos
+macos.icon=assets/Game.icns
+macos.info.plist=macos/Info.extra.plist
+macos.entitlements=macos/App.entitlements
+macos.provisioning.profile=/path/to/Mac_Development.provisionprofile
+macos.signing.identity=Apple Development: Developer Name (ABCDE12345)
+macos.hardened.runtime=false
+macos.signing.timestamp=false
+```
+
+`macos.bundle.identifier` overrides `app.package` when the Mac needs a distinct
+identifier. `macos.info.plist` is a root-dictionary overlay with the same merge
+rules as its iOS counterpart. `macos.icon` accepts an ICNS file; iOS and Android
+continue to use the PNG named by `app.icon`. Relative paths are resolved from
+the main source file.
+
+When `macos.signing.identity` is set, bmk signs the finished bundle and verifies
+the result after every build. The identity may be a certificate name, SHA-1
+hash, or `-` for an ad-hoc development signature. A configured provisioning
+profile is copied to `Contents/embedded.provisionprofile`, and the complete
+plist named by `macos.entitlements` is supplied to `codesign`. Hardened runtime
+and secure timestamps are optional because their requirements vary by
+distribution method. Machine-local signing choices can instead be supplied by
+`addoption macos.signing.identity` and
+`addoption macos.provisioning.profile` in `custom.bmk`, or through
+`MACOS_SIGNING_IDENTITY` and `MACOS_PROVISIONING_PROFILE`. Application settings
+take precedence over those fallbacks.
+
+Game Center on macOS requires a Game Center-enabled Mac App ID, an appropriate
+Mac development or distribution profile, a signing certificate whose private
+key is installed, and an entitlements file containing the Game Center and App
+Sandbox capabilities. A Developer ID signature cannot enable macOS Game Center.
+
+The generated metadata, profile, entitlements, signing, verification, and stale
+signature removal paths have an isolated integration check:
+
+```sh
+tests/run_macos_application_configuration.sh /path/to/bin/bmk /new/test/output
+```
+
 ## Configuration
 
 An optional `bin/custom.bmk` can override compiler options. Its general form is:
@@ -202,6 +250,11 @@ outside the BlitzMax installation; bmk only needs their locations. The current
 baseline is JDK 17, Android SDK 35, NDK r28c (`28.2.13676358`), Gradle 8.12 and
 Android Gradle Plugin 8.7.3. Applications target API 35 and support API 21 or
 newer.
+
+`android.application.id` can override `app.package` when Android needs a
+distinct identifier. When it is not set, the shared package remains the
+default, so one portable settings file is sufficient. `app.version.code` must
+be a positive integer for Android.
 
 The recommended setup is to configure the SDK installation's `bin/custom.bmk`.
 This keeps the Android toolchain selection with BlitzMax and works consistently
