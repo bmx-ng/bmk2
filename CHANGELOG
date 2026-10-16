@@ -1,3 +1,9 @@
+## [4.08] - 2026-10-16
+### Added
+ - Per-application macOS signing identities and provisioning profiles through the shared application signing-properties sidecar.
+### Changed
+ - macOS signing configuration now prefers environment values, then the application sidecar, tracked application settings, and finally machine-wide defaults.
+
 ## [4.07] - 2026-10-15
 ### Added
  - Durable macOS bundle identifiers, Info.plist overlays, entitlements, provisioning profiles, ICNS icons, code-signing identities, hardened runtime, and secure timestamps.

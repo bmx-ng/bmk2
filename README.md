@@ -205,17 +205,33 @@ hash, or `-` for an ad-hoc development signature. A configured provisioning
 profile is copied to `Contents/embedded.provisionprofile`, and the complete
 plist named by `macos.entitlements` is supplied to `codesign`. Hardened runtime
 and secure timestamps are optional because their requirements vary by
-distribution method. Machine-local signing choices can instead be supplied by
+distribution method.
+
+Certificate and profile choices are normally machine-local and application
+specific. Put them in `<application>.signing.properties` beside the main
+`.bmx` source and add that file to the application's ignore rules:
+
+```properties
+macos.signing.identity=Apple Development: Developer Name (ABCDE12345)
+macos.provisioning.profile=/path/to/Mac_Development.provisionprofile
+```
+
+The same sidecar may contain the Android signing keys described below when an
+application targets both platforms. Relative profile paths are resolved from
+the directory containing the main source. For CI, the equivalent environment
+variables are `MACOS_SIGNING_IDENTITY` and `MACOS_PROVISIONING_PROFILE`.
+Tracked application `.settings` values remain supported, while
 `addoption macos.signing.identity` and
-`addoption macos.provisioning.profile` in `custom.bmk`, or through
-`MACOS_SIGNING_IDENTITY` and `MACOS_PROVISIONING_PROFILE`. Application settings
-take precedence over those fallbacks.
+`addoption macos.provisioning.profile` in `custom.bmk` provide machine-wide
+defaults. Precedence is environment, application sidecar, application
+`.settings`, then `custom.bmk`.
 
 Game Center on macOS requires an explicit, Game Center-enabled Mac App ID, an
 appropriate Mac development or distribution profile, and a signing certificate
 whose private key is installed. A Developer ID signature cannot enable macOS
-Game Center. Keep the profile path and signing identity in machine-local
-`custom.bmk` rather than committing account-specific values to the application.
+Game Center. Keep the profile path and signing identity in the untracked
+application signing sidecar rather than committing machine-specific values or
+setting a default that causes every macOS GUI application to be signed.
 
 The application entitlements need Game Center and App Sandbox. Multiplayer also
 requires both incoming and outgoing network connections:
@@ -392,7 +408,7 @@ but are never selected. An unsigned release APK is not installed automatically.
 
 Release signing is optional. For per-application configuration, create
 `<application>.signing.properties` beside the main `.bmx` source and keep it out
-of source control:
+of source control. This is the same sidecar used by optional macOS signing:
 
 ```properties
 storeFile=/path/to/upload-keystore.jks

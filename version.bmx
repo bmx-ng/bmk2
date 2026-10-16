@@ -1,3 +1,3 @@
 SuperStrict
 
-Const BMK_VERSION:String = "4.07"
+Const BMK_VERSION:String = "4.08"
