@@ -4,6 +4,7 @@ Import "bmk_config.bmx"
 Import "bmk_ng.bmx"
 Import "bmk_messages.generated.bmx"
 Import "bmk_android_signing.bmx"
+Import "bmk_macos_signing.bmx"
 Import "bmk_ios.bmx"
 Import BRL.PNGLoader
 Import Text.XML
@@ -935,12 +936,11 @@ Function MacOSPlistText:String(value:String)
 	Return value.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;").Replace("~q", "&quot;").Replace("'", "&apos;")
 End Function
 
-Function MacOSConfiguredValue:String(projectSettings:TMap, key:String, environmentKey:String = "")
-	Local value:String = String(projectSettings.ValueForKey(key)).Trim()
-	If value Then Return value
+Function MacOSConfiguredValue:String(projectSettings:TMap, signingProperties:TMap, key:String, environmentKey:String = "")
 	Local environmentValue:String
 	If environmentKey Then environmentValue = getenv_(environmentKey)
-	Return processor.Option(key, environmentValue).Trim()
+	Return MacOSPreferredSigningValue(environmentValue, String(signingProperties.ValueForKey(key)), ..
+		String(projectSettings.ValueForKey(key)), processor.Option(key, ""))
 End Function
 
 Function MacOSApplicationInfoPlist:String(projectSettings:TMap, appId:String)
@@ -1001,6 +1001,7 @@ End Function
 
 Function ConfigureMacOSApplicationBundle(exeDir:String, appId:String)
 	Local projectSettings:TMap = ParseApplicationIniFile()
+	Local signingProperties:TMap = LoadApplicationSigningProperties(ApplicationSigningPropertiesPath())
 	Local staleConfigStamp:String = exeDir + "/Contents/MacOS/" + appId + ".module-config"
 	If FileType(staleConfigStamp) = FILETYPE_FILE And Not DeleteFile(staleConfigStamp) Then
 		Throw "Unable to remove stale macOS application build stamp: " + staleConfigStamp
@@ -1012,7 +1013,7 @@ Function ConfigureMacOSApplicationBundle(exeDir:String, appId:String)
 	WriteMacOSApplicationIcon(exeDir, projectSettings)
 
 	Local embeddedProfile:String = exeDir + "/Contents/embedded.provisionprofile"
-	Local profile:String = MacOSConfiguredValue(projectSettings, "macos.provisioning.profile", "MACOS_PROVISIONING_PROFILE")
+	Local profile:String = MacOSConfiguredValue(projectSettings, signingProperties, "macos.provisioning.profile", "MACOS_PROVISIONING_PROFILE")
 	If profile Then
 		profile = ApplicationResourcePath(profile)
 		If FileType(profile) <> FILETYPE_FILE Then Throw "macOS provisioning profile not found: " + profile
@@ -1025,7 +1026,8 @@ End Function
 Function SignMacOSApplicationBundle(appPath:String)
 	If Not appPath Then Return
 	Local projectSettings:TMap = ParseApplicationIniFile()
-	Local identity:String = MacOSConfiguredValue(projectSettings, "macos.signing.identity", "MACOS_SIGNING_IDENTITY")
+	Local signingProperties:TMap = LoadApplicationSigningProperties(ApplicationSigningPropertiesPath())
+	Local identity:String = MacOSConfiguredValue(projectSettings, signingProperties, "macos.signing.identity", "MACOS_SIGNING_IDENTITY")
 	If Not identity Then
 		Local signaturePath:String = appPath + "/Contents/_CodeSignature"
 		If FileType(signaturePath) = FILETYPE_DIR Then
@@ -1229,7 +1231,7 @@ Function ConfigureAndroidApplicationIcon(projectDir:String, projectSettings:TMap
 	Next
 End Function
 
-Function AndroidSigningPropertiesPath:String()
+Function ApplicationSigningPropertiesPath:String()
 	Local ids:String[] = [StripDir(StripExt(opt_outfile)), StripDir(StripExt(opt_infile))]
 	Local sourceDir:String = ExtractDir(RealPath(opt_infile))
 
@@ -1241,12 +1243,12 @@ Function AndroidSigningPropertiesPath:String()
 	Return ""
 End Function
 
-Function LoadAndroidSigningProperties:TMap(path:String)
+Function LoadApplicationSigningProperties:TMap(path:String)
 	Local properties:TMap = New TMap
 	If Not path.length Then Return properties
 
 	Local file:TStream = ReadFile(path)
-	If Not file Then Throw "Unable to read Android signing properties: " + path
+	If Not file Then Throw "Unable to read application signing properties: " + path
 
 	While Not Eof(file)
 		Local line:String = ReadLine(file).Trim()
@@ -1276,8 +1278,8 @@ Function ConfigureAndroidReleaseSigning()
 
 	If Not opt_release Then Return
 
-	Local propertiesPath:String = AndroidSigningPropertiesPath()
-	Local properties:TMap = LoadAndroidSigningProperties(propertiesPath)
+	Local propertiesPath:String = ApplicationSigningPropertiesPath()
+	Local properties:TMap = LoadApplicationSigningProperties(propertiesPath)
 	Local storeFile:String = AndroidSigningValue("android.signing.keystore", "ANDROID_KEYSTORE_PATH", properties, "storeFile")
 	Local storePassword:String = AndroidSigningValue("android.signing.store.password", "ANDROID_KEYSTORE_PASSWORD", properties, "storePassword")
 	Local keyAlias:String = AndroidSigningValue("android.signing.key.alias", "ANDROID_KEY_ALIAS", properties, "keyAlias")

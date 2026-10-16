@@ -20,8 +20,8 @@
 #addoption ios.developer.team "APPLE_TEAM_ID"
 
 # ** macOS signing **
-# Keep machine-local certificate and provisioning-profile choices here rather
-# than in an application's source-controlled settings file.
+# Machine-wide fallback identity and profile. Prefer an untracked
+# <application>.signing.properties sidecar for application-specific signing.
 #addoption macos.signing.identity "Apple Development: Developer Name (APPLE_TEAM_ID)"
 #addoption macos.provisioning.profile "/PATH/TO/Mac_Development.provisionprofile"
 
