@@ -158,6 +158,7 @@ Type TSourceFile
 	Field bcc2FreshnessChecked:Int
 	Field bcc2OwnedSource:Int
 	Field bcc2ApplicationSource:Int
+	Field bcc2TransitiveContractChanged:Int
 	Field bcc2SourceModuleName:String
 	Field bcc2SourceUnitPath:String
 	
@@ -530,6 +531,7 @@ Type TSourceFile
 		source.bcc2Manifest = bcc2Manifest
 		source.bcc2OwnedSource = bcc2OwnedSource
 		source.bcc2ApplicationSource = bcc2ApplicationSource
+		source.bcc2TransitiveContractChanged = bcc2TransitiveContractChanged
 		source.bcc2SourceModuleName = bcc2SourceModuleName
 		source.bcc2SourceUnitPath = bcc2SourceUnitPath
 		source.CopyIncludePaths(includePaths)

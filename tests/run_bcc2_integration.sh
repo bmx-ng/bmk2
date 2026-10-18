@@ -226,6 +226,58 @@ test "$quoted_common_count" -eq 1
 quoted_value_count=$(nm "$quoted_app_path" | grep -Ec ' T _?application_application_quoted_app_ApplicationQuotedValue$')
 test "$quoted_value_count" -eq 1
 
+# Recompile only the changed quoted unit when its exported interface and
+# generic-template contract are byte-identical. Its importers still link the
+# unit's newly compiled object and therefore observe the implementation edit.
+sleep 1
+cp "$fixture_dir/application_quoted_common_v2.bmx" "$quoted_root/application_quoted_common.bmx"
+quoted_implementation_output=$("$bmk_path" makeapp -bcc2 -single -r -gdb -o "$quoted_app_path" "$quoted_root/application_quoted_app.bmx")
+printf '%s\n' "$quoted_implementation_output"
+printf '%s' "$quoted_implementation_output" | grep -q 'Processing:application_quoted_common.bmx'
+if printf '%s' "$quoted_implementation_output" | grep -Eq 'Processing:application_quoted_(mid|app)\.bmx'
+then
+	echo "implementation-only quoted source change invalidated an importer" >&2
+	exit 1
+fi
+"$quoted_app_path"
+
+# An exported signature change invalidates the complete semantic import chain.
+# The intermediate interface re-exports its quoted import, so consumers above
+# it must also observe the changed transitive contract.
+sleep 1
+cp "$fixture_dir/application_quoted_common_v3.bmx" "$quoted_root/application_quoted_common.bmx"
+quoted_interface_output=$("$bmk_path" makeapp -bcc2 -single -r -gdb -o "$quoted_app_path" "$quoted_root/application_quoted_app.bmx")
+printf '%s\n' "$quoted_interface_output"
+printf '%s' "$quoted_interface_output" | grep -q 'Processing:application_quoted_common.bmx'
+printf '%s' "$quoted_interface_output" | grep -q 'Processing:application_quoted_mid.bmx'
+printf '%s' "$quoted_interface_output" | grep -q 'Processing:application_quoted_app.bmx'
+"$quoted_app_path"
+
+quoted_interface_noop_output=$("$bmk_path" makeapp -bcc2 -single -r -gdb -o "$quoted_app_path" "$quoted_root/application_quoted_app.bmx")
+if printf '%s' "$quoted_interface_noop_output" | grep -Eq 'Processing:|Compiling:|Linking:'
+then
+	echo "quoted interface rebuild did not settle" >&2
+	exit 1
+fi
+
+# The same implementation-only boundary applies to debug configuration.
+quoted_debug_root="$output_root/application-quoted-debug"
+mkdir -p "$quoted_debug_root"
+cp "$fixture_dir/application_quoted_app.bmx" "$fixture_dir/application_quoted_mid.bmx" "$quoted_debug_root/"
+cp "$fixture_dir/application_quoted_common.bmx" "$quoted_debug_root/application_quoted_common.bmx"
+quoted_debug_app="$quoted_debug_root/application-quoted-debug-app"
+"$bmk_path" makeapp -bcc2 -single -d -gdb -o "$quoted_debug_app" "$quoted_debug_root/application_quoted_app.bmx"
+sleep 1
+cp "$fixture_dir/application_quoted_common_v2.bmx" "$quoted_debug_root/application_quoted_common.bmx"
+quoted_debug_output=$("$bmk_path" makeapp -bcc2 -single -d -gdb -o "$quoted_debug_app" "$quoted_debug_root/application_quoted_app.bmx")
+printf '%s' "$quoted_debug_output" | grep -q 'Processing:application_quoted_common.bmx'
+if printf '%s' "$quoted_debug_output" | grep -Eq 'Processing:application_quoted_(mid|app)\.bmx'
+then
+	echo "debug implementation-only quoted source change invalidated an importer" >&2
+	exit 1
+fi
+"$quoted_debug_app"
+
 quoted_generic_root="$output_root/application-quoted-generic"
 mkdir -p "$quoted_generic_root"
 cp "$fixture_dir/application_quoted_generic_app.bmx" "$quoted_generic_root/app.bmx"
@@ -239,6 +291,26 @@ quoted_generic_update_output=$("$bmk_path" makeapp -bcc2 -single -r -o "$quoted_
 printf '%s\n' "$quoted_generic_update_output"
 printf '%s' "$quoted_generic_update_output" | grep -q 'Processing:app.bmx'
 printf '%s' "$quoted_generic_update_output" | grep -q 'Compiling generic specializations:app.bmx'
+test "$("$quoted_generic_app" | tr -d '\r')" = "seed!!"
+
+quoted_generic_noop_output=$("$bmk_path" makeapp -bcc2 -single -r -o "$quoted_generic_app" "$quoted_generic_root/app.bmx")
+if printf '%s' "$quoted_generic_noop_output" | grep -Eq 'Processing:|Compiling:|Linking:'
+then
+	echo "quoted generic-template body rebuild did not settle" >&2
+	exit 1
+fi
+
+# Adding and removing a generic template both change the published template
+# contract, even when the importer does not currently specialize that symbol.
+sleep 1
+cp "$fixture_dir/application_quoted_generic_provider_v3.bmx" "$quoted_generic_root/application_quoted_generic_provider.bmx"
+quoted_generic_add_output=$("$bmk_path" makeapp -bcc2 -single -r -o "$quoted_generic_app" "$quoted_generic_root/app.bmx")
+printf '%s' "$quoted_generic_add_output" | grep -q 'Processing:app.bmx'
+test "$("$quoted_generic_app" | tr -d '\r')" = "seed!!"
+sleep 1
+cp "$fixture_dir/application_quoted_generic_provider_v2.bmx" "$quoted_generic_root/application_quoted_generic_provider.bmx"
+quoted_generic_remove_output=$("$bmk_path" makeapp -bcc2 -single -r -o "$quoted_generic_app" "$quoted_generic_root/app.bmx")
+printf '%s' "$quoted_generic_remove_output" | grep -q 'Processing:app.bmx'
 test "$("$quoted_generic_app" | tr -d '\r')" = "seed!!"
 
 nested_root="$output_root/application-nested"
@@ -257,6 +329,54 @@ left_value_count=$(nm "$nested_app_path" | grep -Ec ' T _?application_applicatio
 right_value_count=$(nm "$nested_app_path" | grep -Ec ' T _?application_application_nested_app_RightNestedValue$')
 test "$left_value_count" -eq 1
 test "$right_value_count" -eq 1
+
+# Exercise contract comparison after a parallel compiler batch. Two body-only
+# edits rebuild and relink both leaves without regenerating their importer.
+sleep 1
+cp "$fixture_dir/application_nested_left_body.bmx" "$nested_root/nested/left/common.bmx"
+cp "$fixture_dir/application_nested_right_body.bmx" "$nested_root/nested/right/common.bmx"
+nested_body_output=$("$bmk_path" makeapp -bcc2 -r -gdb -o "$nested_app_path" "$nested_root/application_nested_app.bmx")
+printf '%s\n' "$nested_body_output"
+test "$(printf '%s' "$nested_body_output" | grep -c 'Processing:common.bmx')" -eq 2
+if printf '%s' "$nested_body_output" | grep -q 'Processing:application_nested_app.bmx'
+then
+	echo "parallel quoted implementation changes invalidated their importer" >&2
+	exit 1
+fi
+"$nested_app_path"
+
+# Changing both exported signatures in the same parallel batch must invalidate
+# their importer exactly once.
+sleep 1
+cp "$fixture_dir/application_nested_left_interface.bmx" "$nested_root/nested/left/common.bmx"
+cp "$fixture_dir/application_nested_right_interface.bmx" "$nested_root/nested/right/common.bmx"
+nested_interface_output=$("$bmk_path" makeapp -bcc2 -r -gdb -o "$nested_app_path" "$nested_root/application_nested_app.bmx")
+printf '%s\n' "$nested_interface_output"
+test "$(printf '%s' "$nested_interface_output" | grep -c 'Processing:common.bmx')" -eq 2
+test "$(printf '%s' "$nested_interface_output" | grep -c 'Processing:application_nested_app.bmx')" -eq 1
+"$nested_app_path"
+
+# Include remains textual: changing included content regenerates its owner.
+# The owner's exported contract is unchanged, so its separate importer does
+# not require semantic regeneration.
+include_root="$output_root/application-include"
+mkdir -p "$include_root"
+cp "$fixture_dir/application_include_app.bmx" "$fixture_dir/application_include_owner.bmx" "$include_root/"
+cp "$fixture_dir/application_include_value_v1.bmx" "$include_root/application_include_value.bmx"
+include_app_path="$include_root/application-include-app"
+"$bmk_path" makeapp -bcc2 -single -r -o "$include_app_path" "$include_root/application_include_app.bmx"
+test "$("$include_app_path" | tr -d '\r')" = "1"
+sleep 1
+cp "$fixture_dir/application_include_value_v2.bmx" "$include_root/application_include_value.bmx"
+include_update_output=$("$bmk_path" makeapp -bcc2 -single -r -o "$include_app_path" "$include_root/application_include_app.bmx")
+printf '%s\n' "$include_update_output"
+printf '%s' "$include_update_output" | grep -q 'Processing:application_include_owner.bmx'
+if printf '%s' "$include_update_output" | grep -q 'Processing:application_include_app.bmx'
+then
+	echo "implementation-only Include change invalidated the owner's importer" >&2
+	exit 1
+fi
+test "$("$include_app_path" | tr -d '\r')" = "2"
 
 incbin_root="$output_root/application-incbin"
 mkdir -p "$incbin_root"
@@ -665,14 +785,19 @@ grep -q 'MultiSourceCommonValue%()="bcc2manifesttest_multisource_MultiSourceComm
 multisource_archive=$(find "$module_test_root/multisource.mod" -maxdepth 1 -name 'multisource.release.*.a' -type f)
 nm "$multisource_archive" | grep -Eq ' T _?__bb_bcc2manifesttest_multisource_module_multisource_common$'
 
-# A content-stable edit to a quoted module unit must refresh its owner once,
-# then settle. Module manifests live beside their interfaces rather than the
-# generated root C file; consulting the latter path rebuilt the owner forever.
+# A content-stable edit to a quoted module unit rebuilds only that unit. Its
+# owner is invalidated only when the unit publishes a different interface or
+# generic-template contract, and the graph must settle immediately.
 sleep 1
 touch "$module_test_root/multisource.mod/module_multisource_common.bmx"
 multisource_refresh_output=$("$bmk_path" makemods -bcc2 -r bcc2manifesttest.multisource)
 printf '%s\n' "$multisource_refresh_output"
-printf '%s' "$multisource_refresh_output" | grep -q 'Processing:module_multisource.bmx'
+printf '%s' "$multisource_refresh_output" | grep -q 'Processing:module_multisource_common.bmx'
+if printf '%s' "$multisource_refresh_output" | grep -q 'Processing:multisource.bmx'
+then
+	echo "content-stable quoted module edit invalidated its owner" >&2
+	exit 1
+fi
 multisource_noop_output=$("$bmk_path" makemods -bcc2 -r bcc2manifesttest.multisource)
 if printf '%s' "$multisource_noop_output" | grep -Eq 'Processing:module_multisource|Compiling:module_multisource|Archiving:multisource'
 then
@@ -686,6 +811,18 @@ cp "$fixture_dir/module_multisource_app.bmx" "$multisource_app_source"
 "$bmk_path" makeapp -bcc2 -single -r -o "$multisource_app_path" "$multisource_app_source"
 multisource_result=$("$multisource_app_path" | tr -d '\r\n')
 test "$multisource_result" = "42"
+
+# A quoted module unit's interface is part of the module's transitive public
+# contract. Rebuilding the module and its application in one invocation must
+# invalidate both the module owner and an existing external consumer.
+sleep 1
+cp "$fixture_dir/module_multisource_common_v2.bmx" "$module_test_root/multisource.mod/module_multisource_common.bmx"
+multisource_interface_output=$("$bmk_path" makeapp -bcc2 -single -r -o "$multisource_app_path" "$multisource_app_source")
+printf '%s\n' "$multisource_interface_output"
+printf '%s' "$multisource_interface_output" | grep -q 'Processing:module_multisource_common.bmx'
+printf '%s' "$multisource_interface_output" | grep -q 'Processing:multisource.bmx'
+printf '%s' "$multisource_interface_output" | grep -q 'Processing:module_multisource_app.bmx'
+test "$("$multisource_app_path" | tr -d '\r\n')" = "42"
 
 # -quick remains accepted for MaxIDE and script compatibility, but canonical
 # builds must still scan quoted module source units for their dependencies.

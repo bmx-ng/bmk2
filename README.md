@@ -64,6 +64,20 @@ bmk cleanmods brl
 
 Run `bmk` without arguments for the complete command-line usage guide.
 
+## Incremental quoted source builds
+
+A quoted `Import "file.bmx"` is a separate generated source unit. An
+implementation-only edit rebuilds that unit's object and relinks the target,
+but does not regenerate its importers. If the compiler publishes a different
+interface or generic-template contract, bmk regenerates the complete transitive
+import chain. The same contract freshness crosses from quoted module sources to
+applications which import that module.
+
+`Include` remains textual: changing included source regenerates the including
+unit. `Incbin` content is tracked as an owned native build input, so changed
+data rebuilds its generated resource object and relinks the owning target
+without turning an unchanged quoted import into a semantic dependency change.
+
 ## Nested module namespaces
 
 bmk2 supports module names of arbitrary practical depth. Each directory ending
