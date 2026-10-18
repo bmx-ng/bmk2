@@ -2491,21 +2491,42 @@ Type TBuildManager Extends TCallback
 		arguments :+ [source.path]
 		Local work:TBcc2CompileWork = New TBcc2CompileWork
 		work.source = source
-		work.previousDependencyContract = Bcc2DependencyContract(source.bcc2Manifest)
+		work.previousDependencyContract = Bcc2DependencyContract(source)
 		work.arguments = arguments
 		work.finalBuildRoot = source.bcc2BuildRoot
 		work.stagingBuildRoot = stagingBuildRoot
 		Return work
 	End Method
 
-	Method Bcc2DependencyContract:String(manifest:TBcc2BuildManifest)
-		If Not manifest Then Return ""
+	Method Bcc2DependencyContract:String(source:TSourceFile)
+		If Not source Or Not source.bcc2Manifest Then Return ""
 		Local contract:TStringBuilder = New TStringBuilder(256)
-		For Local file:TBcc2BuildFile = EachIn manifest.files
+		For Local file:TBcc2BuildFile = EachIn source.bcc2Manifest.files
 			If file.role <> "interface" And file.role <> "generic-template" Then Continue
-			contract.Append(file.role).Append(" ").Append(file.relativePath).Append(" ").Append(file.contentDigest).Append("~n")
+			Local digest:String = file.contentDigest
+			If file.role = "interface" Then
+				Local path:String = TBcc2BuildManifestCodec.Resolve(source.bcc2BuildRoot, file.relativePath)
+				If FileType(path) = FILETYPE_FILE Then digest = Bcc2InterfaceContractDigest(path)
+			End If
+			contract.Append(file.role).Append(" ").Append(file.relativePath).Append(" ").Append(digest).Append("~n")
 		Next
 		Return contract.ToString()
+	End Method
+
+	' Compact interfaces retain declaration source coordinates for diagnostics.
+	' Moving an implementation line can change every later coordinate without
+	' changing anything an importer binds against, so exclude those annotations
+	' from the dependency contract while retaining them in the published file.
+	Method Bcc2InterfaceContractDigest:String(path:String)
+		Local content:String = LoadText(path).Replace("~r~n", "~n").Replace("~r", "~n")
+		Local lines:String[] = content.Split("~n")
+		Local normalized:TStringBuilder = New TStringBuilder(content.length)
+		For Local line:String = EachIn lines
+			Local sourceAnnotation:Int = line.FindLast(" '@source ")
+			If sourceAnnotation >= 0 Then line = line[..sourceAnnotation]
+			normalized.Append(line).Append("~n")
+		Next
+		Return TBcc2BuildManifestCodec.Digest(normalized.ToString())
 	End Method
 
 	Method InvalidateBcc2QuotedImporters(source:TSourceFile)
@@ -2793,7 +2814,7 @@ Type TBuildManager Extends TCallback
 		processor.DoCallback(source.path)
 		TBcc2BuildManifestCodec.Invalidate(source.bcc2ManifestPath)
 		source.bcc2Manifest = TBcc2BuildManifestCodec.Load(source.bcc2ManifestPath)
-		Local dependencyContractChanged:Int = Bcc2DependencyContract(source.bcc2Manifest) <> work.previousDependencyContract
+		Local dependencyContractChanged:Int = Bcc2DependencyContract(source) <> work.previousDependencyContract
 		If dependencyContractChanged Then
 			InvalidateBcc2QuotedImporters(source)
 		End If

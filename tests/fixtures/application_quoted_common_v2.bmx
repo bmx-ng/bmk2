@@ -1,5 +1,10 @@
 SuperStrict
 
 Function ApplicationQuotedBase:Int()
-	Return 39 + 1
+	Local value:Int = 39
+	Return value + 1
+End Function
+
+Function ApplicationQuotedSentinel:Int()
+	Return 7
 End Function
