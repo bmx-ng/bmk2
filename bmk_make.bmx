@@ -50,6 +50,7 @@ End Type
 Type TBcc2CompileWork
 	Field source:TSourceFile
 	Field arguments:String[]
+	Field previousDependencyContract:String
 	Field response:TBcc2EngineResponse
 	Field failure:Object
 	Field finalBuildRoot:String
@@ -1836,26 +1837,6 @@ Type TBuildManager Extends TCallback
 							Else
 								gen = CreateGenStage(s)
 							End If
-							' A quoted BlitzMax unit can publish canonical generic templates
-							' consumed by its importer. Until that unit has regenerated its
-							' interface/template bundle, conservatively rebuild the importer
-							' whenever the owned source changed; otherwise an old consumer
-							' specialization can remain linked after a body-only template edit.
-							Local ownerGenerationTime:Int = source.gen_time
-							If UseBcc2ForSource(source) Then
-								' The importer manifest is initialized after its dependency walk.
-								' During that walk its C/header timestamp may be older than its
-								' already-current generation stamp when publication was content-stable.
-								ownerGenerationTime = Max(ownerGenerationTime, FileTime(Bcc2ManifestPathForSource(source) + ".stamp"))
-								' Quoted units form one semantic application/module source. Preserve
-								' that effective time even when the child is already current so later
-								' manifest validation compares the same source identity.
-								If s.time > source.time Then source.time = s.time
-							End If
-							If UseBcc2ForSource(source) And (s.requiresBuild Or s.time > ownerGenerationTime) Then
-								TraceBuild("quoted-source owner freshness: owner=" + source.path + "; child=" + s.path + "; child-forced=" + s.requiresBuild + "; child-source=" + s.time + "; owner-generation=" + ownerGenerationTime)
-								source.SetRequiresBuild(True)
-							End If
 							source.deps.Insert(gen.GetSourcePath(), gen)
 	
 							If Not source.depsList Then
@@ -2510,10 +2491,48 @@ Type TBuildManager Extends TCallback
 		arguments :+ [source.path]
 		Local work:TBcc2CompileWork = New TBcc2CompileWork
 		work.source = source
+		work.previousDependencyContract = Bcc2DependencyContract(source.bcc2Manifest)
 		work.arguments = arguments
 		work.finalBuildRoot = source.bcc2BuildRoot
 		work.stagingBuildRoot = stagingBuildRoot
 		Return work
+	End Method
+
+	Method Bcc2DependencyContract:String(manifest:TBcc2BuildManifest)
+		If Not manifest Then Return ""
+		Local contract:TStringBuilder = New TStringBuilder(256)
+		For Local file:TBcc2BuildFile = EachIn manifest.files
+			If file.role <> "interface" And file.role <> "generic-template" Then Continue
+			contract.Append(file.role).Append(" ").Append(file.relativePath).Append(" ").Append(file.contentDigest).Append("~n")
+		Next
+		Return contract.ToString()
+	End Method
+
+	Method InvalidateBcc2QuotedImporters(source:TSourceFile)
+		If Not source Or Not source.obj_path Then Return
+		Local generatedPath:String = StripExt(source.obj_path) + ".c"
+		Local dependency:TSourceFile = TSourceFile(sources.ValueForKey(generatedPath))
+		If Not dependency Then Return
+		Local changedDependencies:TMap = New TMap
+		changedDependencies.Insert(dependency, dependency)
+		Local added:Int = True
+		While added
+			added = False
+			For Local importer:TSourceFile = EachIn sources.Values()
+				If Not importer Or importer = source Or importer.stage <> STAGE_GENERATE Or Not importer.depsList Then Continue
+				Local importerDependency:TSourceFile = TSourceFile(sources.ValueForKey(StripExt(importer.obj_path) + ".c"))
+				If Not importerDependency Or changedDependencies.Contains(importerDependency) Then Continue
+				For Local imported:TSourceFile = EachIn importer.depsList
+					If Not changedDependencies.Contains(imported) Then Continue
+					TraceBuild("bcc2 dependency contract changed: dependency=" + source.path + "; importer=" + importer.path)
+					importer.SetRequiresBuild(True)
+					importer.bcc2TransitiveContractChanged = True
+					changedDependencies.Insert(importerDependency, importerDependency)
+					added = True
+					Exit
+				Next
+			Next
+		Wend
 	End Method
 
 	Method LogBcc2EngineRequest(work:TBcc2CompileWork)
@@ -2770,9 +2789,24 @@ Type TBuildManager Extends TCallback
 	Method FinalizeBcc2CompileWork(work:TBcc2CompileWork, generatedFilesValidated:Int = False)
 		If Not work Or Not work.source Then Throw TBmkMessages.CompilerWorkResultMissing().Render()
 		Local source:TSourceFile = work.source
+		Local compatibilityRevision:Int = bcc2InterfaceFreshnessRevision
 		processor.DoCallback(source.path)
 		TBcc2BuildManifestCodec.Invalidate(source.bcc2ManifestPath)
 		source.bcc2Manifest = TBcc2BuildManifestCodec.Load(source.bcc2ManifestPath)
+		Local dependencyContractChanged:Int = Bcc2DependencyContract(source.bcc2Manifest) <> work.previousDependencyContract
+		If dependencyContractChanged Then
+			InvalidateBcc2QuotedImporters(source)
+		End If
+		' A module's compatibility interface re-exports quoted source imports. Its
+		' bytes can remain identical while an imported interface or template has
+		' changed, so publish closure freshness for external module consumers too.
+		If source.modid And (dependencyContractChanged Or source.bcc2TransitiveContractChanged) And bcc2InterfaceFreshnessRevision = compatibilityRevision And FileType(source.iface_path2) = FILETYPE_FILE Then
+			SetFileTimeNow(source.iface_path2)
+			source.iface_time = FileTime(source.iface_path2)
+			source.maxIfaceTimeCache = -1
+			bcc2InterfaceFreshnessRevision :+ 1
+		End If
+		source.bcc2TransitiveContractChanged = False
 		InvalidateBcc2SpecializationOwners()
 		' Parallel batches validate every staged file against its manifest before
 		' publishing anything. PublishCompilerOutput atomically renames those exact
