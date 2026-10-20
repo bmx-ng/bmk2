@@ -112,7 +112,7 @@ Function Esp32TargetArchitecture:String(idfTarget:String)
 	Select idfTarget.ToLower()
 		Case "esp32", "esp32s2", "esp32s3"
 			Return "xtensa"
-		Case "esp32c2", "esp32c3", "esp32c5", "esp32c6", "esp32h2", "esp32p4"
+		Case "esp32c2", "esp32c3", "esp32c5", "esp32c6", "esp32h2", "esp32p4", "esp32s31"
 			Return "riscv32"
 	End Select
 	Throw "Unknown ESP-IDF target architecture: " + idfTarget
