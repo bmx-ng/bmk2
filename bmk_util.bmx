@@ -2436,8 +2436,17 @@ Type TBootstrapConfig
 			CreateDir(ExtractDir(destPath), True)
 			
 			If Not FileType(srcPath) Throw TBmkMessages.BootstrapSourceMissing(srcPath).Render()
-			
-			CopyFile(srcPath, destPath)
+
+			' Incbin assembly must use the absolute resource path while this
+			' generation build runs, but the copied bootstrap is relocatable and
+			' its build scripts execute from src/<application>. Rebase SDK-owned
+			' resources to that directory without altering the generation cache.
+			Local normalizedPath:String = srcPath.Replace("\", "/").ToLower()
+			If normalizedPath.EndsWith(".incbin.c") Or normalizedPath.EndsWith(".incbin2.c") Then
+				SaveText(BootstrapPortableIncbinSource(LoadText(srcPath), BlitzMaxPath()), destPath)
+			Else
+				CopyFile(srcPath, destPath)
+			End If
 		Next
 	End Method
 	
@@ -2460,6 +2469,13 @@ Type TBootstrapConfig
 	End Method
 	
 End Type
+
+Function BootstrapPortableIncbinSource:String(content:String, sdkRoot:String)
+	Local escapedRoot:String = sdkRoot.Replace("\", "\\")
+	content = content.Replace(escapedRoot + "\\", "../../")
+	Local normalizedRoot:String = sdkRoot.Replace("\", "/")
+	Return content.Replace(normalizedRoot + "/", "../../")
+End Function
 
 Type TBootstrapAsset
 	Field assetType:String

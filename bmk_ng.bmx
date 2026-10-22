@@ -58,6 +58,12 @@ Type TBMK
 
 	Field buildLog:TList
 	Field sourceList:TList
+?threaded
+	' Standalone generation can record commands from archive worker threads.
+	' TList mutations must be serialized or commands may be lost from the
+	' generated bootstrap script.
+	Field standaloneLogLock:TMutex = TMutex.Create()
+?
 
 	Field _minGWBinPath:String
 	Field _minGWPath:String
@@ -1098,6 +1104,9 @@ Type TBMK
 	End Method
 
 	Method PushLog(cmd:String)
+?threaded
+		standaloneLogLock.Lock()
+?
 		If Not buildLog Then
 			buildLog = New TList
 		End If
@@ -1105,9 +1114,15 @@ Type TBMK
 		Local p:String = FixPaths(cmd)
 
 		buildLog.AddLast(p)
+?threaded
+		standaloneLogLock.Unlock()
+?
 	End Method
 
 	Method PushSource(src:String)
+?threaded
+		standaloneLogLock.Lock()
+?
 		If Not sourceList Then
 			sourceList = New TList
 		End If
@@ -1115,6 +1130,9 @@ Type TBMK
 		Local p:String = FixPaths(src)
 
 		sourceList.AddLast(p)
+?threaded
+		standaloneLogLock.Unlock()
+?
 	End Method
 
 	Method PushEcho(cmd:String)

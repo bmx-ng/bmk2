@@ -371,7 +371,13 @@ Function ConfigureMacOSPaths()
 	Local deploymentTarget:String = AppleDeploymentTarget("macOS", processor.AppSetting("macos.deployment.target"), processor.Option("macos.deployment.target", getenv_("MACOSX_DEPLOYMENT_TARGET")), minimum, maximum)
 
 	globals.SetVar("macos.deployment.target", deploymentTarget)
-	globals.SetVar(processor.BuildName("sysroot"), sdkPath)
+	' A bootstrap build script must resolve the destination machine's SDK. The
+	' discovered path is still used while generating an ordinary local build.
+	If opt_standalone And opt_boot Then
+		globals.SetVar(processor.BuildName("sysroot"), "~q$(xcrun --sdk macosx --show-sdk-path)~q")
+	Else
+		globals.SetVar(processor.BuildName("sysroot"), sdkPath)
+	End If
 	globals.SetOption("cc_opts", "osversion", "-mmacosx-version-min=" + deploymentTarget)
 	globals.SetOption("ld_opts", "osversion", "-mmacosx-version-min=" + deploymentTarget)
 End Function

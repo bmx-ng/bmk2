@@ -30,6 +30,11 @@ touch "$bootstrap_root/stale-bootstrap-marker"
 test ! -e "$bootstrap_root/stale-bootstrap-marker"
 test -f "$bootstrap_root/mod/blitzmax.mod/compiler.mod/build_output_publish.c"
 test -f "$bootstrap_root/mod/brl.mod/reflection.mod/reflection.h"
+test -f "$bootstrap_root/mod/image.mod/png.mod/libpng/arm/arm_init.c"
+test -f "$bootstrap_root/mod/text.mod/mpack.mod/glue.c"
+test -f "$bootstrap_root/mod/text.mod/mpack.mod/mpack/src/mpack/mpack-reader.c"
+test -f "$bootstrap_root/mod/text.mod/mxml.mod/mxml/mxml.h"
+test -f "$bootstrap_root/mod/text.mod/xml.mod/glue.c"
 
 case "$platform" in
 	win32)
@@ -49,6 +54,16 @@ case "$platform" in
 		bmk_script="$bootstrap_root/src/bmk/bmk.${suffix}"
 		grep -q '^set -e$' "$bcc_script"
 		grep -q '^set -e$' "$bmk_script"
+		if test "$platform" = "macos"
+		then
+			grep -Fq '$(xcrun --sdk macosx --show-sdk-path)' "$bcc_script"
+			grep -Fq '$(xcrun --sdk macosx --show-sdk-path)' "$bmk_script"
+			if grep -E -- '-isysroot[[:space:]]+/?(Applications|Users|Library)/' "$bcc_script" "$bmk_script"
+			then
+				echo "generation-machine macOS SDK path leaked into bootstrap script" >&2
+				exit 1
+			fi
+		fi
 		run_build_script "$bootstrap_root/src/bcc" "bcc.${suffix}"
 		run_build_script "$bootstrap_root/src/bmk" "bmk.${suffix}"
 		bcc_executable="$bootstrap_root/src/bcc/bcc"
@@ -60,6 +75,18 @@ if grep -E 'bmxbuild\.stamp\.bmk-tmp|\.bcc2key\.bmk-tmp' "$bcc_script" "$bmk_scr
 then
 	echo "generation-time bcc2 metadata command leaked into bootstrap script" >&2
 	exit 1
+fi
+
+if test "$platform" = "macos"
+then
+	bmk_incbin="$bootstrap_root/src/bmk/.bmx/bmk.bmx.release.${platform}.${arch}.incbin.c"
+	test -f "$bmk_incbin"
+	grep -Fq '../../src/bmk/macos.icns' "$bmk_incbin"
+	if grep -Fq "$sdk_root/" "$bmk_incbin"
+	then
+		echo "generation SDK path leaked into bootstrap Incbin source" >&2
+		exit 1
+	fi
 fi
 
 test -x "$bcc_executable"
