@@ -27,7 +27,7 @@ then
 	echo "deviceinfo unexpectedly accepted a desktop target" >&2
 	exit 1
 fi
-grep -q 'deviceinfo is available for android, pico and esp32 targets' "$desktop_log"
+grep -q 'deviceinfo is available for android, ios, pico and esp32 targets' "$desktop_log"
 
 source_log="$temporary/deviceinfo-source.log"
 if "$bmk" deviceinfo -l esp32 unwanted.bmx >"$source_log" 2>&1

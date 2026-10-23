@@ -7,6 +7,7 @@ Import "bmk_pico.bmx"
 Import "bmk_esp32.bmx"
 Import "bmk_deviceinfo_parse.bmx"
 Import "bmk_android_device.bmx"
+Import "bmk_ios_device.bmx"
 
 Function PrintEmbeddedDeviceInfoField(label:String, value:String)
 	If value.length Then Print "  " + label + ": " + value
@@ -210,11 +211,13 @@ Function ReportEmbeddedDeviceInfo(args:String[])
 	Select processor.Platform()
 		Case "android"
 			ReportAndroidDeviceInfo()
+		Case "ios"
+			ReportIOSDeviceInfo()
 		Case "esp32"
 			ReportEsp32DeviceInfo()
 		Case "pico"
 			ReportPicoDeviceInfo()
 		Default
-			CmdError "deviceinfo is available for android, pico and esp32 targets"
+			CmdError "deviceinfo is available for android, ios, pico and esp32 targets"
 	End Select
 End Function
