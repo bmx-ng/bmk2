@@ -741,6 +741,15 @@ Function MakeApplication( args$[],makelib:Int,compileOnly:Int = False )
 		If processor.Platform() = "android" Then
 			Local settings:TMap = ParseApplicationIniFile()
 			DeployAndroidApplication(opt_outfile + ".apk", AndroidApplicationId(settings), androidReleaseSigningConfigured)
+		Else If processor.Platform() = "ios" Then
+			Local settings:TMap = ParseApplicationIniFile()
+			Local appId:String = StripDir(StripExt(opt_outfile))
+			Local appPath:String = ExtractDir(opt_outfile)
+			Local projectName:String = iOSFixAppId(appId)
+			If Not projectName Then projectName = "BlitzMaxApp"
+			DeployIOSApplication(appPath + "/" + appId + ".xcodeproj", projectName, ..
+				IOSApplicationName(settings, appId), IOSApplicationIdentifier(settings, projectName), ..
+				appPath + "/DerivedData")
 		Else
 			Print "Executing:"+StripDir( opt_outfile )
 

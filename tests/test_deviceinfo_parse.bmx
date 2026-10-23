@@ -3,6 +3,7 @@ SuperStrict
 Framework BRL.StandardIO
 
 Import "../bmk_deviceinfo_parse.bmx"
+Import "../bmk_ios_device_parse.bmx"
 
 Function Check(condition:Int, message:String)
 	If Not condition Then Throw message
@@ -67,5 +68,31 @@ Local androidProperties:String = "[ro.product.manufacturer]: [Google]~n" + ..
 Check(AndroidDeviceProperty(androidProperties, "ro.product.model") = "Pixel 8", "Android properties are parsed")
 Check(AndroidDeviceProperty(androidProperties, "ro.build.version.release") = "16", "Android version is parsed")
 Check(Not AndroidDeviceProperty(androidProperties, "ro.hardware").length, "Missing Android properties are empty")
+
+Local iosJSON:String = "{" + ..
+	"~qresult~q:{~qdevices~q:[" + ..
+	"{~qidentifier~q:~qCORE-WIRED~q,~qproperties~q:{~qhardware~q:{~qmarketingName~q:~qiPad Air~q,~qplatform~q:~qiOS~q,~qproductType~q:~qiPad16,6~q,~qreality~q:~qphysical~q,~qserialNumber~q:~qSERIAL1~q,~qudid~q:~qUDID-WIRED~q},~qsoftware~q:{~qosVersionNumber~q:{~qstringValue~q:~q26.1~q},~qosBuildVersions~q:{~qbuildVersion~q:{~qname~q:~q23B85~q}}},~qstate~q:{~qbootState~q:~qbooted~q,~qdeveloperModeStatus~q:{~qenabled~q:{~qmode~q:1}},~qname~q:~qiPad Air m4~q},~qconnection~q:{~qpairingState~q:~qpaired~q,~qstate~q:~qdisconnected~q,~qtransportType~q:~qwired~q}}}," + ..
+	"{~qidentifier~q:~qCORE-WIFI~q,~qproperties~q:{~qhardware~q:{~qmarketingName~q:~qiPad~q,~qplatform~q:~qiOS~q,~qproductType~q:~qiPad13,18~q,~qreality~q:~qphysical~q,~qudid~q:~qUDID-WIFI~q},~qsoftware~q:{~qosVersionNumber~q:{~qstringValue~q:~q26.0~q}},~qstate~q:{~qbootState~q:~qbooted~q,~qdeveloperModeStatus~q:{~qdisabled~q:{}},~qname~q:~qWi-Fi iPad~q},~qconnection~q:{~qpairingState~q:~qpaired~q,~qstate~q:~qdisconnected~q,~qtransportType~q:~qlocalNetwork~q}}}," + ..
+	"{~qidentifier~q:~qSIMULATOR~q,~qproperties~q:{~qhardware~q:{~qplatform~q:~qiOS~q,~qreality~q:~qsimulated~q,~qudid~q:~qSIM-UDID~q},~qstate~q:{~qbootState~q:~qbooted~q,~qname~q:~qiPhone Simulator~q},~qconnection~q:{~qpairingState~q:~qpaired~q,~qtransportType~q:~qsameMachine~q}}}" + ..
+	"]}}"
+Local iosError:String
+Local iosDevices:TIOSDeviceInfo[] = ParseIOSDevices(iosJSON, iosError)
+Check(Not iosError.length, "CoreDevice JSON parses without an error")
+Check(iosDevices.length = 3, "CoreDevice devices are parsed")
+Check(iosDevices[0].name = "iPad Air m4", "iOS device name is parsed")
+Check(iosDevices[0].udid = "UDID-WIRED", "iOS UDID is parsed")
+Check(iosDevices[0].osVersion = "26.1", "iOS version is parsed")
+Check(iosDevices[0].osBuild = "23B85", "iOS build is parsed")
+Check(iosDevices[0].developerModeStatus = "enabled", "iOS Developer Mode is parsed")
+Check(iosDevices[0].IsAvailable(), "A paired, booted physical iOS device is available even when its tunnel is disconnected")
+Check(iosDevices[1].transportType = "localNetwork", "A Wi-Fi device transport is parsed")
+Check(iosDevices[1].developerModeStatus = "disabled", "Disabled iOS Developer Mode is parsed")
+Check(Not iosDevices[2].IsPhysicalIOS(), "Simulators are excluded from physical iOS devices")
+Check(IOSDeviceMatches(iosDevices[0], "ipad air M4"), "iOS devices can be selected by name without case sensitivity")
+Check(IOSDeviceMatches(iosDevices[0], "UDID-WIRED"), "iOS devices can be selected by UDID")
+
+Local invalidIOSError:String
+ParseIOSDevices("{", invalidIOSError)
+Check(invalidIOSError.length > 0, "Malformed CoreDevice JSON reports an error")
 
 Print "bmk device-info parser tests passed"

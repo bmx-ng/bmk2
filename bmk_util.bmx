@@ -1674,11 +1674,8 @@ Function PackageIOSApp( path$, lnk_files:TList, opts$ )
 	project = iOSProjectAppendFiles(project, uuid, fileMap)
 	If Not project Then Throw "Unable to populate generated iOS Xcode project from template"
 
-	Local appName:String = String(projectSettings.ValueForKey("app.name")).Trim()
-	If Not appName Then appName = appId
-	Local bundleIdentifier:String = String(projectSettings.ValueForKey("ios.bundle.identifier")).Trim()
-	If Not bundleIdentifier Then bundleIdentifier = String(projectSettings.ValueForKey("app.package")).Trim()
-	If Not bundleIdentifier Then bundleIdentifier = processor.Option("company_identifier", "com.blitzmax") + "." + projectName.ToLower()
+	Local appName:String = IOSApplicationName(projectSettings, appId)
+	Local bundleIdentifier:String = IOSApplicationIdentifier(projectSettings, projectName)
 	Local teamId:String = String(projectSettings.ValueForKey("ios.developer.team")).Trim()
 	If Not teamId Then teamId = processor.Option("ios.developer.team", processor.Option("developer_team_id", ""))
 	Local deploymentTarget:String = processor.Option("ios.deployment.target", "")
@@ -1718,6 +1715,19 @@ Function PackageIOSApp( path$, lnk_files:TList, opts$ )
 
 	iOSCopyDefaultFiles(templatePath, appPath, projectSettings)
 
+End Function
+
+Function IOSApplicationName:String(projectSettings:TMap, appId:String)
+	Local appName:String = String(projectSettings.ValueForKey("app.name")).Trim()
+	If Not appName Then appName = appId
+	Return appName
+End Function
+
+Function IOSApplicationIdentifier:String(projectSettings:TMap, projectName:String)
+	Local bundleIdentifier:String = String(projectSettings.ValueForKey("ios.bundle.identifier")).Trim()
+	If Not bundleIdentifier Then bundleIdentifier = String(projectSettings.ValueForKey("app.package")).Trim()
+	If Not bundleIdentifier Then bundleIdentifier = processor.Option("company_identifier", "com.blitzmax") + "." + projectName.ToLower()
+	Return bundleIdentifier
 End Function
 
 Function iOSProjectEscapedValue:String(value:String)

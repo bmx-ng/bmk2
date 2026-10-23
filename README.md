@@ -120,6 +120,32 @@ Build an SDL3 or Max2D application and generate its Xcode project with:
 bmk makeapp -a -l ios -g arm64 -o build/hello examples/ios/hello_sdl3.bmx
 ```
 
+Inspect the physical iPhones and iPads visible to Xcode, including devices
+available over Wi-Fi, with:
+
+```sh
+bmk deviceinfo -l ios
+```
+
+Add `-x` to build the generated project with Xcode, sign it, install it on a
+physical device, and launch it:
+
+```sh
+bmk makeapp -a -x -l ios -g arm64 -o build/hello examples/ios/hello_sdl3.bmx
+```
+
+When exactly one paired, booted physical device is visible, bmk selects it
+automatically. If Xcode can see more than one device over USB or Wi-Fi, select
+one persistently in `bin/custom.bmk`:
+
+```text
+addoption ios.device "DEVICE_UDID"
+```
+
+For a temporary selection, set `IOS_DEVICE`. A device name is also accepted,
+but its stable UDID is recommended. Simulators are not considered by this
+physical-device deployment path.
+
 For a Simulator build, select `iphonesimulator` first and then build the
 generated project without signing:
 
@@ -134,7 +160,7 @@ must have the matching iOS platform/runtime installed (Xcode Settings >
 Components) before it can compile the launch storyboard or run a Simulator.
 
 For a physical device, set a unique bundle identifier and development team in
-the application's `.settings` file, then select the connected device in Xcode:
+the application's `.settings` file:
 
 ```text
 app.name=Hello iOS
@@ -154,8 +180,9 @@ ios.developer.team=ABCDE12345
 
 `ios.bundle.identifier` can be used instead of `app.package` when Android and
 iOS need different identifiers. Machine-specific defaults such as the team,
-SDK, and deployment target can also be set as `ios.developer.team`, `ios.sdk`,
-and `ios.deployment.target` in `custom.bmk`. Application settings take
+SDK, deployment target, and device can also be set as `ios.developer.team`,
+`ios.sdk`, `ios.deployment.target`, and `ios.device` in `custom.bmk`. Application
+settings take
 precedence for project metadata. An explicit target must fall within the range
 supported by the selected SDK. `app.icon` must name a square PNG; bmk writes
 the 1024-pixel asset-catalog icon. The optional `ios.launch.image` setting names

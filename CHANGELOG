@@ -1,3 +1,9 @@
+## [4.09] - 2026-10-23
+### Added
+ - Physical iOS device inspection through `deviceinfo`, including USB and Wi-Fi transports.
+ - One-command iOS device build, signing, installation, and launch through `makeapp -x`.
+ - Persistent `ios.device` and temporary `IOS_DEVICE` selection when Xcode can see several devices.
+
 ## [4.08] - 2026-10-16
 ### Added
  - Per-application macOS signing identities and provisioning profiles through the shared application signing-properties sidecar.
