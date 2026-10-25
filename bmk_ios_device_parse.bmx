@@ -28,14 +28,14 @@ Type TIOSDeviceInfo
 	End Method
 End Type
 
-Function IOSJSONObject:TJSONObject(object:TJSONObject, key:String)
-	If Not object Then Return Null
-	Return TJSONObject(object.Get(key))
+Function IOSJSONObject:TJSONObject(obj:TJSONObject, key:String)
+	If Not obj Then Return Null
+	Return TJSONObject(obj.Get(key))
 End Function
 
-Function IOSJSONString:String(object:TJSONObject, key:String)
-	If Not object Then Return ""
-	Return object.GetString(key)
+Function IOSJSONString:String(obj:TJSONObject, key:String)
+	If Not obj Then Return ""
+	Return obj.GetString(key)
 End Function
 
 Function IOSFirstString:String(primary:String, fallback:String)
