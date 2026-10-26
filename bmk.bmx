@@ -33,6 +33,9 @@ End If
 If opt_clean And cmd.ToLower() <> "makeapp" Then
 	CmdError TBmkMessages.CommandCleanOnlyMakeapp().Render()
 End If
+If opt_source_root.length And cmd.ToLower() <> "makeapp" Then
+	CmdError TBmkMessages.OptionSourceRootRequiresMakeapp().Render()
+End If
 
 ' preload the default options
 processor.RunCommand("default_cc_opts", Null)
@@ -434,10 +437,12 @@ Function MakeApplication( args$[],makelib:Int,compileOnly:Int = False )
 	End If
 
 	If processor.Platform() = "pico" Then
+		If opt_source_root.length Then CmdError TBmkMessages.OptionSourceRootUnsupportedTarget(processor.Platform()).Render()
 		MakePicoApplication(Main, opt_outfile, compileOnly)
 		Return
 	End If
 	If processor.Platform() = "esp32" Then
+		If opt_source_root.length Then CmdError TBmkMessages.OptionSourceRootUnsupportedTarget(processor.Platform()).Render()
 		MakeEsp32Application(Main, opt_outfile, compileOnly)
 		Return
 	End If

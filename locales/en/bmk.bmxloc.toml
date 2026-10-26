@@ -1,7 +1,7 @@
 format = 1
 domain = "bmk"
 locale = "en"
-next_id = 245
+next_id = 249
 
 [[message]]
 id = 1
@@ -460,8 +460,8 @@ placeholders = [{ name = "path", type = "string" }]
 [[message]]
 id = 66
 name = "source.quoted_escapes_root"
-text = "BMKGEN048 quoted BlitzMax source escapes its bcc2 source root: {path}"
-description = "Reported when an imported source resolves outside its owning bcc2 source root."
+text = "BMKGEN048 quoted BlitzMax source is outside its source root: {path}. For application builds, use -source-root <directory> to select a root containing all imported sources."
+description = "Reported when an imported source resolves outside its owning source root."
 placeholders = [{ name = "path", type = "string" }]
 
 [[message]]
@@ -1709,3 +1709,31 @@ name = "pico.float_abi_invalid"
 text = "Invalid Pico floating-point ABI '{value}'; expected 'auto' or 'hard'"
 description = "Reported when the configured Pico floating-point calling convention is unsupported."
 placeholders = [{ name = "value", type = "string" }]
+
+[[message]]
+id = 245
+name = "option.source_root_requires_makeapp"
+text = "-source-root is supported only by makeapp"
+description = "Reported when an application source-root option is supplied to another operation."
+placeholders = []
+
+[[message]]
+id = 246
+name = "option.source_root_unsupported_target"
+text = "-source-root is not currently supported by the {platform} target"
+description = "Reported when an application source root is supplied for an embedded target with separate dependency discovery."
+placeholders = [{ name = "platform", type = "string" }]
+
+[[message]]
+id = 247
+name = "application.source_root_not_directory"
+text = "Application source root is not a directory: {path}"
+description = "Reported when the explicitly configured application source root is not an existing directory."
+placeholders = [{ name = "path", type = "string" }]
+
+[[message]]
+id = 248
+name = "application.source_outside_root"
+text = "Application source is outside the configured source root: {path}"
+description = "Reported when the main application source is not beneath the explicitly configured source root."
+placeholders = [{ name = "path", type = "string" }]

@@ -1,6 +1,6 @@
 format = 1
 domain = "bmk"
-next_id = 245
+next_id = 249
 
 [ids]
 "1" = "command.unknown_operation"
@@ -247,3 +247,7 @@ next_id = 245
 "242" = "pico.heap.psram_capacity_exceeded"
 "243" = "option.float_abi_requires_pico"
 "244" = "pico.float_abi_invalid"
+"245" = "option.source_root_requires_makeapp"
+"246" = "option.source_root_unsupported_target"
+"247" = "application.source_root_not_directory"
+"248" = "application.source_outside_root"

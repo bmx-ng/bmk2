@@ -500,6 +500,7 @@ Type TBuildManager Extends TCallback
 	
 	Field framework_mods:TList
 	Field app_iface:String
+	Field applicationSourceRoot:String
 	Field dependencySourceCount:Int
 	Field dependencyModuleImportCount:Int
 	Field dependencyFileImportCount:Int
@@ -818,6 +819,18 @@ Type TBuildManager Extends TCallback
 			Return
 		End If
 
+		applicationSourceRoot = RealPath(ExtractDir(main_path))
+		If opt_source_root.length Then
+			applicationSourceRoot = RealPath(opt_source_root)
+			If FileType(applicationSourceRoot) <> FILETYPE_DIR Then
+				Throw TBmkMessages.ApplicationSourceRootNotDirectory(applicationSourceRoot).Render()
+			End If
+		End If
+		source.bcc2SourceUnitPath = Bcc2SourceUnitPathFromRoot(applicationSourceRoot, source.path)
+		If Not source.bcc2SourceUnitPath.length Then
+			Throw TBmkMessages.ApplicationSourceOutsideRoot(source.path).Render()
+		End If
+
 		Local build_path:String = ExtractDir(main_path) + "/.bmx"
 
 		Local appType:String
@@ -835,10 +848,10 @@ Type TBuildManager Extends TCallback
 	
 		Local cc_opts:String
 		' bcc2 emits quoted BlitzMax imports as separate C units whose headers
-		' remain beneath the application's .bmx directory.  Give every
-		' application-owned unit the source root so <.bmx/...> sibling includes
-		' resolve just as module-owned generated headers do.
-		source.AddIncludePath(" -I" + CQuote(ExtractDir(main_path)))
+		' remain in per-directory .bmx caches beneath the source root. Give every
+		' application-owned unit that root so sibling header includes resolve just
+		' as module-owned generated headers do.
+		source.AddIncludePath(" -I" + CQuote(applicationSourceRoot))
 		source.AddIncludePath(" -I" + CQuote(ModulePath("")))
 		If opt_release And Not opt_gdbdebug Then
 			cc_opts :+ " -DNDEBUG"
@@ -1790,9 +1803,14 @@ Type TBuildManager Extends TCallback
 								s.bcc2OwnedSource = True
 								s.bcc2ApplicationSource = Not isMod
 								s.bcc2SourceModuleName = sourceModuleName.ToLower()
-								Local sourceUnitPath:String = Bcc2SourceUnitPath(source.bcc2SourceUnitPath, f)
-				If Not sourceUnitPath.length Then Throw TBmkMessages.SourceQuotedEscapesRoot(f).Render()
-				If s.bcc2SourceUnitPath.length And s.bcc2SourceUnitPath <> sourceUnitPath Then Throw TBmkMessages.SourceQuotedUnitPathConflict(s.path).Render()
+								Local sourceUnitPath:String
+								If isMod Or Not opt_source_root.length Then
+									sourceUnitPath = Bcc2SourceUnitPath(source.bcc2SourceUnitPath, f)
+								Else
+									sourceUnitPath = Bcc2SourceUnitPathFromRoot(applicationSourceRoot, s.path)
+								End If
+								If Not sourceUnitPath.length Then Throw TBmkMessages.SourceQuotedEscapesRoot(f).Render()
+								If s.bcc2SourceUnitPath.length And s.bcc2SourceUnitPath <> sourceUnitPath Then Throw TBmkMessages.SourceQuotedUnitPathConflict(s.path).Render()
 								s.bcc2SourceUnitPath = sourceUnitPath
 							End If
 							s.modimports.AddLast("brl.blitz")
@@ -2472,7 +2490,7 @@ Type TBuildManager Extends TCallback
 		Local sourceModuleName:String = source.modid
 		If Not sourceModuleName.length Then sourceModuleName = source.bcc2SourceModuleName
 		If sourceModuleName.length And (source.modid Or source.bcc2OwnedSource) Then arguments :+ ["--module", sourceModuleName]
-		If source.bcc2SourceUnitPath.length And (source.modid Or source.bcc2OwnedSource) Then arguments :+ ["--source-unit", source.bcc2SourceUnitPath]
+		If source.bcc2SourceUnitPath.length And (source.modid Or source.bcc2OwnedSource Or opt_source_root.length) Then arguments :+ ["--source-unit", source.bcc2SourceUnitPath]
 		Local applicationCompilation:Int = Not source.modid And (Not source.bcc2OwnedSource Or source.bcc2ApplicationSource)
 		If applicationCompilation And source.bcc2SourceModuleName.length Then
 			arguments :+ ["--application-identity", source.bcc2SourceModuleName]
@@ -3113,6 +3131,7 @@ Type TBuildManager Extends TCallback
 
 	Method Bcc2GenerationStamp:String(source:TSourceFile)
 		Local configuration:String = processor.Platform() + "~n" + Bcc2GenerationFingerprintOptions(source.bcc_opts)
+		If opt_source_root.length And Not source.modid And source.bcc2SourceUnitPath.length Then configuration :+ "~nsource-unit " + source.bcc2SourceUnitPath
 		If source.moduleConfig And source.moduleConfig.active Then configuration :+ "~n" + source.moduleConfig.fingerprint
 		Return "BMXGEN 1~nsource " + source.time + "~noptions " + TBcc2BuildManifestCodec.Digest(configuration) + "~n"
 	End Method

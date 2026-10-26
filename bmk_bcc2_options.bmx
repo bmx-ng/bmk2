@@ -100,6 +100,34 @@ Function Bcc2SourceUnitPath:String(parentUnitPath:String, importedPath:String)
 	Return result
 End Function
 
+' Returns a canonical source-unit path for a physical source beneath an
+' application source root.  The empty result means the source is outside the
+' root (or is the root itself), so callers can retain the normal escape error.
+Function Bcc2SourceUnitPathFromRoot:String(sourceRootPath:String, sourcePath:String)
+	Local rootPath:String = RealPath(sourceRootPath).Replace("\\", "/")
+	Local resolvedSourcePath:String = RealPath(sourcePath).Replace("\\", "/")
+	While rootPath.length > 1 And rootPath.EndsWith("/")
+		rootPath = rootPath[..rootPath.length - 1]
+	Wend
+	Local comparisonRoot:String = rootPath
+	Local comparisonSourcePath:String = resolvedSourcePath
+?win32
+	comparisonRoot = comparisonRoot.ToLower()
+	comparisonSourcePath = comparisonSourcePath.ToLower()
+?
+	Local relativePath:String
+	If comparisonRoot = "/" Then
+		If Not comparisonSourcePath.StartsWith("/") Then Return ""
+		relativePath = resolvedSourcePath[1..]
+	Else
+		Local prefix:String = comparisonRoot + "/"
+		If Not comparisonSourcePath.StartsWith(prefix) Then Return ""
+		relativePath = resolvedSourcePath[rootPath.length + 1..]
+	End If
+	If Not relativePath.length Then Return ""
+	Return relativePath.ToLower()
+End Function
+
 Function Bcc2SourceUnitIdentity:String(sourceUnitPath:String)
 	Local normalized:String = StripExt(sourceUnitPath.Replace("\\", "/").ToLower())
 	If normalized.Find("/") < 0 Then Return normalized

@@ -249,6 +249,10 @@ Const BMK_MSG_PICO_HEAP_PSRAM_FIXED_SIZE_REQUIRED:Int = 241
 Const BMK_MSG_PICO_HEAP_PSRAM_CAPACITY_EXCEEDED:Int = 242
 Const BMK_MSG_OPTION_FLOAT_ABI_REQUIRES_PICO:Int = 243
 Const BMK_MSG_PICO_FLOAT_ABI_INVALID:Int = 244
+Const BMK_MSG_OPTION_SOURCE_ROOT_REQUIRES_MAKEAPP:Int = 245
+Const BMK_MSG_OPTION_SOURCE_ROOT_UNSUPPORTED_TARGET:Int = 246
+Const BMK_MSG_APPLICATION_SOURCE_ROOT_NOT_DIRECTORY:Int = 247
+Const BMK_MSG_APPLICATION_SOURCE_OUTSIDE_ROOT:Int = 248
 
 Type TBmkMessages
 	Function CommandUnknownOperation:TLocalisedMessage(operation:String)
@@ -447,7 +451,7 @@ Type TBmkMessages
 		Return TLocalisedMessage.Create("bmk", BMK_MSG_SOURCE_QUOTED_MODULE_OWNER_CONFLICT, "BMKGEN040 quoted BlitzMax source has conflicting bcc2 module owners: {path}", [TMessageArg.Create("path", path)])
 	End Function
 	Function SourceQuotedEscapesRoot:TLocalisedMessage(path:String)
-		Return TLocalisedMessage.Create("bmk", BMK_MSG_SOURCE_QUOTED_ESCAPES_ROOT, "BMKGEN048 quoted BlitzMax source escapes its bcc2 source root: {path}", [TMessageArg.Create("path", path)])
+		Return TLocalisedMessage.Create("bmk", BMK_MSG_SOURCE_QUOTED_ESCAPES_ROOT, "BMKGEN048 quoted BlitzMax source is outside its source root: {path}. For application builds, use -source-root <directory> to select a root containing all imported sources.", [TMessageArg.Create("path", path)])
 	End Function
 	Function SourceQuotedUnitPathConflict:TLocalisedMessage(path:String)
 		Return TLocalisedMessage.Create("bmk", BMK_MSG_SOURCE_QUOTED_UNIT_PATH_CONFLICT, "BMKGEN049 quoted BlitzMax source has conflicting bcc2 unit paths: {path}", [TMessageArg.Create("path", path)])
@@ -982,5 +986,17 @@ Type TBmkMessages
 	End Function
 	Function PicoFloatAbiInvalid:TLocalisedMessage(value:String)
 		Return TLocalisedMessage.Create("bmk", BMK_MSG_PICO_FLOAT_ABI_INVALID, "Invalid Pico floating-point ABI '{value}'; expected 'auto' or 'hard'", [TMessageArg.Create("value", value)])
+	End Function
+	Function OptionSourceRootRequiresMakeapp:TLocalisedMessage()
+		Return TLocalisedMessage.Create("bmk", BMK_MSG_OPTION_SOURCE_ROOT_REQUIRES_MAKEAPP, "-source-root is supported only by makeapp")
+	End Function
+	Function OptionSourceRootUnsupportedTarget:TLocalisedMessage(platform:String)
+		Return TLocalisedMessage.Create("bmk", BMK_MSG_OPTION_SOURCE_ROOT_UNSUPPORTED_TARGET, "-source-root is not currently supported by the {platform} target", [TMessageArg.Create("platform", platform)])
+	End Function
+	Function ApplicationSourceRootNotDirectory:TLocalisedMessage(path:String)
+		Return TLocalisedMessage.Create("bmk", BMK_MSG_APPLICATION_SOURCE_ROOT_NOT_DIRECTORY, "Application source root is not a directory: {path}", [TMessageArg.Create("path", path)])
+	End Function
+	Function ApplicationSourceOutsideRoot:TLocalisedMessage(path:String)
+		Return TLocalisedMessage.Create("bmk", BMK_MSG_APPLICATION_SOURCE_OUTSIDE_ROOT, "Application source is outside the configured source root: {path}", [TMessageArg.Create("path", path)])
 	End Function
 End Type

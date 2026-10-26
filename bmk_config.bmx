@@ -18,6 +18,7 @@ Global opt_arch$
 Global opt_arch_set=False
 Global opt_outfile$
 Global opt_infile:String
+Global opt_source_root:String
 Global opt_framework$
 Global opt_apptype$="console"
 Global opt_debug=False
@@ -223,6 +224,10 @@ Function ParseConfigArgs$[]( args$[], legacyMax:Int = False )
 			n:+1
 			If n=args.length MissingArg(argv)
 			opt_outfile=args[n]
+		Case "source-root"
+			n:+1
+			If n=args.length MissingArg(argv)
+			opt_source_root=args[n]
 		Case "f", "framework"
 			n:+1
 			If n=args.length MissingArg(argv)
@@ -414,6 +419,11 @@ Function Usage:String(fullUsage:Int = False)
 		s:+ "~n~n"
 		s:+ "~t-clean~n"
 		s:+ "~t~tRemove compiler-owned application caches before dependency discovery. (makeapp only)."
+		s:+ "~n~n"
+		s:+ "~t-source-root <directory>~n"
+		s:+ "~t~tSets the source root for quoted BlitzMax imports in an application build.~n"
+		s:+ "~t~tThe main source and every quoted BlitzMax source must be beneath this directory.~n"
+		s:+ "~t~tBy default, the directory containing the main source is used. (makeapp only)."
 		s:+ "~n~n"
 		s:+ "~t-b <custom appstub module>~n"
 		s:+ "~t~tBuilds an app using a custom appstub (i.e. not BRL.Appstub).~n"

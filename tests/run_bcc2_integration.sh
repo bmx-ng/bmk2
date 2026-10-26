@@ -96,6 +96,53 @@ then
 	exit 1
 fi
 
+# Application sources are confined to the main source directory by default.
+# An explicit source root may safely widen that boundary without allowing
+# source-unit or generated-header paths to retain parent traversal components.
+source_root_case="$output_root/source-root"
+cp -R "$fixture_dir/source_root" "$source_root_case"
+source_root_app="$source_root_case/application"
+source_root_default_log="$source_root_case/default-root.log"
+if "$canonical_sdk/bin/bmk" makeapp -single -r -o "$source_root_app" "$source_root_case/app/main.bmx" >"$source_root_default_log" 2>&1
+then
+	echo "application source unexpectedly escaped the default source root" >&2
+	exit 1
+fi
+grep -q 'BMKGEN048 quoted BlitzMax source is outside its source root' "$source_root_default_log"
+grep -q -- '-source-root <directory>' "$source_root_default_log"
+
+"$canonical_sdk/bin/bmk" makeapp -source-root "$source_root_case" -single -r -o "$source_root_app" "$source_root_case/app/main.bmx"
+test "$("$source_root_app" | tr -d '\r\n')" = "source-root-v1"
+source_root_stable_output=$("$canonical_sdk/bin/bmk" makeapp -source-root "$source_root_case" -single -r -o "$source_root_app" "$source_root_case/app/main.bmx")
+if printf '%s' "$source_root_stable_output" | grep -Eq 'Processing:|Compiling:|Linking:'
+then
+	echo "configured application source root did not converge to a no-op build" >&2
+	exit 1
+fi
+
+source_root_debug_app="$source_root_case/application-debug"
+"$canonical_sdk/bin/bmk" makeapp -source-root "$source_root_case" -single -gdb -o "$source_root_debug_app" "$source_root_case/app/main.bmx"
+test "$("$source_root_debug_app" | tr -d '\r\n')" = "source-root-v1"
+
+sleep 1
+cp "$fixture_dir/source_root_provider_v2.bmx" "$source_root_case/shared/provider.bmx"
+source_root_incremental_output=$("$canonical_sdk/bin/bmk" makeapp -source-root "$source_root_case" -single -r -o "$source_root_app" "$source_root_case/app/main.bmx")
+printf '%s' "$source_root_incremental_output" | grep -q 'Processing:provider.bmx'
+if printf '%s' "$source_root_incremental_output" | grep -q 'Processing:main.bmx'
+then
+	echo "an implementation-only external source change rebuilt the application source" >&2
+	exit 1
+fi
+test "$("$source_root_app" | tr -d '\r\n')" = "source-root-v2"
+
+source_root_outside_log="$source_root_case/main-outside-root.log"
+if "$canonical_sdk/bin/bmk" makeapp -source-root "$source_root_case/shared" -single -r -o "$source_root_app" "$source_root_case/app/main.bmx" >"$source_root_outside_log" 2>&1
+then
+	echo "main application source unexpectedly escaped the configured source root" >&2
+	exit 1
+fi
+grep -q 'Application source is outside the configured source root' "$source_root_outside_log"
+
 # A forced build must recover from valid manifests in separate application
 # output roots that publish different C for the same cache key. This models a
 # compiler upgrade interrupted after only part of a large application graph was
