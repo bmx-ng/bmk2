@@ -1,6 +1,6 @@
 format = 1
 domain = "bmk"
-locale = "de-de"
+locale = "de"
 
 [[message]]
 id = 1
