@@ -101,6 +101,11 @@ Type TSourceFile
 	Field includes:TList=New TList
 	Field incbins:TList=New TList
 	Field hashes:TMap=New TMap
+	' bcc2 compiles an Include graph as one unit, so all of its Incbins share
+	' one ordered packaging unit owned by the root source.
+	Field bcc2IncbinNames:TList=New TList
+	Field bcc2IncbinPaths:TList=New TList
+	Field bcc2IncbinUnit:TSourceFile
 	
 	Field pragmas:TList = New TList
 	

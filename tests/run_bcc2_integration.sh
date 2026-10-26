@@ -457,6 +457,42 @@ then
 	exit 1
 fi
 
+include_incbin_root="$output_root/application-incbin-include"
+cp -R "$fixture_dir/incbin_include" "$include_incbin_root"
+include_incbin_app="$include_incbin_root/included-incbin-app"
+"$bmk_path" makeapp -bcc2 -single -r -o "$include_incbin_app" "$include_incbin_root/main.bmx"
+test "$("$include_incbin_app" | tr -d '\r')" = "bcc included incbin application ok"
+include_incbin_c=$(find "$include_incbin_root/.bmx" -name 'main*.incbin2.c' -type f)
+test -f "$include_incbin_c"
+include_incbin_names=$(sed -n 's|// FILE : "\([^"]*\)".*|\1|p' "$include_incbin_c" | tr '\n' ' ')
+test "$include_incbin_names" = "root.dat child.dat grandchild.dat "
+test "$(grep -c 'INCBIN(_bb_main_' "$include_incbin_c")" -eq 3
+include_incbin_noop_output=$("$bmk_path" makeapp -bcc2 -single -r -o "$include_incbin_app" "$include_incbin_root/main.bmx")
+if printf '%s' "$include_incbin_noop_output" | grep -Eq 'Processing:|Compiling:|Linking:'
+then
+	echo "unchanged included Incbin application was not a no-op" >&2
+	exit 1
+fi
+sleep 1
+printf 'changed\n' >> "$include_incbin_root/parts/child.dat"
+include_incbin_change_output=$("$bmk_path" makeapp -bcc2 -single -r -o "$include_incbin_app" "$include_incbin_root/main.bmx")
+printf '%s' "$include_incbin_change_output" | grep -q 'incbin2.c'
+printf '%s' "$include_incbin_change_output" | grep -q 'Linking:included-incbin-app'
+if printf '%s' "$include_incbin_change_output" | grep -q 'Processing:main.bmx'
+then
+	echo "included Incbin content change unnecessarily regenerated semantic C" >&2
+	exit 1
+fi
+test "$("$include_incbin_app" | tr -d '\r')" = "bcc included incbin application ok"
+
+include_incbin_debug_root="$output_root/application-incbin-include-debug"
+cp -R "$fixture_dir/incbin_include" "$include_incbin_debug_root"
+include_incbin_debug_app="$include_incbin_debug_root/included-incbin-debug-app"
+"$bmk_path" makeapp -bcc2 -single -gdb -o "$include_incbin_debug_app" "$include_incbin_debug_root/main.bmx"
+test "$("$include_incbin_debug_app" | tr -d '\r')" = "bcc included incbin application ok"
+include_incbin_debug_c=$(find "$include_incbin_debug_root/.bmx" -name 'main*.incbin2.c' -type f)
+test "$(grep -c 'INCBIN(_bb_main_' "$include_incbin_debug_c")" -eq 3
+
 object_count=$(find "$output_root/.bmx/.generics/objects" -name '*.o' -type f | wc -l | tr -d ' ')
 test "$object_count" -eq 92
 
