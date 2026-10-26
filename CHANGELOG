@@ -1,3 +1,10 @@
+## [4.10] - 2026-10-26
+### Added
+ - Optional `-source-root <directory>` support for application builds whose quoted BlitzMax source imports intentionally extend beyond the application's directory.
+ - Source-root coverage for release, debug, generic, and incremental application builds.
+### Changed
+ - The BMKGEN048 diagnostic now identifies `-source-root` as the explicit way to select a root containing imported application sources.
+
 ## [4.09] - 2026-10-23
 ### Added
  - Physical iOS device inspection through `deviceinfo`, including USB and Wi-Fi transports.
