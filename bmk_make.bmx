@@ -1723,6 +1723,8 @@ Type TBuildManager Extends TCallback
 	
 	Method CalculateDependencies(source:TSourceFile, isMod:Int = False, rebuildImports:Int = False, isInclude:Int = False, parentSource:TSourceFile = Null)
 		If source And Not source.processed Then
+			Local dependencyRoot:Int = Not parentSource
+			If Not parentSource Then parentSource = source
 			source.processed = True
 			dependencySourceCount :+ 1
 			dependencyModuleImportCount :+ source.modimports.Count()
@@ -1751,7 +1753,18 @@ Type TBuildManager Extends TCallback
 
 			Local ib:TSourceFile
 			If processor.BCCVersion() <> "BlitzMax" And Not source.incbins.IsEmpty() Then
-				If source.owner_path Then
+				If UseBcc2ForSource(parentSource) Then
+					For Local logicalPath:String = EachIn source.incbins
+						parentSource.bcc2IncbinNames.AddLast(logicalPath)
+						parentSource.bcc2IncbinPaths.AddLast(CheckPath(ExtractDir(source.path), logicalPath))
+					Next
+					If source.owner_path Then
+						ib = CreateIncBin(source, source.owner_path, False)
+					Else
+						ib = CreateIncBin(source, source.path, False)
+					End If
+					parentSource.bcc2IncbinUnit = ib
+				Else If source.owner_path Then
 					ib = CreateIncBin(source, source.owner_path)
 				Else
 					ib = CreateIncBin(source, source.path)
@@ -1922,10 +1935,6 @@ Type TBuildManager Extends TCallback
 				End If
 			Next
 			
-			If Not parentSource Then
-				parentSource = source
-			End If
-
 			For Local f:String = EachIn source.includes
 				Local path:String = CheckPath(ExtractDir(source.path), f)
 
@@ -1981,7 +1990,7 @@ Type TBuildManager Extends TCallback
 			Next
 			
 			' incbin file
-			If ib Then
+			If ib And Not UseBcc2ForSource(parentSource) Then
 				Local requiresBuild:Int = False
 				' missing source.. generate and compile
 				If Not ib.time Then
@@ -2004,7 +2013,11 @@ Type TBuildManager Extends TCallback
 					parentSource.time = ib.time
 				End If
 			End If
-						
+
+			If dependencyRoot And UseBcc2ForSource(parentSource) And parentSource.bcc2IncbinUnit Then
+				FinalizeBcc2IncBin(parentSource)
+			End If
+
 			If source.depsList Then
 				For Local s:TSourceFile = EachIn source.depsList
 					If Not Match(s.ext, "bmx") Then
@@ -3032,7 +3045,7 @@ Type TBuildManager Extends TCallback
 		bcc2SpecializationCompilationMillis :+ MilliSecs() - compilationStarted
 	End Method
 
-	Method CreateIncBin:TSourceFile(source:TSourceFile, sourcePath:String)
+	Method CreateIncBin:TSourceFile(source:TSourceFile, sourcePath:String, generateBcc2:Int = True)
 	
 		Local path:String = StripDir(sourcePath) + opt_configmung + processor.CPU() + NativeTargetCacheSuffix()
 		If opt_standalone Or (processor.CPU() = "x86" And processor.Platform() = "win32") Then
@@ -3063,10 +3076,12 @@ Type TBuildManager Extends TCallback
 		' Production bcc writes this resource-packaging unit as a side effect of
 		' source generation. bcc2 deliberately emits only the semantic Incbin
 		' registration and leaves packaging/freshness ownership with bmk.
-		If UseBcc2ForSource(source) Then
+		If generateBcc2 And UseBcc2ForSource(source) Then
 			GenerateBcc2IncBin(source, sourcePath, ibPath)
 		End If
 
+		ib.incbins.Clear()
+		ib.hashes.Clear()
 		GetIncBinFileList(ib)
 		
 		ib.time = FileTime(ib.path)
@@ -3081,7 +3096,23 @@ Type TBuildManager Extends TCallback
 		Return ib
 	End Method
 
-	Method GenerateBcc2IncBin(source:TSourceFile, sourcePath:String, incbinPath:String)
+	Method FinalizeBcc2IncBin(source:TSourceFile)
+		Local ib:TSourceFile = source.bcc2IncbinUnit
+		If Not ib Then Return
+
+		Local declarationsChanged:Int = IncbinsOrderedDifference(source.bcc2IncbinNames, ib.incbins)
+		Local packagingChanged:Int = GenerateBcc2IncBin(source, source.path, ib.path)
+		If packagingChanged Then ib.SetRequiresBuild(True)
+		If declarationsChanged Then source.SetRequiresBuild(True)
+
+		ib.incbins.Clear()
+		ib.hashes.Clear()
+		GetIncBinFileList(ib)
+		ib.time = FileTime(ib.path)
+		ib.obj_time = FileTime(ib.obj_path)
+	End Method
+
+	Method GenerateBcc2IncBin:Int(source:TSourceFile, sourcePath:String, incbinPath:String)
 		Local sourceModuleName:String = source.modid
 		If Not sourceModuleName.length Then sourceModuleName = source.bcc2SourceModuleName
 
@@ -3100,13 +3131,10 @@ Type TBuildManager Extends TCallback
 		output :+ "#include ~qbrl.mod/blitz.mod/incbin/incbin.h~q~n"
 
 		Local resources:String
-		Local ordinal:Int
-		For Local logicalPath:String = EachIn source.incbins
-			ordinal :+ 1
-			Local resolvedPath:String = CheckPath(ExtractDir(source.path), logicalPath)
-			If FileType(resolvedPath) <> FILETYPE_FILE And source.owner_path.length Then
-				resolvedPath = CheckPath(ExtractDir(source.owner_path), logicalPath)
-			End If
+		For Local index:Int = 0 Until source.bcc2IncbinNames.Count()
+			Local ordinal:Int = index + 1
+			Local logicalPath:String = String(source.bcc2IncbinNames.ValueAtIndex(index))
+			Local resolvedPath:String = String(source.bcc2IncbinPaths.ValueAtIndex(index))
 			If FileType(resolvedPath) <> FILETYPE_FILE Then
 				Throw TBmkMessages.IncbinResourceNotFound(logicalPath).Render()
 			End If
@@ -3126,7 +3154,9 @@ Type TBuildManager Extends TCallback
 			If Not SaveText(output, incbinPath) Then
 				Throw TBmkMessages.IncbinPackagingUnitWriteFailed(incbinPath).Render()
 			End If
+			Return True
 		End If
+		Return False
 	End Method
 
 	Method Bcc2GenerationStamp:String(source:TSourceFile)
@@ -3176,6 +3206,14 @@ Type TBuildManager Extends TCallback
 			End If
 		Next
 		
+		Return False
+	End Method
+
+	Method IncbinsOrderedDifference:Int(ib1:TList, ib2:TList)
+		If ib1.Count() <> ib2.Count() Then Return True
+		For Local index:Int = 0 Until ib1.Count()
+			If String(ib1.ValueAtIndex(index)) <> String(ib2.ValueAtIndex(index)) Then Return True
+		Next
 		Return False
 	End Method
 	

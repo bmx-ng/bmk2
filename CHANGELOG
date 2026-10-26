@@ -4,6 +4,8 @@
  - Source-root coverage for release, debug, generic, and incremental application builds.
 ### Changed
  - The BMKGEN048 diagnostic now identifies `-source-root` as the explicit way to select a root containing imported application sources.
+### Fixed
+ - Incbin resources declared by included sources are packaged together with the root source's resources instead of overwriting the shared generated unit.
 
 ## [4.09] - 2026-10-23
 ### Added
