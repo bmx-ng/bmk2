@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>@BLITZMAX_APP_TITLE@</title>
+  <style>
+    body { margin: 0; padding: 1rem; background: #111; color: #eee; font: 14px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; }
+    pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .error { color: #ff9b9b; }
+  </style>
+</head>
+<body>
+  <pre id="output" role="log" aria-live="polite"></pre>
+  <script>
+    var output = document.getElementById('output');
+    function writeOutput(text, isError) {
+      var line = document.createElement('span');
+      if (isError) line.className = 'error';
+      line.textContent = String(text) + '\n';
+      output.appendChild(line);
+      window.scrollTo(0, document.body.scrollHeight);
+    }
+    var Module = {
+      print: function (text) {
+        console.log(text);
+        writeOutput(text, false);
+      },
+      printErr: function (text) {
+        console.error(text);
+        writeOutput(text, true);
+      }
+    };
+  </script>
+  {{{ SCRIPT }}}
+</body>
+</html>

@@ -12,6 +12,7 @@ Import "bmk_deviceinfo.bmx"
 Import "bmk_zap.bmx"
 
 Incbin "emscripten_shell.html"
+Incbin "emscripten_console_shell.html"
 
 ?MacOS
 Import BRL.RamStream
@@ -882,11 +883,17 @@ Function ConfigureEmscriptenShell(sourcePath:String)
 		If FileType(shellDirectory) <> FILETYPE_DIR And Not CreateDir(shellDirectory, True) Then
 			Throw "Unable to create Emscripten shell directory: " + shellDirectory
 		End If
-		shellPath = shellDirectory + "/" + StripDir(StripExt(opt_outfile)) + ".emscripten_shell.html"
+		Local shellType:String = "console"
+		Local templatePath:String = "incbin::emscripten_console_shell.html"
+		If opt_apptype = "gui" Then
+			shellType = "gui"
+			templatePath = "incbin::emscripten_shell.html"
+		End If
+		shellPath = shellDirectory + "/" + StripDir(StripExt(opt_outfile)) + "." + shellType + ".emscripten_shell.html"
 		Local title:String = StripDir(StripExt(sourcePath))
 		If title.length Then title = title[..1].ToUpper() + title[1..]
 		title = title.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;")
-		Local template:String = LoadText("incbin::emscripten_shell.html").Replace("@BLITZMAX_APP_TITLE@", title)
+		Local template:String = LoadText(templatePath).Replace("@BLITZMAX_APP_TITLE@", title)
 		If FileType(shellPath) <> FILETYPE_FILE Or LoadText(shellPath) <> template Then
 			If Not SaveText(template, shellPath) Then Throw "Unable to write Emscripten shell: " + shellPath
 		End If

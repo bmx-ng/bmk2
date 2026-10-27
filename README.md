@@ -92,13 +92,22 @@ repositories. SDL3 is built from its bundled source using the Emscripten
 configuration; see the `sdl3.mod` README. Browser builds use Asyncify with a
 256 KiB Asyncify stack and a 1 MiB native stack by default.
 
-Browser builds use a built-in black page with a canvas, so no application
-`pre.bmk` or HTML file is required. SDL3 applications can pass
+Browser builds select a page from the application type. The default
+`-t console` page displays `Print` and error output as text and has no
+canvas. Use `-t gui` for graphics applications; its black page has a canvas.
+No application `pre.bmk` or HTML file is required. SDL3 applications can pass
 `SDL_WINDOW_FILL_DOCUMENT` to `Graphics` to let the canvas fill the page.
 To customize the page, place `web_shell.html` beside the application's
 `.bmx` source. bmk picks it up automatically. It must provide a canvas,
-assign it to `Module.canvas`, and include Emscripten's `{{{ SCRIPT }}}`
-placeholder. An explicit `--shell-file` linker option still takes precedence.
+assign it to `Module.canvas` for graphics applications, and include
+Emscripten's `{{{ SCRIPT }}}` placeholder. An explicit `--shell-file` linker
+option still takes precedence.
+
+For example, build the ECS Asteroids game with `-t gui`:
+
+```sh
+bin/bmk makeapp -r -l emscripten -g js -t gui -o asteroids mod/ecs.mod/flecs.mod/examples/03_asteroids/asteroids.bmx
+```
 
 ## Incremental quoted source builds
 
