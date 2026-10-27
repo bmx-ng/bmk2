@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>@BLITZMAX_APP_TITLE@</title>
+  <style>
+    html, body { margin: 0; min-height: 100%; background: #000; overflow: hidden; }
+    canvas { display: block; border: 0; padding: 0; background: #000; outline: none; }
+    #output-panel { position: fixed; right: 12px; bottom: 12px; z-index: 10; width: min(480px, calc(100vw - 24px)); background: rgba(16, 16, 16, .94); color: #eee; border: 1px solid #666; border-radius: 5px; font: 13px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; }
+    #output-panel summary { padding: 5px 10px; cursor: pointer; user-select: none; }
+    #output-panel pre { margin: 0; padding: 8px 10px; max-height: 30vh; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; border-top: 1px solid #555; }
+    #output-panel .error { color: #ff9b9b; }
+  </style>
+</head>
+<body>
+  <canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
+  <details id="output-panel">
+    <summary>Output</summary>
+    <pre id="output" role="log" aria-live="polite"></pre>
+  </details>
+  <script>
+    var canvas = document.getElementById('canvas');
+    var outputPanel = document.getElementById('output-panel');
+    var output = document.getElementById('output');
+    var outputRevealed = false;
+    function writeOutput(text, isError) {
+      var line = document.createElement('span');
+      if (isError) line.className = 'error';
+      line.textContent = String(text) + '\n';
+      output.appendChild(line);
+      if (output.childNodes.length > 500) output.removeChild(output.firstChild);
+      if (!outputRevealed) {
+        outputPanel.open = true;
+        outputRevealed = true;
+      }
+      output.scrollTop = output.scrollHeight;
+    }
+    var Module = {
+      canvas: canvas,
+      print: function (text) {
+        console.log(text);
+        writeOutput(text, false);
+      },
+      printErr: function (text) {
+        console.error(text);
+        writeOutput(text, true);
+      }
+    };
+    window.addEventListener('resize', function () {
+      if (canvas.style.position === 'fixed') {
+        canvas.style.width = window.innerWidth + 'px';
+        canvas.style.height = window.innerHeight + 'px';
+      }
+    });
+  </script>
+  {{{ SCRIPT }}}
+</body>
+</html>

@@ -1,3 +1,14 @@
+## [4.11] - 2026-10-27
+### Added
+ - Restored Emscripten application and module builds with the WebAssembly `js` target, using configured `emcc`, `em++`, and `emar` paths or tools found on `PATH`.
+ - Console, GUI, and debug GUI browser pages under `resources/emscripten`, selected automatically by application type and build configuration.
+ - Automatic source-local `web_shell.html` selection, while retaining explicit `--shell-file` overrides.
+### Changed
+ - Emscripten links use Asyncify, larger stacks, and growable memory to support the BlitzMax runtime and collector.
+ - Debug GUI pages show standard output and errors in a collapsible panel while also sending them to the browser developer console.
+### Fixed
+ - Incbin resources are packaged as C byte arrays for WebAssembly, which does not support the assembler's `.incbin` directive.
+
 ## [4.10] - 2026-10-26
 ### Added
  - Optional `-source-root <directory>` support for application builds whose quoted BlitzMax source imports intentionally extend beyond the application's directory.
