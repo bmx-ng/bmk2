@@ -171,13 +171,28 @@ Function GenerateEsp32BoardHeader:String(profile:TEsp32BoardProfile, buildDir:St
 		Local data3:String = Esp32BoardMapValue(microsd, "data3")
 		If data3.length Then text :+ "#define BMX_ESP32_BOARD_SDMMC_DATA3 " + profile.PinNumber(data3) + "u~n"
 	End If
+	Local ethernet:TMap = TMap(profile.resources.ValueForKey("resource.ethernet"))
+	If ethernet
+		Local ethernetType:String = Esp32BoardMapValue(ethernet, "type").ToLower()
+		Local ethernetInterface:String = Esp32BoardMapValue(ethernet, "interface").ToLower()
+		text :+ "#define BMX_ESP32_BOARD_ETHERNET 1~n"
+		If ethernetType.StartsWith("yt8531") Then text :+ "#define BMX_ESP32_BOARD_ETHERNET_PHY_YT8531 1~n"
+		If ethernetInterface = "rgmii" Then text :+ "#define BMX_ESP32_BOARD_ETHERNET_INTERFACE_RGMII 1~n"
+		If ethernetInterface = "rmii" Then text :+ "#define BMX_ESP32_BOARD_ETHERNET_INTERFACE_RMII 1~n"
+		For Local key:String = EachIn ["mdc", "mdio", "reset", "interrupt", "tx_clock", "rx_clock", ..
+				"phy_ref_clock", "tx_control", "rx_control", "txd0", "txd1", "txd2", "txd3", ..
+				"rxd0", "rxd1", "rxd2", "rxd3"]
+			Local pinName:String = Esp32BoardMapValue(ethernet, key)
+			If pinName.length Then text :+ "#define BMX_ESP32_BOARD_ETHERNET_" + key.ToUpper() + " " + profile.PinNumber(pinName) + "~n"
+		Next
+	End If
 	text :+ "~n#endif~n"
 	Local path:String = includeDirectory + "/blitzmax_esp32_board.h"
 	SaveText(text, path)
 	Return includeDirectory
 End Function
 
-Function GenerateEsp32SdkconfigDefaults:String(profile:TEsp32BoardProfile, buildDir:String, bleEnabled:Int = False)
+Function GenerateEsp32SdkconfigDefaults:String(profile:TEsp32BoardProfile, buildDir:String, bleEnabled:Int = False, ethernetEnabled:Int = False)
 	Local source:String
 	If profile.sdkconfigDefaults.length Then source = LoadText(profile.directory + "/" + profile.sdkconfigDefaults)
 	If bleEnabled
@@ -192,7 +207,11 @@ Function GenerateEsp32SdkconfigDefaults:String(profile:TEsp32BoardProfile, build
 		source :+ "CONFIG_BT_NIMBLE_ENABLED=y~n"
 		source :+ "CONFIG_BT_NIMBLE_NVS_PERSIST=y~n"
 	End If
-	If Not profile.partitions.length And Not bleEnabled Then
+	If ethernetEnabled
+		If source.length And Not source.EndsWith("~n") Then source :+ "~n"
+		source :+ "CONFIG_ETH_USE_ESP32_EMAC=y~n"
+	End If
+	If Not profile.partitions.length And Not bleEnabled And Not ethernetEnabled Then
 		If profile.sdkconfigDefaults.length Then Return profile.directory + "/" + profile.sdkconfigDefaults
 		Return ""
 	End If
@@ -309,6 +328,7 @@ Function MakeEsp32Application(mainSource:String, outputPath:String, compileOnly:
 	Local units:TList = DiscoverPicoModules(mainSource, applicationUnits)
 	Local moduleInitializers:String = JoinPicoModuleField(units, "initialize")
 	Local bleEnabled:Int = moduleInitializers.Find("__bb_embedded_network_ble_ble") >= 0
+	Local ethernetEnabled:Int = moduleInitializers.Find("__bb_embedded_network_ethernet_ethernet") >= 0
 	Local nativeLinkOptions:TList
 	Local nativeImports:TList = DiscoverPicoNativeImports(mainSource, units, nativeLinkOptions)
 	Local generatedModuleSources:String[] = New String[0]
@@ -332,7 +352,7 @@ Function MakeEsp32Application(mainSource:String, outputPath:String, compileOnly:
 	Local applicationBundle:TPicoBuildBundle = GeneratePicoBuildBundle(bcc, sdk, mainSource, compilerBuildRoot + "/application", "application.c", "", "", "", applicationIdentity, False, "", PicoRuntimeHeaderPath(mainSource))
 	AppendPicoBundleSources(applicationBundle, generatedApplicationSources, specializationOwners)
 	Local nativeCMake:String = GeneratePicoNativeCMake(nativeImports, nativeLinkOptions, buildDir)
-	Local sdkconfigDefaults:String = GenerateEsp32SdkconfigDefaults(profile, buildDir, bleEnabled)
+	Local sdkconfigDefaults:String = GenerateEsp32SdkconfigDefaults(profile, buildDir, bleEnabled, ethernetEnabled)
 
 	Local idfEnvironment:String = "PATH=" + CQuote(toolchainBin + PicoPathSeparator(PicoHostPlatform()) + getenv_("PATH")) + " IDF_PATH=" + CQuote(idfPath) + " IDF_TOOLS_PATH=" + CQuote(idfToolsRoot) + " IDF_PYTHON_ENV_PATH=" + CQuote(pythonEnvironment) + " ESP_IDF_VERSION=" + idfVersion + " IDF_VERSION=" + idfVersion + " "
 	Local idfCommand:String = idfEnvironment + CQuote(python) + " " + CQuote(idfPy) + ..
