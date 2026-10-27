@@ -499,7 +499,15 @@
 		# selected Xcode SDK is known.
 		globals.SetOption("cc_opts", "osversion", "")
 		globals.SetOption("cc_opts", "ostarget", "")
-		
+
+	elseif bmk.Platform() == "emscripten" then
+		# Boehm GC scans WebAssembly registers through Asyncify. The default
+		# Asyncify and C stacks are too small for module startup and larger apps.
+		globals.SetOption("ld_opts", "asyncify", "-sASYNCIFY=1")
+		globals.SetOption("ld_opts", "asyncify_stack", "-sASYNCIFY_STACK_SIZE=262144")
+		globals.SetOption("ld_opts", "stack", "-sSTACK_SIZE=1048576")
+		globals.SetOption("ld_opts", "memory", "-sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=134217728")
+
 	elseif bmk.Platform() == "win32" then
 	
 		if bmk.HasClang() == 1 then

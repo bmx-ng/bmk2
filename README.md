@@ -64,6 +64,34 @@ bmk cleanmods brl
 
 Run `bmk` without arguments for the complete command-line usage guide.
 
+## Emscripten
+
+Install and activate a current Emscripten SDK release with the official
+`emsdk` workflow, then source `emsdk_env.sh` in the shell running bmk. The
+`custom.bmk` sample shows `emscripten.js.gcc`, `emscripten.js.gpp`, and
+`emscripten.js.ar` options for a fixed SDK location. Without those options,
+bmk finds `emcc`, `em++`, and `emar` on `PATH`.
+
+```sh
+git clone https://github.com/emscripten-core/emsdk.git
+cd emsdk
+./emsdk install latest
+./emsdk activate latest
+source ./emsdk_env.sh
+
+# From the BlitzMax installation:
+bin/bmk makeapp -l emscripten -g js -r -t console -o hello mod/brl.mod/tests/emscripten/hello.bmx
+node hello.js
+python3 -m http.server
+```
+
+The Emscripten target uses the single-threaded runtime and collector. Serve
+the generated `.html`, `.js`, and `.wasm` files together over HTTP when testing
+in a browser. The SDK archive and its cache should live outside the source
+repositories. SDL3 is built from its bundled source using the Emscripten
+configuration; see the `sdl3.mod` README. Browser builds use Asyncify with a
+256 KiB Asyncify stack and a 1 MiB native stack by default.
+
 ## Incremental quoted source builds
 
 A quoted `Import "file.bmx"` is a separate generated source unit. An

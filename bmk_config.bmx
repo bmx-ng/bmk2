@@ -179,6 +179,7 @@ End Function
 Function ParseConfigArgs$[]( args$[], legacyMax:Int = False )
 
 	Local n
+	Local requestedThreads:Int = False
 
 	If getenv_( "BMKDUMPBUILD" )
 		opt_dumpbuild=1
@@ -208,6 +209,7 @@ Function ParseConfigArgs$[]( args$[], legacyMax:Int = False )
 			opt_release=True
 		Case "h"
 			opt_threaded=True
+			requestedThreads=True
 		Case "k"
 			opt_kill=True
 		Case "g", "arch"
@@ -344,6 +346,11 @@ Function ParseConfigArgs$[]( args$[], legacyMax:Int = False )
 			Print "Note: NG builds are threaded by default."
 		End If
 		opt_threaded=True
+	End If
+	If opt_target_platform = "emscripten" Then
+		' Browser builds currently use the single-threaded runtime and collector.
+		If requestedThreads Then CmdError "The Emscripten target does not support -h yet."
+		opt_threaded=False
 	End If
 
 	Return args[n..]
@@ -499,7 +506,7 @@ Function Usage:String(fullUsage:Int = False)
 		s:+ "~n~n"
 		s:+ "~t-l <target platfom> | -platform <target platform>~n"
 		s:+ "~t~tCross-compiles to the specific target platform.~n"
-		s:+ "~t~tValid targets are win32, linux, macos, ios, android, raspberrypi, pico, esp32 and haiku.~n"
+		s:+ "~t~tValid targets are win32, linux, macos, ios, android, raspberrypi, emscripten, pico, esp32 and haiku.~n"
 		s:+ "~t~t(see documentation for full list of requirements)"
 		s:+ "~n~n"
 		s:+ "~t-locale <locale>~n"
