@@ -3130,7 +3130,7 @@ Type TBuildManager Extends TCallback
 		output :+ "#define INCBIN_STYLE INCBIN_STYLE_SNAKE~n"
 		output :+ "#include ~qbrl.mod/blitz.mod/incbin/incbin.h~q~n"
 
-		Local resources:String
+		Local resources:TStringBuilder = New TStringBuilder
 		For Local index:Int = 0 Until source.bcc2IncbinNames.Count()
 			Local ordinal:Int = index + 1
 			Local logicalPath:String = String(source.bcc2IncbinNames.ValueAtIndex(index))
@@ -3142,10 +3142,27 @@ Type TBuildManager Extends TCallback
 			Local escapedLogicalPath:String = logicalPath.Replace("\", "\\").Replace("~q", "\~q")
 			Local escapedResolvedPath:String = resolvedPath.Replace("\", "\\").Replace("~q", "\~q")
 			output :+ "// FILE : ~q" + escapedLogicalPath + "~q~t" + CalculateFileHash(resolvedPath) + "~n"
-			resources :+ "INCBIN(" + unitName + "_" + ordinal + ", ~q" + escapedResolvedPath + "~q);~n"
+			If processor.Platform() = "emscripten" Then
+				' WebAssembly's assembler cannot emit binary data with .incbin.
+				' Keep the symbols expected by bcc2 while packaging bytes as C data.
+				Local symbol:String = "_ib" + unitName + "_" + ordinal
+				Local resource:TStream = ReadStream(resolvedPath)
+				Local resourceSize:Long = resource.Size()
+				resources.Append("const unsigned char ").Append(symbol).Append("_data[] = {~n")
+				For Local offset:Long = 0 Until resourceSize
+					If offset Mod 24 = 0 Then resources.Append("  ")
+					resources.Append(Int(resource.ReadByte())).Append(",")
+					If offset Mod 24 = 23 Then resources.Append("~n")
+				Next
+				resource.Close()
+				resources.Append("~n};~n")
+				resources.Append("const unsigned int ").Append(symbol).Append("_size = ").Append(resourceSize).Append(";~n")
+			Else
+				resources.Append("INCBIN(").Append(unitName).Append("_").Append(ordinal).Append(", ~q").Append(escapedResolvedPath).Append("~q);~n")
+			End If
 		Next
 		output :+ "// ----~n"
-		output :+ resources
+		output :+ resources.ToString()
 
 		If FileType(ExtractDir(incbinPath)) = FILETYPE_NONE And Not CreateDir(ExtractDir(incbinPath), True) Then
 			Throw TBmkMessages.IncbinOutputDirectoryCreationFailed(ExtractDir(incbinPath)).Render()

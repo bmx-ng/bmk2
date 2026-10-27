@@ -9,6 +9,14 @@
 #setmacx86ccopt arch -march=nocona
 #setmacx86ccopt math -msse3
 
+# ** Emscripten (WebAssembly) **
+# Activate an emsdk release first. With emsdk_env.sh sourced, emcc, em++, and
+# emar are found on PATH. For a fixed SDK installation, uncomment these three
+# options and replace the path with the active emsdk/upstream/emscripten path.
+#addoption emscripten.js.gcc "/PATH/TO/emsdk/upstream/emscripten/emcc"
+#addoption emscripten.js.gpp "/PATH/TO/emsdk/upstream/emscripten/em++"
+#addoption emscripten.js.ar "/PATH/TO/emsdk/upstream/emscripten/emar"
+
 # ** iOS configuration **
 # Xcode is discovered through xcrun, so no SDK path is required.
 # arm64 defaults to iphoneos; select iphonesimulator for Apple-silicon Simulator builds.
