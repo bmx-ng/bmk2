@@ -1485,7 +1485,8 @@ Type TBuildManager Extends TCallback
 								If appPath Then applicationConfigStamp = appPath + ".module-config"
 							End If
 							If ModuleConfigApplicationChanged(applicationConfigStamp) Then m.SetRequiresBuild(True)
-							If m.requiresBuild Or max_lnk_time > FileTime(opt_outfile) Or opt_all Then
+							Local shellPath:String = globals.Get("EMSCRIPTEN_SHELL_PATH")
+							If m.requiresBuild Or max_lnk_time > FileTime(opt_outfile) Or opt_all Or (shellPath.length And FileTime(shellPath) > FileTime(opt_outfile)) Then
 
 								' generate manifest for app
 								If opt_manifest And processor.Platform() = "win32" And opt_apptype="gui" Then

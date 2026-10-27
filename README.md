@@ -92,6 +92,14 @@ repositories. SDL3 is built from its bundled source using the Emscripten
 configuration; see the `sdl3.mod` README. Browser builds use Asyncify with a
 256 KiB Asyncify stack and a 1 MiB native stack by default.
 
+Browser builds use a built-in black page with a canvas, so no application
+`pre.bmk` or HTML file is required. SDL3 applications can pass
+`SDL_WINDOW_FILL_DOCUMENT` to `Graphics` to let the canvas fill the page.
+To customize the page, place `web_shell.html` beside the application's
+`.bmx` source. bmk picks it up automatically. It must provide a canvas,
+assign it to `Module.canvas`, and include Emscripten's `{{{ SCRIPT }}}`
+placeholder. An explicit `--shell-file` linker option still takes precedence.
+
 ## Incremental quoted source builds
 
 A quoted `Import "file.bmx"` is a separate generated source unit. An

@@ -11,6 +11,8 @@ Import "bmk_embedded_board.bmx"
 Import "bmk_deviceinfo.bmx"
 Import "bmk_zap.bmx"
 
+Incbin "emscripten_shell.html"
+
 ?MacOS
 Import BRL.RamStream
 Incbin "macos.icns"
@@ -575,6 +577,7 @@ Function MakeApplication( args$[],makelib:Int,compileOnly:Int = False )
 
 	If processor.Platform() = "emscripten" Then
 		If ExtractExt(opt_outfile).ToLower()<>"html" opt_outfile:+".html"
+		ConfigureEmscriptenShell(Main)
 	End If
 
 	If processor.Platform() = "nx" Then
@@ -866,6 +869,31 @@ Function MakeBootstrap()
 		Next
 	Next
 
+End Function
+
+Function ConfigureEmscriptenShell(sourcePath:String)
+	' An explicit linker option still wins. Otherwise a source-local page is
+	' picked up automatically, with the built-in page as the default.
+	If globals.Get("ld_opts").Find("--shell-file") >= 0 Then Return
+
+	Local shellPath:String = ExtractDir(sourcePath) + "/web_shell.html"
+	If FileType(shellPath) <> FILETYPE_FILE Then
+		Local shellDirectory:String = ExtractDir(sourcePath) + "/.bmx"
+		If FileType(shellDirectory) <> FILETYPE_DIR And Not CreateDir(shellDirectory, True) Then
+			Throw "Unable to create Emscripten shell directory: " + shellDirectory
+		End If
+		shellPath = shellDirectory + "/" + StripDir(StripExt(opt_outfile)) + ".emscripten_shell.html"
+		Local title:String = StripDir(StripExt(sourcePath))
+		If title.length Then title = title[..1].ToUpper() + title[1..]
+		title = title.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;")
+		Local template:String = LoadText("incbin::emscripten_shell.html").Replace("@BLITZMAX_APP_TITLE@", title)
+		If FileType(shellPath) <> FILETYPE_FILE Or LoadText(shellPath) <> template Then
+			If Not SaveText(template, shellPath) Then Throw "Unable to write Emscripten shell: " + shellPath
+		End If
+	End If
+
+	globals.SetVar("EMSCRIPTEN_SHELL_PATH", shellPath)
+	globals.SetOption("ld_opts", "emscripten_shell", "--shell-file " + CQuote(shellPath))
 End Function
 
 Function BootstrapApplicationSource:String(appName:String)
