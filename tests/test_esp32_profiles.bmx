@@ -28,9 +28,27 @@ Local profile:TEsp32BoardProfile = ParseEsp32BoardProfile("format=1~n" + ..
 	"scl=SCL~n" + ..
 	"[resource.rgb_led]~n" + ..
 	"type=ws2812c~n" + ..
-	"pin=LED~n", "example_s3", "fixture")
+	"pin=LED~n" + ..
+	"[resource.ethernet]~n" + ..
+	"type=yt8531~n" + ..
+	"interface=rgmii~n" + ..
+	"mdc=MDC~n" + ..
+	"mdio=MDIO~n" + ..
+	"reset=ETH_RESET~n" + ..
+	"tx_clock=TX_CLK~n" + ..
+	"rx_clock=RX_CLK~n" + ..
+	"tx_control=TX_CTL~n" + ..
+	"rx_control=RX_CTL~n" + ..
+	"txd0=TXD0~n" + ..
+	"txd1=TXD1~n" + ..
+	"txd2=TXD2~n" + ..
+	"txd3=TXD3~n" + ..
+	"rxd0=RXD0~n" + ..
+	"rxd1=RXD1~n" + ..
+	"rxd2=RXD2~n" + ..
+	"rxd3=RXD3~n", "example_s3", "fixture")
 
-ParseEsp32BoardPins("name,gpio,connector,position~nSDA,47,J1,1~nSCL,48,J1,2~nLED,8,,~n", profile, "pin fixture")
+ParseEsp32BoardPins("name,gpio,connector,position~nSDA,47,J1,1~nSCL,48,J1,2~nLED,8,,~nMDC,5,,~nMDIO,6,,~nETH_RESET,7,,~nTX_CLK,13,,~nRX_CLK,14,,~nTX_CTL,12,,~nRX_CTL,15,,~nTXD0,8,,~nTXD1,9,,~nTXD2,10,,~nTXD3,11,,~nRXD0,19,,~nRXD1,18,,~nRXD2,17,,~nRXD3,16,,~n", profile, "pin fixture")
 ValidateEsp32BoardPinReferences(profile, "fixture")
 Check(profile.displayName = "Example S3 Board", "display name is loaded")
 Check(profile.idfTarget = "esp32s3", "IDF target is loaded")
@@ -42,6 +60,7 @@ Check(Not profile.RequiresManualPostFlashReset(), "non-H2 native USB targets sta
 Check(profile.PinNumber("sda") = 47, "pin names resolve case-insensitively")
 Check(profile.Pin("SCL").connector = "J1", "physical connector metadata is loaded")
 Check(String(profile.Bus("bus.i2c.default").ValueForKey("scl")) = "SCL", "default bus is loaded")
+Check(String(TMap(profile.resources.ValueForKey("resource.ethernet")).ValueForKey("mdio")) = "MDIO", "Ethernet metadata is loaded")
 
 Local registry:TEsp32BoardProfileRegistry = New TEsp32BoardProfileRegistry
 registry.Add(profile, "fixture")
@@ -112,5 +131,15 @@ Catch failure:Object
 	rejected = True
 End Try
 Check(rejected, "unknown constraint pin references are rejected")
+
+rejected = False
+Try
+	Local incompleteEthernet:TEsp32BoardProfile = ParseEsp32BoardProfile("format=1~n[board]~nname=Bad Ethernet~nkind=board~ntarget=esp32s31~n[resource.ethernet]~ntype=yt8531~ninterface=rgmii~nmdc=MDC~n", "bad_ethernet", "bad fixture")
+	ParseEsp32BoardPins("name,gpio,connector,position~nMDC,5,,~n", incompleteEthernet, "bad pin fixture")
+	ValidateEsp32BoardPinReferences(incompleteEthernet, "bad fixture")
+Catch failure:Object
+	rejected = True
+End Try
+Check(rejected, "incomplete Ethernet resources are rejected")
 
 Print "bmk ESP32 board-profile tests passed"

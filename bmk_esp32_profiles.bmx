@@ -150,7 +150,12 @@ Function Esp32ProfileDynamicFieldValid:Int(section:String, key:String)
 		Return key = "type" Or key = "pin" Or key = "count" Or key = "order" Or ..
 			key = "interface" Or key = "controller" Or key = "clock" Or key = "command" Or ..
 			key = "data0" Or key = "data1" Or key = "data2" Or key = "data3" Or ..
-			key = "bus" Or key = "voltage" Or key = "active" Or key = "address"
+			key = "bus" Or key = "voltage" Or key = "active" Or key = "address" Or ..
+			key = "mdc" Or key = "mdio" Or key = "reset" Or key = "interrupt" Or ..
+			key = "tx_clock" Or key = "rx_clock" Or key = "phy_ref_clock" Or ..
+			key = "tx_control" Or key = "rx_control" Or ..
+			key = "txd0" Or key = "txd1" Or key = "txd2" Or key = "txd3" Or ..
+			key = "rxd0" Or key = "rxd1" Or key = "rxd2" Or key = "rxd3"
 	Else If section.StartsWith("constraint.")
 		Return key = "pins" Or key = "status" Or key = "reason"
 	End If
@@ -307,7 +312,11 @@ Function ValidateEsp32BoardPinReferences(profile:TEsp32BoardProfile, source:Stri
 		Local bus:String = String(values.ValueForKey("bus"))
 		If bus.length And Not profile.buses.Contains(bus.ToLower()) Then Throw "ESP32 board profile '" + profile.name + "' " + section + " references unknown bus '" + bus + "' in " + source
 		For Local key:String = EachIn values.Keys()
-			If key <> "pin" And key <> "clock" And key <> "command" And Not key.StartsWith("data") Then Continue
+			If key <> "pin" And key <> "clock" And key <> "command" And ..
+				key <> "mdc" And key <> "mdio" And key <> "reset" And key <> "interrupt" And ..
+				key <> "tx_clock" And key <> "rx_clock" And key <> "phy_ref_clock" And ..
+				key <> "tx_control" And key <> "rx_control" And ..
+				Not key.StartsWith("data") And Not key.StartsWith("txd") And Not key.StartsWith("rxd") Then Continue
 			Local name:String = String(values.ValueForKey(key))
 			If profile.PinNumber(name) < 0 Then Throw "ESP32 board profile '" + profile.name + "' " + section + " references unknown pin '" + name + "' in " + source
 		Next
@@ -320,6 +329,26 @@ Function ValidateEsp32BoardPinReferences(profile:TEsp32BoardProfile, source:Stri
 			If name.length And profile.PinNumber(name) < 0 Then Throw "ESP32 board profile '" + profile.name + "' " + section + " references unknown pin '" + name + "' in " + source
 		Next
 	Next
+	Local ethernet:TMap = TMap(profile.resources.ValueForKey("resource.ethernet"))
+	If ethernet
+		Local interfaceName:String = String(ethernet.ValueForKey("interface")).ToLower()
+		If interfaceName <> "rgmii" And interfaceName <> "rmii" Then
+			Throw "ESP32 board profile '" + profile.name + "' resource.ethernet has unsupported interface '" + interfaceName + "' in " + source
+		End If
+		Local required:String[]
+		If interfaceName = "rgmii" Then
+			required = ["mdc", "mdio", "reset", "tx_clock", "rx_clock", "tx_control", "rx_control", ..
+				"txd0", "txd1", "txd2", "txd3", "rxd0", "rxd1", "rxd2", "rxd3"]
+		Else
+			required = ["mdc", "mdio", "reset", "tx_clock", "rx_clock", "tx_control", "rx_control", ..
+				"txd0", "txd1", "rxd0", "rxd1"]
+		End If
+		For Local key:String = EachIn required
+			If Not String(ethernet.ValueForKey(key)).length Then
+				Throw "ESP32 board profile '" + profile.name + "' resource.ethernet is missing '" + key + "' in " + source
+			End If
+		Next
+	End If
 End Function
 
 Function LoadEsp32BoardProfile:TEsp32BoardProfile(directory:String, name:String)
