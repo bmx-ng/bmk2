@@ -1806,10 +1806,13 @@ Type TBuildManager Extends TCallback
 							If UseBcc2ForSource(source) Then
 								Local sourceModuleName:String = source.modid
 								If Not sourceModuleName.length Then sourceModuleName = source.bcc2SourceModuleName
+								If Not sourceModuleName.length Then sourceModuleName = parentSource.modid
+								If Not sourceModuleName.length Then sourceModuleName = parentSource.bcc2SourceModuleName
 								If Not sourceModuleName.length Then
-					If isMod Then Throw TBmkMessages.SourceQuotedOwnershipIdentityMissing(s.path).Render()
+									If isMod Then Throw TBmkMessages.SourceQuotedOwnershipIdentityMissing(s.path).Render()
 									sourceModuleName = Bcc2ApplicationIdentity(app_main)
 									source.bcc2SourceModuleName = sourceModuleName
+									parentSource.bcc2SourceModuleName = sourceModuleName
 								End If
 								If s.bcc2SourceModuleName.length And s.bcc2SourceModuleName.ToLower() <> sourceModuleName.ToLower() Then
 					Throw TBmkMessages.SourceQuotedModuleOwnerConflict(s.path).Render()
@@ -1942,13 +1945,25 @@ Type TBuildManager Extends TCallback
 				Local s:TSourceFile = GetSourceFile(path, isMod, rebuildImports, True)
 				If s Then
 					s.owner_path = parentSource.path
-					
+					If UseBcc2ForSource(parentSource) And Not s.bcc2SourceUnitPath.length Then
+						s.bcc2SourceUnitPath = Bcc2SourceUnitPath(source.bcc2SourceUnitPath, f)
+					End If
+
 					If s.includePaths.IsEmpty() Then
 						s.CopyIncludePaths(source.includePaths)
 					End If
 				
 					' calculate included file dependencies
 					CalculateDependencies(s, isMod, rebuildImports,,parentSource)
+
+					' Include is textual and is not itself scheduled as a build node.
+					' Publish every dependency discovered through it on the owning
+					' compilation unit so imported interfaces exist before that unit
+					' is generated. Keep the include's depsList intact as it also owns
+					' link traversal and per-import option propagation.
+					For Local dependencyPath:String = EachIn s.deps.Keys()
+						parentSource.deps.Insert(dependencyPath, s.deps.ValueForKey(dependencyPath))
+					Next
 
 					' update our time to latest included time
 					' use gen_time as threshold so changes made between the last code generation and compilation are caught
