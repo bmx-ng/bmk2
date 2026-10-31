@@ -425,6 +425,17 @@ then
 fi
 test "$("$include_app_path" | tr -d '\r')" = "2"
 
+# Imports discovered through textual Includes belong to the including build
+# unit. Nested relative paths, inactive conditionals, and duplicate imports
+# must still produce one ordered source dependency and a usable interface.
+include_import_root="$output_root/application-include-source-import"
+cp -R "$fixture_dir/include_source_import" "$include_import_root"
+include_import_app="$include_import_root/include-source-import-app"
+include_import_output=$("$bmk_path" makeapp -bcc2 -single -r -o "$include_import_app" "$include_import_root/main.bmx")
+printf '%s\n' "$include_import_output"
+test "$(printf '%s' "$include_import_output" | grep -c 'Processing:helper.bmx')" -eq 1
+test "$("$include_import_app" | tr -d '\r\n')" = "included source import ok"
+
 incbin_root="$output_root/application-incbin"
 mkdir -p "$incbin_root"
 cp "$fixture_dir/application_incbin_app.bmx" "$fixture_dir/application_incbin.dat" "$incbin_root/"
@@ -786,6 +797,17 @@ mkdir -p "$module_test_root/applicationdependency.mod"
 cp "$fixture_dir/module_application_dependency.bmx" "$module_test_root/applicationdependency.mod/applicationdependency.bmx"
 mkdir -p "$module_test_root/closureowner.mod"
 cp "$fixture_dir/module_closure_owner.bmx" "$module_test_root/closureowner.mod/closureowner.bmx"
+mkdir -p "$module_test_root/includeimportowner.mod/parts"
+cp "$fixture_dir/module_include_import_owner.bmx" "$module_test_root/includeimportowner.mod/includeimportowner.bmx"
+cp "$fixture_dir/module_include_import_importer.bmx" "$module_test_root/includeimportowner.mod/parts/importer.bmx"
+cp "$fixture_dir/module_include_import_helper.bmx" "$module_test_root/includeimportowner.mod/helper.bmx"
+
+"$bmk_path" makemods -bcc2 -a -r bcc2manifesttest.includeimportowner
+module_include_import_source="$output_root/module_include_import_app.bmx"
+module_include_import_path="$output_root/module-include-import-app"
+cp "$fixture_dir/module_include_import_app.bmx" "$module_include_import_source"
+"$bmk_path" makeapp -bcc2 -single -r -o "$module_include_import_path" "$module_include_import_source"
+test "$("$module_include_import_path" | tr -d '\r\n')" = "included module source import ok"
 
 application_dependency_source="$output_root/module_application_dependency_app.bmx"
 application_dependency_path="$output_root/module-application-dependency-app"
