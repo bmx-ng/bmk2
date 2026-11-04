@@ -690,6 +690,13 @@ selects the hard-float calling convention and is supported only by ARM RP2350
 boards. The same setting can be supplied as `pico.float.abi` or
 `PICO_FLOAT_ABI`.
 
+`-gc-multicore` enables the experimental two-context GC handshake on Pico and
+ESP32. bmk passes the matching option to the compiler and the target build,
+and keeps its generated interfaces and build directory separate from the
+default single-core mode. Managed workers in this stage may hold precise roots,
+read heap objects, and poll. Allocation and heap mutation remain restricted to
+the owner context. Omit the option for the existing single-core performance mode.
+
 Pico applications use a platform-aware managed heap by default: `-heap auto`
 selects 192 KiB for RP2040 boards and 384 KiB for ARM RP2350 boards. External
 PSRAM is not included automatically. `-heap` accepts an explicit byte count or

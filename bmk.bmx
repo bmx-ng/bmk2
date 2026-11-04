@@ -47,6 +47,9 @@ LoadOptions
 ' were omitted. Resolve it after loading configuration so custom profile and
 ' Pico SDK locations participate without evaluating additive options twice.
 ResolveExplicitBoardTarget()
+If opt_embedded_gc_multicore And cmd.ToLower() = "makeapp" And processor.Platform() <> "pico" And processor.Platform() <> "esp32" Then
+	CmdError "-gc-multicore is supported only for Pico and ESP32 applications."
+End If
 
 ' Device and board inspection do not compile code, so their target CPU is irrelevant.
 If cmd.ToLower() <> "deviceinfo" And cmd.ToLower() <> "boardinfo" Then ValidatePlatformArchitecture()

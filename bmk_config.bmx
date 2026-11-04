@@ -46,6 +46,7 @@ Global opt_pico_storage:String = "none"
 Global opt_pico_storage_set:Int
 Global opt_pico_float_abi:String = "auto"
 Global opt_pico_float_abi_set:Int
+Global opt_embedded_gc_multicore:Int
 Global opt_gdbdebug=False
 Global opt_gdbdebug_set=False
 Global opt_standalone=False
@@ -254,6 +255,8 @@ Function ParseConfigArgs$[]( args$[], legacyMax:Int = False )
 			If n=args.length MissingArg(argv)
 			opt_pico_float_abi=args[n].ToLower()
 			opt_pico_float_abi_set = True
+		Case "gc-multicore"
+			opt_embedded_gc_multicore = True
 		Case "b"
 			n:+1
 			If n=args.length MissingArg(argv)
@@ -531,6 +534,10 @@ Function Usage:String(fullUsage:Int = False)
 		s:+ "~t-float-abi <auto|hard>~n"
 		s:+ "~t~tSelects the Pico floating-point calling convention. Auto uses soft on RP2040~n"
 		s:+ "~t~tand softfp on ARM RP2350; hard is available only on ARM RP2350. (Pico only)~n"
+		s:+ "~n~n"
+		s:+ "~t-gc-multicore~n"
+		s:+ "~t~tEnables the experimental managed GC handshake on Pico or ESP32.~n"
+		s:+ "~t~tManaged workers may hold roots and poll; heap mutation remains owner-only.~n"
 		s:+ "~n~n"
 		s:+ "~t-musl~n"
 		s:+ "~t~tEnable musl libc compatibility. (Linux NG only)"
