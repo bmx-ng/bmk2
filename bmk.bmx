@@ -146,7 +146,11 @@ Case "compile"
 Case "deviceinfo"
 	ReportEmbeddedDeviceInfo args
 Case "boardinfo"
-	ReportEsp32BoardInfo args
+	If processor.Platform() = "nrf52" Then
+		ReportNrf52BoardInfo args
+	Else
+		ReportEsp32BoardInfo args
+	End If
 Case "cleanmods"
 	CleanModules args
 Case "zapmod"

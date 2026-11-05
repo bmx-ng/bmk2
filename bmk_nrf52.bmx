@@ -2,6 +2,20 @@ SuperStrict
 
 Import "bmk_pico.bmx"
 
+Function ReportNrf52BoardInfo(args:String[])
+	If args.length Then CmdError "boardinfo does not accept a source file"
+	Local board:String = "promicro_nrf52840"
+	If opt_target_board_set Then board = ValidatePicoBoardName(opt_target_board)
+	If board <> "promicro_nrf52840" Then Throw "Unsupported nRF52 board: " + board
+	Print "Board: " + board
+	Print "SoC: nRF52840 (Cortex-M4F, 1 MiB flash, 256 KiB RAM)"
+	Print "Zephyr target: promicro_nrf52840/nrf52840/uf2"
+	Print "Expected UF2 bootloader: nRF52840-nicenano (verified on one Tenstar Robot test unit)"
+	Print "Application partition: 0x26000-0xEC000 (S140 v6 UF2 layout)"
+	Print "Managed arena: 65536 bytes; main stack: 16384 bytes"
+	Print "Carrier pin map, SWD access and battery circuitry: unverified"
+End Function
+
 Function MakeNrf52Application(mainSource:String, outputPath:String, compileOnly:Int)
 	If compileOnly Then Throw "The nRF52 target currently produces complete Zephyr applications only"
 	If processor.CPU() <> "arm" Then Throw "The nRF52 target requires the arm architecture"
