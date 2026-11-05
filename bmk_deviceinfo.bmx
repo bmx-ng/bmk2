@@ -206,6 +206,61 @@ Function ReportPicoDeviceInfo()
 	End If
 End Function
 
+Function Nrf52UsbModeFromIoreg:Int(output:String)
+	Local active:Int
+	Local vendor:Int = -1
+	Local product:Int = -1
+	For Local line:String = EachIn output.Replace("~r", "").Split("~n")
+		If line.Find("+-o ") >= 0 Then
+			active = line.Find("<class IOUSBHostDevice") >= 0
+			vendor = -1
+			product = -1
+		Else If active
+			Local equals:Int = line.Find("=")
+			If equals < 0 Then Continue
+			If line.Find("~qidVendor~q") >= 0 Then vendor = Int(line[equals + 1..].Trim())
+			If line.Find("~qidProduct~q") >= 0 Then product = Int(line[equals + 1..].Trim())
+			If vendor = 12259 And product = 4 Then Return 1
+			If vendor = 9114 And product = 179 Then Return 2
+		End If
+	Next
+	Return 0
+End Function
+
+Function ReportNrf52DeviceInfo()
+	Print "nRF52 device inspection:"
+	Local observed:Int
+	If PicoHostPlatform() = "macos" Then
+		Local mode:Int = Nrf52UsbModeFromIoreg(PicoCaptureCommand("/usr/sbin/ioreg -p IOUSB -l -w 0"))
+		Select mode
+			Case 1
+				Print "  USB: Zephyr CDC application (2FE3:0004; generic identity)"
+				observed = True
+			Case 2
+				Print "  USB: nice!nano UF2 bootloader (239A:00B3)"
+				observed = True
+		End Select
+	End If
+	Local uf2Root:String = PicoConfiguredPath("nrf52.uf2", "NRF52_UF2_PATH")
+	If Not uf2Root.length And PicoHostPlatform() = "macos" Then uf2Root = "/Volumes/NICENANO"
+	If uf2Root.length And FileType(uf2Root + "/INFO_UF2.TXT") = FILETYPE_FILE Then
+		Local info:String = LoadText(uf2Root + "/INFO_UF2.TXT")
+		Local boardId:String = EmbeddedDeviceInfoField(info, "Board-ID")
+		If boardId = "nRF52840-nicenano" Then
+			Print "  UF2 drive: " + uf2Root
+			Print "  Board-ID: " + boardId
+			PrintEmbeddedDeviceInfoField("Model", EmbeddedDeviceInfoField(info, "Model"))
+			PrintEmbeddedDeviceInfoField("SoftDevice", EmbeddedDeviceInfoField(info, "SoftDevice"))
+			observed = True
+		Else
+			Print "  UF2 drive: " + uf2Root + " (unexpected Board-ID: " + boardId + ")"
+		End If
+	End If
+	If Not observed Then Print "  No known nRF52 USB identity or UF2 drive was found."
+	Print "  SoC device ID and reset cause require an on-device NRF52.System.Device program."
+	If opt_target_board_set Then Print "  Selected board profile: " + opt_target_board
+End Function
+
 Function ReportEmbeddedDeviceInfo(args:String[])
 	If args.length Then CmdError "deviceinfo does not accept a source file"
 	Select processor.Platform()
@@ -217,7 +272,9 @@ Function ReportEmbeddedDeviceInfo(args:String[])
 			ReportEsp32DeviceInfo()
 		Case "pico"
 			ReportPicoDeviceInfo()
+		Case "nrf52"
+			ReportNrf52DeviceInfo()
 		Default
-			CmdError "deviceinfo is available for android, ios, pico and esp32 targets"
+			CmdError "deviceinfo is available for android, ios, pico, esp32 and nrf52 targets"
 	End Select
 End Function
