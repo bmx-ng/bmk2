@@ -29,7 +29,7 @@ Function MakeNrf52Application(mainSource:String, outputPath:String, compileOnly:
 	Local sdk:String = BlitzMaxPath()
 	Local bcc:String = EmbeddedBccExecutablePath(sdk, PicoHostPlatform())
 	Local blitzRoot:String = sdk + "/mod/brl.mod/blitz.mod"
-	Local template:String = sdk + "/mod/embedded.mod/nrf52.mod/cmake/application"
+	Local template:String = sdk + "/mod/nrf52.mod/cmake/application"
 	If FileType(bcc) <> FILETYPE_FILE Then Throw "bcc2 was not found at " + bcc
 	If FileType(template + "/CMakeLists.txt") <> FILETYPE_FILE Then Throw "The nRF52 Zephyr application template is missing at " + template
 
