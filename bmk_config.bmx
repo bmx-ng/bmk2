@@ -817,6 +817,7 @@ Function ValidatePlatform(platform:String)
 		Case "raspberrypi"
 		Case "pico"
 		Case "esp32"
+		Case "nrf52"
 		Case "emscripten"
 		Case "nx"
 		Case "haiku"

@@ -58,11 +58,18 @@ Function ResolveExplicitBoardTarget:Int()
 				ApplyInferredEmbeddedTarget("esp32", Esp32TargetArchitecture(esp32Profile.idfTarget), board)
 			Case "pico"
 				ApplyInferredEmbeddedTarget("pico", "arm", board)
+			Case "nrf52"
+				If board <> "promicro_nrf52840" Then Throw "Unsupported nRF52 board: " + board
+				ApplyInferredEmbeddedTarget("nrf52", "arm", board)
 			Default
 				Throw "The -board option selects embedded hardware and cannot be used with the " + opt_target_platform + " platform."
 		End Select
 	Else
 		Local picoMatch:Int = PicoBoardDefinitionExists(board)
+		If board = "promicro_nrf52840" Then
+			ApplyInferredEmbeddedTarget("nrf52", "arm", board)
+			Return True
+		End If
 		If esp32Profile And picoMatch Then
 			Throw "Board '" + board + "' matches both an ESP32 profile and a Pico SDK board definition. Specify -l esp32 or -l pico."
 		Else If esp32Profile

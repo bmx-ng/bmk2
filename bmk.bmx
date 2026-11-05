@@ -7,6 +7,7 @@ Import "bmk_messages.generated.bmx"
 Import "bmk_make.bmx"
 Import "bmk_pico.bmx"
 Import "bmk_esp32.bmx"
+Import "bmk_nrf52.bmx"
 Import "bmk_embedded_board.bmx"
 Import "bmk_deviceinfo.bmx"
 Import "bmk_zap.bmx"
@@ -327,6 +328,8 @@ Function IsModuleOutputPlatformArchitecture:Int(platform:String, architecture:St
 			Return architecture = "arm" Or architecture = "arm64"
 		Case "pico"
 			Return architecture = "arm"
+		Case "nrf52"
+			Return architecture = "arm"
 		Case "esp32"
 			Return architecture = "xtensa" Or architecture = "riscv32"
 		Case "emscripten"
@@ -447,6 +450,11 @@ Function MakeApplication( args$[],makelib:Int,compileOnly:Int = False )
 	If processor.Platform() = "esp32" Then
 		If opt_source_root.length Then CmdError TBmkMessages.OptionSourceRootUnsupportedTarget(processor.Platform()).Render()
 		MakeEsp32Application(Main, opt_outfile, compileOnly)
+		Return
+	End If
+	If processor.Platform() = "nrf52" Then
+		If opt_source_root.length Then CmdError TBmkMessages.OptionSourceRootUnsupportedTarget(processor.Platform()).Render()
+		MakeNrf52Application(Main, opt_outfile, compileOnly)
 		Return
 	End If
 	If opt_pico_heap_set Then CmdError TBmkMessages.OptionHeapRequiresPico().Render()
