@@ -317,6 +317,7 @@ Function MakeEsp32Application(mainSource:String, outputPath:String, compileOnly:
 	Local outputName:String = StripDir(outputBase)
 	Local buildVariant:String = PicoBuildModeName()
 	Local buildDir:String = ExtractDir(mainSource) + "/.bmx/" + StripDir(StripExt(mainSource)) + "." + buildVariant + ".esp32." + targetArchitecture + "." + boardProfile
+	If opt_embedded_gc_multicore Then buildDir :+ ".gcmc"
 	CreateDir(buildDir, True)
 	Local compilerBuildRoot:String = buildDir + "/bcc"
 	CreateDir(compilerBuildRoot, True)
@@ -369,6 +370,7 @@ Function MakeEsp32Application(mainSource:String, outputPath:String, compileOnly:
 		" -DBLITZMAX_ESP32_GENERATED_SOURCES=" + CQuote(JoinPicoPaths(generatedModuleSources)) + ..
 		" -DBLITZMAX_ESP32_NATIVE_CMAKE=" + CQuote(nativeCMake) + ..
 		" -DBLITZMAX_ESP32_MODULE_INITIALIZERS=" + CQuote(moduleInitializers)
+	If opt_embedded_gc_multicore Then command :+ " -DBLITZMAX_ESP32_GC_MULTICORE=ON"
 	command :+ " -DBLITZMAX_ESP32_BOARD_INCLUDE=" + CQuote(boardInclude)
 	If sdkconfigDefaults.length Then command :+ " -DSDKCONFIG_DEFAULTS=" + CQuote(sdkconfigDefaults)
 	command :+ " build"

@@ -427,7 +427,9 @@ Function PicoBuildModeName:String()
 End Function
 
 Function EmbeddedTargetMung:String()
-	Return PicoBuildModeName() + "." + processor.Platform() + "." + processor.CPU()
+	Local mode:String = PicoBuildModeName()
+	If opt_embedded_gc_multicore Then mode :+ ".gcmc"
+	Return mode + "." + processor.Platform() + "." + processor.CPU()
 End Function
 
 Function ValidatePicoBoardName:String(board:String)
@@ -739,6 +741,7 @@ Function GeneratePicoInterface(bcc:String, sdk:String, moduleName:String, source
 		" --module " + moduleName
 	If sourceUnitPath.length Then command :+ " --source-unit " + CQuote(sourceUnitPath)
 	command :+ " --platform " + processor.Platform() + " --arch " + processor.CPU() + " --single-threaded"
+	If opt_embedded_gc_multicore Then command :+ " --embedded-multicore"
 	If PicoDebugBuild() Then
 		command :+ " --debug --no-debug-instrumentation --gdb-debug"
 	Else
@@ -761,6 +764,7 @@ Function GeneratePicoBuildBundle:TPicoBuildBundle(bcc:String, sdk:String, source
 		" --platform " + processor.Platform() + " --arch " + processor.CPU() + " --single-threaded" + ..
 		" --build-c " + CQuote(generatedCName) + ..
 		" --build-manifest " + CQuote(manifestName)
+	If opt_embedded_gc_multicore Then command :+ " --embedded-multicore"
 	If moduleName.length Then command :+ " --module " + moduleName
 	If sourceUnitPath.length Then command :+ " --source-unit " + CQuote(sourceUnitPath)
 	If interfaceOutput.length Then command :+ " --build-interface " + CQuote("module.i")
@@ -1052,6 +1056,7 @@ Function MakePicoApplication(mainSource:String, outputPath:String, compileOnly:I
 	If PicoDebugBuild() Then buildVariant = "debug"
 	Local buildDir:String = ExtractDir(mainSource) + "/.bmx/" + StripDir(StripExt(mainSource)) + "." + buildVariant + ".pico.arm." + picoBoard
 	If picoFloatABI = "hard" Then buildDir :+ ".hardfloat"
+	If opt_embedded_gc_multicore Then buildDir :+ ".gcmc"
 	Local cachedPicoSdk:String
 	Local cachedPicoToolchain:String
 	If FileType(buildDir + "/CMakeCache.txt") = FILETYPE_FILE Then
@@ -1068,7 +1073,7 @@ Function MakePicoApplication(mainSource:String, outputPath:String, compileOnly:I
 	Local compilerBuildRoot:String = buildDir + "/bcc"
 	CreateDir(compilerBuildRoot, True)
 
-	GeneratePicoInterface(bcc, sdk, "brl.blitz", blitzModuleRoot + "/blitz.bmx", blitzModuleRoot + "/blitz." + PicoBuildModeName() + ".pico.arm.i")
+	GeneratePicoInterface(bcc, sdk, "brl.blitz", blitzModuleRoot + "/blitz.bmx", blitzModuleRoot + "/blitz." + EmbeddedTargetMung() + ".i")
 
 	Local picoApplicationUnits:TList
 	Local picoUnits:TList = DiscoverPicoModules(mainSource, picoApplicationUnits)
@@ -1120,6 +1125,7 @@ Function MakePicoApplication(mainSource:String, outputPath:String, compileOnly:I
 		" -DBLITZMAX_PICO_PIO_CMAKE=" + CQuote(picoPIOCMake) + ..
 		" -DBLITZMAX_PICO_NATIVE_CMAKE=" + CQuote(picoNativeCMake) + ..
 		" -DBLITZMAX_PICO_MODULE_INITIALIZERS=" + CQuote(JoinPicoModuleField(picoUnits, "initialize"))
+	If opt_embedded_gc_multicore Then configure :+ " -DBLITZMAX_PICO_MULTICORE_ENABLED=ON -DBLITZMAX_PICO_GC_MULTICORE=ON"
 	Local picoBoardHeaderDirs:String = PicoConfiguredPath("pico.board.header.dirs", "PICO_BOARD_HEADER_DIRS")
 	If picoBoardHeaderDirs.length Then configure :+ " -DPICO_BOARD_HEADER_DIRS=" + CQuote(picoBoardHeaderDirs)
 	Local picoBoardCMakeDirs:String = PicoConfiguredPath("pico.board.cmake.dirs", "PICO_BOARD_CMAKE_DIRS")
