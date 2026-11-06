@@ -2,6 +2,34 @@ SuperStrict
 
 Import "bmk_pico.bmx"
 
+Function Nrf52VirtualEnvironmentBin:String(zephyrBase:String)
+	Local configured:String = PicoConfiguredPath("nrf52.venv", "NRF52_VENV")
+	Local environment:String = configured
+	If Not environment.length Then environment = ExtractDir(zephyrBase) + "/.venv"
+	Local binDir:String = environment + "/bin"
+	If PicoHostPlatform() = "win32" Then binDir = environment + "/Scripts"
+	If FileType(binDir) = FILETYPE_DIR Then Return binDir
+	If configured.length Then Throw "nRF52 Python virtual environment was not found: " + configured
+	Return ""
+End Function
+
+Function Nrf52WestExecutable:String(venvBin:String)
+	Local configured:String = PicoConfiguredPath("nrf52.west", "WEST")
+	Local platform:String = PicoHostPlatform()
+	If configured.length Then
+		Local west:String = PicoExecutableFromValue(configured, "west", platform)
+		If west.length Then Return west
+		Throw "nRF52 west executable was not found at " + configured
+	End If
+	If venvBin.length Then
+		Local west:String = PicoExecutableFromValue(venvBin, "west", platform)
+		If west.length Then Return west
+	End If
+	Local west:String = PicoFindExecutableOnPath("west", getenv_("PATH"), platform)
+	If west.length Then Return west
+	Throw "Install west in the Zephyr virtual environment, or set nrf52.west in custom.bmk"
+End Function
+
 Function ReportNrf52BoardInfo(args:String[])
 	If args.length Then CmdError "boardinfo does not accept a source file"
 	Local board:String = "promicro_nrf52840"
@@ -34,12 +62,20 @@ Function MakeNrf52Application(mainSource:String, outputPath:String, compileOnly:
 	If FileType(template + "/CMakeLists.txt") <> FILETYPE_FILE Then Throw "The nRF52 Zephyr application template is missing at " + template
 
 	Local zephyrBase:String = PicoConfiguredPath("nrf52.zephyr", "ZEPHYR_BASE")
-	If Not zephyrBase.length Or FileType(zephyrBase + "/CMakeLists.txt") <> FILETYPE_FILE Then Throw "Set ZEPHYR_BASE to a Zephyr checkout"
+	If Not zephyrBase.length Or FileType(zephyrBase + "/CMakeLists.txt") <> FILETYPE_FILE Then Throw "Set nrf52.zephyr in custom.bmk or ZEPHYR_BASE to a Zephyr checkout"
 	Local sdkInstall:String = PicoConfiguredPath("nrf52.sdk", "ZEPHYR_SDK_INSTALL_DIR")
-	If Not sdkInstall.length Or FileType(sdkInstall) <> FILETYPE_DIR Then Throw "Set ZEPHYR_SDK_INSTALL_DIR to a Zephyr SDK installation"
-	Local west:String = PicoConfiguredPath("nrf52.west", "WEST")
-	If Not west.length Then west = PicoFindExecutableOnPath("west", getenv_("PATH"), PicoHostPlatform())
-	If Not west.length Or FileType(west) <> FILETYPE_FILE Then Throw "Install west and put it on PATH or set WEST"
+	If Not sdkInstall.length Or FileType(sdkInstall + "/sdk_version") <> FILETYPE_FILE Then Throw "Set nrf52.sdk in custom.bmk or ZEPHYR_SDK_INSTALL_DIR to a Zephyr SDK installation"
+	Local overlay:String = PicoConfiguredPath("nrf52.overlay", "BMX_NRF52_EXTRA_OVERLAY_FILE")
+	If overlay.length Then
+		If FileType(overlay) <> FILETYPE_FILE Then Throw "nRF52 devicetree overlay was not found: " + overlay
+		overlay = RealPath(overlay)
+		putenv_ "BMX_NRF52_EXTRA_OVERLAY_FILE=" + overlay
+	End If
+	Local venvBin:String = Nrf52VirtualEnvironmentBin(zephyrBase)
+	Local west:String = Nrf52WestExecutable(venvBin)
+	If venvBin.length Then putenv_ "PATH=" + venvBin + PicoPathSeparator(PicoHostPlatform()) + getenv_("PATH")
+	putenv_ "ZEPHYR_BASE=" + zephyrBase
+	putenv_ "ZEPHYR_SDK_INSTALL_DIR=" + sdkInstall
 
 	Local outputBase:String = outputPath
 	Select ExtractExt(outputBase).ToLower()
@@ -78,9 +114,8 @@ Function MakeNrf52Application(mainSource:String, outputPath:String, compileOnly:
 	AppendPicoBundleSources(applicationBundle, applicationSources, specializationOwners)
 	Local nativeCmake:String = GeneratePicoNativeCMake(nativeImports, nativeLinkOptions, buildDir)
 
-	Local environment:String = "ZEPHYR_BASE=" + CQuote(zephyrBase) + " ZEPHYR_SDK_INSTALL_DIR=" + CQuote(sdkInstall) + " "
 	Local zephyrBuildDir:String = buildDir + "/zephyr-build"
-	Local command:String = environment + CQuote(west) + " build -p always -b promicro_nrf52840/nrf52840/uf2 -d " + CQuote(zephyrBuildDir) + " " + CQuote(template) + " --" + ..
+	Local command:String = CQuote(west) + " build -p always -b promicro_nrf52840/nrf52840/uf2 -d " + CQuote(zephyrBuildDir) + " " + CQuote(template) + " --" + ..
 		" -DBLITZMAX_SDK=" + CQuote(sdk) + ..
 		" -DBLITZMAX_APPLICATION_ROOT=" + CQuote(ExtractDir(mainSource)) + ..
 		" -DBLITZMAX_OUTPUT_NAME=" + CQuote(StripDir(outputBase)) + ..
@@ -95,5 +130,5 @@ Function MakeNrf52Application(mainSource:String, outputPath:String, compileOnly:
 		If FileType(built + "." + extension) = FILETYPE_FILE Then CopyFile(built + "." + extension, outputBase + "." + extension)
 	Next
 	Print "nRF52 UF2: " + outputBase + ".uf2"
-	If opt_execute Then RunPicoCommand(environment + CQuote(west) + " flash -d " + CQuote(zephyrBuildDir) + " -r uf2 --board-id nRF52840-nicenano", "Uploading nRF52 UF2")
+	If opt_execute Then RunPicoCommand(CQuote(west) + " flash -d " + CQuote(zephyrBuildDir) + " -r uf2 --board-id nRF52840-nicenano", "Uploading nRF52 UF2")
 End Function
