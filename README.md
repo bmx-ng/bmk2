@@ -768,6 +768,21 @@ and `esp32.python`. A configured Python value may name either its virtual
 environment directory or the Python executable itself. Configuration options
 take precedence over their corresponding environment variables.
 
+For nRF52, `bmk` builds against Zephyr 4.5.0 and Zephyr SDK 1.0.1 on the
+`promicro_nrf52840/nrf52840/uf2` board profile. Set `nrf52.zephyr` to the
+Zephyr checkout and `nrf52.sdk` to the Zephyr SDK root in `bin/custom.bmk`.
+Their environment equivalents are `ZEPHYR_BASE` and
+`ZEPHYR_SDK_INSTALL_DIR`. If the Zephyr workspace contains a sibling `.venv`
+directory, `bmk` uses its `west` and Python dependencies automatically.
+Otherwise set `nrf52.venv` (`NRF52_VENV`) to the virtual environment root or
+`nrf52.west` (`WEST`) to the west executable or its containing directory.
+Set `nrf52.overlay` (`BMX_NRF52_EXTRA_OVERLAY_FILE`) to an additional
+devicetree overlay when a build needs a different board pin route; it is
+applied after the nRF52 module's built-in overlay.
+Configured options take precedence over environment variables. The pinned
+macOS, Linux, and Windows setup and UF2 instructions are in
+`mod/nrf52.mod/README.md`.
+
 For ESP32, `makeapp -x` also uses the selected board profile's console
 transport. Profiles declaring native USB Serial/JTAG use esptool's USB reset
 sequence; conventional UART profiles retain ESP-IDF's default DTR/RTS reset.

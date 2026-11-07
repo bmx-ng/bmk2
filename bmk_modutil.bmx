@@ -975,6 +975,8 @@ Function ValidatePlatformArchitecture()
 			If arch = "arm" Then
 				valid = True
 			End If
+		Case "nrf52"
+			If arch = "arm" Then valid = True
 		Case "esp32"
 			If arch = "xtensa" Or arch = "riscv32" Then
 				valid = True
@@ -1075,10 +1077,13 @@ Function SetCompilerValues()
 	compilerOptions.Add("raspberrypiarm64", processor.Platform() = "raspberrypi" And processor.CPU()="arm64")
 	compilerOptions.Add("pico", processor.Platform() = "pico")
 	compilerOptions.Add("picoarm", processor.Platform() = "pico" And processor.CPU()="arm")
+	compilerOptions.Add("nrf52", processor.Platform() = "nrf52")
+	compilerOptions.Add("nrf52arm", processor.Platform() = "nrf52" And processor.CPU()="arm")
+	compilerOptions.Add("nrf52840", processor.Platform() = "nrf52" And processor.CPU()="arm")
 	compilerOptions.Add("esp32", processor.Platform() = "esp32")
 	compilerOptions.Add("esp32xtensa", processor.Platform() = "esp32" And processor.CPU() = "xtensa")
 	compilerOptions.Add("esp32riscv32", processor.Platform() = "esp32" And processor.CPU() = "riscv32")
-	compilerOptions.Add("embedded", processor.Platform() = "pico" Or processor.Platform() = "esp32")
+	compilerOptions.Add("embedded", processor.Platform() = "pico" Or processor.Platform() = "esp32" Or processor.Platform() = "nrf52")
 
 	compilerOptions.Add("haiku", processor.Platform() = "haiku")
 	compilerOptions.Add("haikux86", processor.Platform() = "haiku" And processor.CPU()="x86")
