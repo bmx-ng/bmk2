@@ -2,6 +2,7 @@ SuperStrict
 
 Import "bmk_pico.bmx"
 Import "bmk_esp32.bmx"
+Import "bmk_esp8266.bmx"
 
 Function ConfiguredPicoBoardRoot:String()
 	Local sdk:String = PicoConfiguredPath("pico.sdk", "PICO_SDK_PATH")
@@ -56,6 +57,9 @@ Function ResolveExplicitBoardTarget:Int()
 			Case "esp32"
 				If Not esp32Profile Then Throw "Unsupported ESP32 board profile: " + board + ". Available profiles: " + Esp32BoardProfiles().Names() + "."
 				ApplyInferredEmbeddedTarget("esp32", Esp32TargetArchitecture(esp32Profile.idfTarget), board)
+			Case "esp8266"
+				Esp8266BoardProfile()
+				ApplyInferredEmbeddedTarget("esp8266", "xtensa", board)
 			Case "pico"
 				ApplyInferredEmbeddedTarget("pico", "arm", board)
 			Case "nrf52"
@@ -66,6 +70,10 @@ Function ResolveExplicitBoardTarget:Int()
 		End Select
 	Else
 		Local picoMatch:Int = PicoBoardDefinitionExists(board)
+		If board = "d1_mini_esp12f" Or board = "d1_mini" Or board = "esp12f_d1_mini" Then
+			ApplyInferredEmbeddedTarget("esp8266", "xtensa", board)
+			Return True
+		End If
 		If board = "promicro_nrf52840" Then
 			ApplyInferredEmbeddedTarget("nrf52", "arm", board)
 			Return True
@@ -77,7 +85,7 @@ Function ResolveExplicitBoardTarget:Int()
 		Else If picoMatch
 			ApplyInferredEmbeddedTarget("pico", "arm", board)
 		Else
-			Throw "Unable to infer an embedded target from board '" + board + "': no matching ESP32 profile or Pico SDK board definition was found. Specify -l pico or -l esp32, and -g if the target architecture cannot otherwise be determined."
+			Throw "Unable to infer an embedded target from board '" + board + "': no matching ESP8266/ESP32 profile or Pico SDK board definition was found. Specify the target platform and architecture if they cannot otherwise be determined."
 		End If
 	End If
 

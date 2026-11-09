@@ -789,6 +789,39 @@ sequence; conventional UART profiles retain ESP-IDF's default DTR/RTS reset.
 This keeps upload and restart board-driven rather than hardcoding individual
 board names.
 
+## ESP8266 runtime and deployment
+
+ESP8266 is a separate target from ESP32. It uses Espressif's legacy ESP8266
+RTOS SDK 3.4 and the `xtensa-lx106-elf` toolchain; an ESP-IDF installation for
+ESP32 does not provide those components. The first supplied board profile is
+`d1_mini_esp12f`, for generic ESP-12F D1 Mini boards with 4 MiB flash.
+
+The board profile supplies the platform and architecture, so the shortest
+normal build is:
+
+```sh
+bmk makeapp -r -board d1_mini_esp12f app.bmx
+```
+
+Add `-x` to upload and reset the board. The UART console runs at 74880 baud.
+`-heap auto` currently reserves a conservative 12 KiB SRAM arena for managed
+objects; an explicit `-heap` value may be between 1 KiB and 32 KiB.
+
+Tool lookup checks persistent `custom.bmk` options, their environment
+equivalents, then the standard ESP8266 layout beneath `~/.espressif`:
+
+| `custom.bmk` key | Environment variable |
+| --- | --- |
+| `esp8266.idf` | `ESP8266_RTOS_SDK_PATH` |
+| `esp8266.tools` | `ESP8266_TOOLS_PATH` |
+| `esp8266.python` | `ESP8266_PYTHON` |
+| `esp8266.toolchain` | `ESP8266_TOOLCHAIN_PATH` |
+| `esp8266.port` | `ESP8266_PORT` |
+
+`bmk deviceinfo -l esp8266` reads the attached chip, flash, and MAC without
+erasing it. `bmk boardinfo -l esp8266 -board d1_mini_esp12f` reports the build
+configuration and named pin map without requiring a connected board.
+
 ESP32 applications which import `Embedded.Network.BLE` automatically enable
 the ESP-IDF Bluetooth controller and NimBLE host through generated build
 defaults. Applications which do not import BLE keep those components disabled.

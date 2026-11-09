@@ -5,6 +5,7 @@ Import BRL.StandardIO
 Import "bmk_config.bmx"
 Import "bmk_pico.bmx"
 Import "bmk_esp32.bmx"
+Import "bmk_esp8266.bmx"
 Import "bmk_deviceinfo_parse.bmx"
 Import "bmk_android_device.bmx"
 Import "bmk_ios_device.bmx"
@@ -125,6 +126,75 @@ Function ReportEsp32BoardInfo(args:String[])
 	If args.length Then CmdError "boardinfo does not accept a source file"
 	If processor.Platform() <> "esp32" Then CmdError "boardinfo is currently available only for the esp32 target"
 	PrintEsp32BoardProfile(Esp32BoardProfiles().Find(Esp32BoardProfile()), True)
+End Function
+
+Function PrintEsp8266BoardProfile(includePins:Int)
+	Print "Generic ESP-12F D1 Mini (d1_mini_esp12f)"
+	PrintEmbeddedDeviceInfoField("Kind", "development board")
+	PrintEmbeddedDeviceInfoField("SoC", "ESP8266EX")
+	PrintEmbeddedDeviceInfoField("Architecture", "Xtensa LX106")
+	PrintEmbeddedDeviceInfoField("Build support", "available")
+	PrintEmbeddedDeviceInfoField("Module", "ESP-12F")
+	PrintEmbeddedDeviceInfoField("Flash", "4MB")
+	PrintEmbeddedDeviceInfoField("Flash mode", "DIO")
+	PrintEmbeddedDeviceInfoField("Flash frequency", "40MHz")
+	PrintEmbeddedDeviceInfoField("Managed heap", "12288 bytes")
+	PrintEmbeddedDeviceInfoField("Console", "UART, 74880 baud")
+	If includePins
+		Print ""
+		Print "Named pins:"
+		For Local pin:String = EachIn ["D0: GPIO16", "D1: GPIO5", "D2: GPIO4", "D3: GPIO0", "D4: GPIO2", "D5: GPIO14", "D6: GPIO12", "D7: GPIO13", "D8: GPIO15", "RX: GPIO3", "TX: GPIO1", "LED: GPIO2 (active low)"]
+			Print "  " + pin
+		Next
+	End If
+End Function
+
+Function ReportEsp8266BoardInfo(args:String[])
+	If args.length Then CmdError "boardinfo does not accept a source file"
+	If processor.Platform() <> "esp8266" Then CmdError "boardinfo requires the esp8266 target"
+	Esp8266BoardProfile()
+	PrintEsp8266BoardProfile(True)
+End Function
+
+Function Esp8266DeviceChip:String(output:String)
+	For Local line:String = EachIn output.Replace("~r", "").Split("~n")
+		line = line.Trim()
+		If line.StartsWith("Chip is ") Then Return line[8..].Trim()
+	Next
+	Return ""
+End Function
+
+Function ReportEsp8266DeviceInfo()
+	Local idfPath:String = Esp8266IdfPath()
+	Local toolsRoot:String = Esp8266ToolsRoot()
+	Local python:String = Esp8266Python(toolsRoot)
+	Local esptool:String = idfPath + "/components/esptool_py/esptool/esptool.py"
+	Local command:String = CQuote(python) + " " + CQuote(esptool) + " --chip esp8266"
+	Local port:String = Esp8266SerialPort()
+	If port.length Then command :+ " --port " + CQuote(port)
+	command :+ " --after hard_reset flash_id"
+	Local output:String = PicoCaptureCommand(command)
+	Local chip:String = Esp8266DeviceChip(output)
+	Local flashSize:String = EmbeddedDeviceInfoField(output, "Detected flash size")
+	If Not chip.length Or Not flashSize.length
+		Local details:String = output.Trim()
+		If Not details.length Then details = "esptool did not return device information"
+		Throw "Unable to inspect an ESP8266 device: " + details
+	End If
+	Print "Detected ESP8266 device:"
+	PrintEmbeddedDeviceInfoField("Port", port)
+	PrintEmbeddedDeviceInfoField("Chip", chip)
+	PrintEmbeddedDeviceInfoField("Features", EmbeddedDeviceInfoField(output, "Features"))
+	PrintEmbeddedDeviceInfoField("Flash", flashSize)
+	PrintEmbeddedDeviceInfoField("Flash manufacturer", EmbeddedDeviceInfoField(output, "Manufacturer"))
+	PrintEmbeddedDeviceInfoField("Flash device", EmbeddedDeviceInfoField(output, "Device"))
+	PrintEmbeddedDeviceInfoField("MAC", EmbeddedDeviceInfoField(output, "MAC"))
+	If opt_target_board_set
+		Print ""
+		Print "Selected build configuration:"
+		PrintEsp8266BoardProfile(False)
+		If flashSize.ToLower().Replace(" ", "") <> "4mb" Then Print "  Warning: the selected profile expects 4MB flash."
+	End If
 End Function
 
 Function ReportEsp32DeviceInfo()
@@ -270,11 +340,13 @@ Function ReportEmbeddedDeviceInfo(args:String[])
 			ReportIOSDeviceInfo()
 		Case "esp32"
 			ReportEsp32DeviceInfo()
+		Case "esp8266"
+			ReportEsp8266DeviceInfo()
 		Case "pico"
 			ReportPicoDeviceInfo()
 		Case "nrf52"
 			ReportNrf52DeviceInfo()
 		Default
-			CmdError "deviceinfo is available for android, ios, pico, esp32 and nrf52 targets"
+			CmdError "deviceinfo is available for android, ios, pico, esp32, esp8266 and nrf52 targets"
 	End Select
 End Function

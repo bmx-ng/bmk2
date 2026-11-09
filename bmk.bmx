@@ -7,6 +7,7 @@ Import "bmk_messages.generated.bmx"
 Import "bmk_make.bmx"
 Import "bmk_pico.bmx"
 Import "bmk_esp32.bmx"
+Import "bmk_esp8266.bmx"
 Import "bmk_nrf52.bmx"
 Import "bmk_embedded_board.bmx"
 Import "bmk_deviceinfo.bmx"
@@ -148,6 +149,8 @@ Case "deviceinfo"
 Case "boardinfo"
 	If processor.Platform() = "nrf52" Then
 		ReportNrf52BoardInfo args
+	Else If processor.Platform() = "esp8266" Then
+		ReportEsp8266BoardInfo args
 	Else
 		ReportEsp32BoardInfo args
 	End If
@@ -336,6 +339,8 @@ Function IsModuleOutputPlatformArchitecture:Int(platform:String, architecture:St
 			Return architecture = "arm"
 		Case "esp32"
 			Return architecture = "xtensa" Or architecture = "riscv32"
+		Case "esp8266"
+			Return architecture = "xtensa"
 		Case "emscripten"
 			Return architecture = "js"
 		Case "nx"
@@ -454,6 +459,11 @@ Function MakeApplication( args$[],makelib:Int,compileOnly:Int = False )
 	If processor.Platform() = "esp32" Then
 		If opt_source_root.length Then CmdError TBmkMessages.OptionSourceRootUnsupportedTarget(processor.Platform()).Render()
 		MakeEsp32Application(Main, opt_outfile, compileOnly)
+		Return
+	End If
+	If processor.Platform() = "esp8266" Then
+		If opt_source_root.length Then CmdError TBmkMessages.OptionSourceRootUnsupportedTarget(processor.Platform()).Render()
+		MakeEsp8266Application(Main, opt_outfile, compileOnly)
 		Return
 	End If
 	If processor.Platform() = "nrf52" Then
