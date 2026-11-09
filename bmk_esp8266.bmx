@@ -114,10 +114,15 @@ Function GenerateEsp8266SdkconfigDefaults:String(buildDir:String)
 		"CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y~n" + ..
 		"CONFIG_ESPTOOLPY_FLASHSIZE=~q4MB~q~n" + ..
 		"CONFIG_SPI_FLASH_SIZE=0x400000~n" + ..
+		"CONFIG_LWIP_SO_RCVBUF=y~n" + ..
 		"CONFIG_ESP_CONSOLE_UART_BAUDRATE=74880~n" + ..
 		"CONFIG_CONSOLE_UART_BAUDRATE=74880~n"
 	Local path:String = buildDir + "/sdkconfig.defaults"
+	Local changed:Int = FileType(path) <> FILETYPE_FILE Or LoadText(path) <> source
 	If Not SaveText(source, path) Then Throw "Unable to write ESP8266 sdkconfig defaults: " + path
+	If changed And FileType(buildDir + "/sdkconfig") = FILETYPE_FILE Then
+		If Not DeleteFile(buildDir + "/sdkconfig") Then Throw "Unable to refresh ESP8266 sdkconfig"
+	End If
 	Return path
 End Function
 
