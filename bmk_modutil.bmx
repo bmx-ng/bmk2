@@ -981,6 +981,8 @@ Function ValidatePlatformArchitecture()
 			If arch = "xtensa" Or arch = "riscv32" Then
 				valid = True
 			End If
+		Case "esp8266"
+			If arch = "xtensa" Then valid = True
 		Case "emscripten"
 			If arch = "js" Then
 				valid = True
@@ -1027,7 +1029,7 @@ Function SetCompilerValues()
 
 	Local longInt8:Int = True
 	' on windows and 32-bit platforms longint is 4 bytes
-	If processor.Platform()="win32" Or processor.Platform()="win64" Or processor.Platform()="pico" Or processor.Platform()="esp32" Or processor.CPU()="x86" Or processor.CPU()="ppc" Then
+	If processor.Platform()="win32" Or processor.Platform()="win64" Or processor.Platform()="pico" Or processor.Platform()="esp32" Or processor.Platform()="esp8266" Or processor.CPU()="x86" Or processor.CPU()="ppc" Then
 		longInt8 = False
 	End If
 	compilerOptions.Add("longint8", longInt8)
@@ -1083,7 +1085,9 @@ Function SetCompilerValues()
 	compilerOptions.Add("esp32", processor.Platform() = "esp32")
 	compilerOptions.Add("esp32xtensa", processor.Platform() = "esp32" And processor.CPU() = "xtensa")
 	compilerOptions.Add("esp32riscv32", processor.Platform() = "esp32" And processor.CPU() = "riscv32")
-	compilerOptions.Add("embedded", processor.Platform() = "pico" Or processor.Platform() = "esp32" Or processor.Platform() = "nrf52")
+	compilerOptions.Add("esp8266", processor.Platform() = "esp8266")
+	compilerOptions.Add("esp8266xtensa", processor.Platform() = "esp8266" And processor.CPU() = "xtensa")
+	compilerOptions.Add("embedded", processor.Platform() = "pico" Or processor.Platform() = "esp32" Or processor.Platform() = "esp8266" Or processor.Platform() = "nrf52")
 
 	compilerOptions.Add("haiku", processor.Platform() = "haiku")
 	compilerOptions.Add("haikux86", processor.Platform() = "haiku" And processor.CPU()="x86")
