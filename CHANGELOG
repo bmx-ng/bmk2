@@ -3,6 +3,7 @@
  - Initial ESP8266 application support using ESP8266 RTOS SDK 3.4 and the Xtensa LX106 toolchain.
  - Board-driven target inference, build, upload, device inspection, and board information for generic ESP-12F D1 Mini boards.
  - Configurable ESP8266 SDK, tools, Python environment, toolchain, serial port, and managed-heap settings.
+ - A generated ESP8266 partition table with a 3 MiB persistent storage volume, FAT file locking, and long-filename support.
 ### Fixed
  - ESP8266 applications enable lwIP receive-byte accounting for portable socket availability queries.
  - Changed generated ESP8266 SDK defaults invalidate stale application configuration before rebuilding.
