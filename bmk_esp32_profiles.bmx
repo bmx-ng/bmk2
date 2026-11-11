@@ -155,7 +155,10 @@ Function Esp32ProfileDynamicFieldValid:Int(section:String, key:String)
 			key = "tx_clock" Or key = "rx_clock" Or key = "phy_ref_clock" Or ..
 			key = "tx_control" Or key = "rx_control" Or ..
 			key = "txd0" Or key = "txd1" Or key = "txd2" Or key = "txd3" Or ..
-			key = "rxd0" Or key = "rxd1" Or key = "rxd2" Or key = "rxd3"
+			key = "rxd0" Or key = "rxd1" Or key = "rxd2" Or key = "rxd3" Or ..
+			key = "driver" Or key = "width" Or key = "height" Or ..
+			key = "pixel_format" Or key = "x_offset" Or key = "y_offset" Or ..
+			key = "rotation" Or key = "backlight"
 	Else If section.StartsWith("constraint.")
 		Return key = "pins" Or key = "status" Or key = "reason"
 	End If
@@ -312,7 +315,7 @@ Function ValidateEsp32BoardPinReferences(profile:TEsp32BoardProfile, source:Stri
 		Local bus:String = String(values.ValueForKey("bus"))
 		If bus.length And Not profile.buses.Contains(bus.ToLower()) Then Throw "ESP32 board profile '" + profile.name + "' " + section + " references unknown bus '" + bus + "' in " + source
 		For Local key:String = EachIn values.Keys()
-			If key <> "pin" And key <> "clock" And key <> "command" And ..
+			If key <> "pin" And key <> "clock" And key <> "command" And key <> "backlight" And ..
 				key <> "mdc" And key <> "mdio" And key <> "reset" And key <> "interrupt" And ..
 				key <> "tx_clock" And key <> "rx_clock" And key <> "phy_ref_clock" And ..
 				key <> "tx_control" And key <> "rx_control" And ..
@@ -328,6 +331,34 @@ Function ValidateEsp32BoardPinReferences(profile:TEsp32BoardProfile, source:Stri
 			Local name:String = rawName.Trim()
 			If name.length And profile.PinNumber(name) < 0 Then Throw "ESP32 board profile '" + profile.name + "' " + section + " references unknown pin '" + name + "' in " + source
 		Next
+	Next
+	For Local section:String = EachIn profile.resources.Keys()
+		Local values:TMap = TMap(profile.resources.ValueForKey(section))
+		If String(values.ValueForKey("type")).ToLower() <> "display" Then Continue
+		For Local key:String = EachIn ["driver", "bus", "width", "height", "pixel_format"]
+			If Not String(values.ValueForKey(key)).length Then
+				Throw "ESP32 board profile '" + profile.name + "' " + section + " is missing '" + key + "' in " + source
+			End If
+		Next
+		Local width:Int = Esp32ProfileUnsigned(String(values.ValueForKey("width")))
+		Local height:Int = Esp32ProfileUnsigned(String(values.ValueForKey("height")))
+		If width <= 0 Or height <= 0 Then
+			Throw "ESP32 board profile '" + profile.name + "' " + section + " has invalid dimensions in " + source
+		End If
+		For Local key:String = EachIn ["x_offset", "y_offset"]
+			Local value:String = String(values.ValueForKey(key))
+			If value.length And Esp32ProfileUnsigned(value) < 0 Then
+				Throw "ESP32 board profile '" + profile.name + "' " + section + " has invalid " + key + " in " + source
+			End If
+		Next
+		Local pixelFormat:String = String(values.ValueForKey("pixel_format")).ToLower()
+		If pixelFormat <> "mono1" And pixelFormat <> "rgb565" And pixelFormat <> "rgb888" Then
+			Throw "ESP32 board profile '" + profile.name + "' " + section + " has unsupported pixel_format '" + pixelFormat + "' in " + source
+		End If
+		Local rotation:String = String(values.ValueForKey("rotation"))
+		If rotation.length And rotation <> "0" And rotation <> "90" And rotation <> "180" And rotation <> "270" Then
+			Throw "ESP32 board profile '" + profile.name + "' " + section + " has invalid rotation '" + rotation + "' in " + source
+		End If
 	Next
 	Local ethernet:TMap = TMap(profile.resources.ValueForKey("resource.ethernet"))
 	If ethernet

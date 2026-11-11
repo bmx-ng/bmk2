@@ -29,6 +29,16 @@ Local profile:TEsp32BoardProfile = ParseEsp32BoardProfile("format=1~n" + ..
 	"[resource.rgb_led]~n" + ..
 	"type=ws2812c~n" + ..
 	"pin=LED~n" + ..
+	"[resource.display]~n" + ..
+	"type=display~n" + ..
+	"driver=ssd1306~n" + ..
+	"bus=bus.i2c.default~n" + ..
+	"address=0x3c~n" + ..
+	"width=72~n" + ..
+	"height=40~n" + ..
+	"pixel_format=mono1~n" + ..
+	"x_offset=28~n" + ..
+	"y_offset=0~n" + ..
 	"[resource.ethernet]~n" + ..
 	"type=yt8531~n" + ..
 	"interface=rgmii~n" + ..
@@ -61,6 +71,7 @@ Check(profile.PinNumber("sda") = 47, "pin names resolve case-insensitively")
 Check(profile.Pin("SCL").connector = "J1", "physical connector metadata is loaded")
 Check(String(profile.Bus("bus.i2c.default").ValueForKey("scl")) = "SCL", "default bus is loaded")
 Check(String(TMap(profile.resources.ValueForKey("resource.ethernet")).ValueForKey("mdio")) = "MDIO", "Ethernet metadata is loaded")
+Check(String(TMap(profile.resources.ValueForKey("resource.display")).ValueForKey("driver")) = "ssd1306", "Display metadata is loaded")
 
 Local registry:TEsp32BoardProfileRegistry = New TEsp32BoardProfileRegistry
 registry.Add(profile, "fixture")
@@ -141,5 +152,23 @@ Catch failure:Object
 	rejected = True
 End Try
 Check(rejected, "incomplete Ethernet resources are rejected")
+
+rejected = False
+Try
+	Local incompleteDisplay:TEsp32BoardProfile = ParseEsp32BoardProfile("format=1~n[board]~nname=Bad Display~nkind=board~ntarget=esp32c3~n[resource.display]~ntype=display~ndriver=ssd1306~nwidth=72~nheight=40~npixel_format=mono1~n", "bad_display", "bad fixture")
+	ValidateEsp32BoardPinReferences(incompleteDisplay, "bad fixture")
+Catch failure:Object
+	rejected = True
+End Try
+Check(rejected, "display resources without a bus are rejected")
+
+rejected = False
+Try
+	Local badDisplayFormat:TEsp32BoardProfile = ParseEsp32BoardProfile("format=1~n[board]~nname=Bad Display~nkind=board~ntarget=esp32c3~n[bus.i2c.default]~ncontroller=0~n[resource.display]~ntype=display~ndriver=ssd1306~nbus=bus.i2c.default~nwidth=72~nheight=40~npixel_format=indexed8~n", "bad_display", "bad fixture")
+	ValidateEsp32BoardPinReferences(badDisplayFormat, "bad fixture")
+Catch failure:Object
+	rejected = True
+End Try
+Check(rejected, "unsupported display pixel formats are rejected")
 
 Print "bmk ESP32 board-profile tests passed"
