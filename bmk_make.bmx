@@ -50,7 +50,7 @@ End Type
 Type TBcc2CompileWork
 	Field source:TSourceFile
 	Field arguments:String[]
-	Field previousDependencyContract:String
+	Field previousDependencyContractDigest:String
 	Field response:TBcc2EngineResponse
 	Field failure:Object
 	Field finalBuildRoot:String
@@ -2469,7 +2469,7 @@ Type TBuildManager Extends TCallback
 			source.bcc2FreshnessChecked = True
 			If source.bcc2Manifest Then
 				Local expectedStamp:String = Bcc2GenerationStamp(source)
-				If FileType(source.bcc2ManifestPath + ".stamp") <> FILETYPE_FILE Or LoadText(source.bcc2ManifestPath + ".stamp") <> expectedStamp Then
+				If FileType(source.bcc2ManifestPath + ".stamp") <> FILETYPE_FILE Or Not Bcc2GenerationStampMatches(source, LoadText(source.bcc2ManifestPath + ".stamp"), expectedStamp) Then
 					source.SetRequiresBuild(True)
 				End If
 			End If
@@ -2544,7 +2544,7 @@ Type TBuildManager Extends TCallback
 		arguments :+ [source.path]
 		Local work:TBcc2CompileWork = New TBcc2CompileWork
 		work.source = source
-		work.previousDependencyContract = Bcc2DependencyContract(source)
+		work.previousDependencyContractDigest = Bcc2PreviousDependencyContractDigest(source)
 		work.arguments = arguments
 		work.finalBuildRoot = source.bcc2BuildRoot
 		work.stagingBuildRoot = stagingBuildRoot
@@ -2564,6 +2564,31 @@ Type TBuildManager Extends TCallback
 			contract.Append(file.role).Append(" ").Append(file.relativePath).Append(" ").Append(digest).Append("~n")
 		Next
 		Return contract.ToString()
+	End Method
+
+	Method Bcc2PreviousDependencyContractDigest:String(source:TSourceFile)
+		If source.bcc2Manifest Then Return TBcc2BuildManifestCodec.Digest(Bcc2DependencyContract(source))
+		' A corrupt manifest still needs repair, but the last successful stamp
+		' preserves the contract that its consumers were compiled against.
+		Local stampPath:String = source.bcc2ManifestPath + ".stamp"
+		If FileType(stampPath) <> FILETYPE_FILE Then Return ""
+		Return Bcc2SavedDependencyContractDigest(LoadText(stampPath))
+	End Method
+
+	Method Bcc2SavedDependencyContractDigest:String(stamp:String)
+		Local lines:String[] = stamp.Replace("~r~n", "~n").Replace("~r", "~n").Split("~n")
+		If lines.length <> 5 Then Return ""
+		If lines[0] <> "BMXGEN 1" Or Not lines[1].StartsWith("source ") Or Not lines[2].StartsWith("options ") Or Not lines[3].StartsWith("contract ") Or lines[4].length Then Return ""
+		Local digest:String = lines[3]["contract ".length..]
+		If Not TBcc2BuildManifestCodec.IsDigest(digest) Then Return ""
+		Return digest
+	End Method
+
+	Method Bcc2GenerationStampMatches:Int(source:TSourceFile, stored:String, expected:String)
+		If stored = expected Then Return True
+		If Not stored.StartsWith(expected) Then Return False
+		Local savedDigest:String = Bcc2SavedDependencyContractDigest(stored)
+		Return savedDigest.length And savedDigest = TBcc2BuildManifestCodec.Digest(Bcc2DependencyContract(source))
 	End Method
 
 	' Compact interfaces retain declaration source coordinates for diagnostics.
@@ -2867,7 +2892,7 @@ Type TBuildManager Extends TCallback
 		processor.DoCallback(source.path)
 		TBcc2BuildManifestCodec.Invalidate(source.bcc2ManifestPath)
 		source.bcc2Manifest = TBcc2BuildManifestCodec.Load(source.bcc2ManifestPath)
-		Local dependencyContractChanged:Int = Bcc2DependencyContract(source) <> work.previousDependencyContract
+		Local dependencyContractChanged:Int = TBcc2BuildManifestCodec.Digest(Bcc2DependencyContract(source)) <> work.previousDependencyContractDigest
 		If dependencyContractChanged Then
 			InvalidateBcc2QuotedImporters(source)
 		End If
@@ -2893,7 +2918,8 @@ Type TBuildManager Extends TCallback
 		' publication commands must not leak into its standalone script.
 		If Not (opt_standalone And opt_boot) Then
 			Local stampPath:String = source.bcc2ManifestPath + ".stamp"
-			If Not processor.PublishText(Bcc2GenerationStamp(source), stampPath) Then
+			Local stamp:String = Bcc2GenerationStamp(source) + "contract " + TBcc2BuildManifestCodec.Digest(Bcc2DependencyContract(source)) + "~n"
+			If Not processor.PublishText(stamp, stampPath) Then
 				Throw TBmkMessages.CompilerFreshnessStampWriteFailed(stampPath).Render()
 			End If
 			source.gen_time = FileTime(stampPath)

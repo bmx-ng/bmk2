@@ -7,7 +7,7 @@ sdk_root=$(CDPATH= cd -- "$bmk_dir/.." && pwd)
 output_root=$2
 fixture_dir=$(CDPATH= cd -- "$(dirname -- "$0")/fixtures" && pwd)
 bcc_name=bcc
-if test -f "$bmk_dir/bcc.exe"
+if test -x "$bmk_dir/bcc.exe"
 then
 	bcc_name=bcc.exe
 fi
@@ -35,7 +35,7 @@ for nm_candidate in \
 	"$sdk_root/llvm-mingw/bin/llvm-nm.exe" \
 	"$sdk_root/llvm-mingw/bin/x86_64-w64-mingw32-nm.exe"
 do
-	if test -f "$nm_candidate"
+	if test -x "$nm_candidate"
 	then
 		sdk_nm=$nm_candidate
 		break
