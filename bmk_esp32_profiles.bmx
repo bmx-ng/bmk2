@@ -147,6 +147,11 @@ Function Esp32ProfileDynamicFieldValid:Int(section:String, key:String)
 			key = "miso" Or key = "mosi" Or key = "clock" Or key = "chip_select" Or ..
 			key = "tx" Or key = "rx" Or key = "baud"
 	Else If section.StartsWith("resource.")
+		If key.StartsWith("data")
+			Local lane:String = key[4..]
+			If lane.length And Esp32ProfileUnsigned(lane) >= 0 And ..
+					Esp32ProfileUnsigned(lane) <= 15 Then Return True
+		End If
 		Return key = "type" Or key = "pin" Or key = "count" Or key = "order" Or ..
 			key = "interface" Or key = "controller" Or key = "clock" Or key = "command" Or ..
 			key = "data0" Or key = "data1" Or key = "data2" Or key = "data3" Or ..
@@ -158,7 +163,13 @@ Function Esp32ProfileDynamicFieldValid:Int(section:String, key:String)
 			key = "rxd0" Or key = "rxd1" Or key = "rxd2" Or key = "rxd3" Or ..
 			key = "driver" Or key = "width" Or key = "height" Or ..
 			key = "pixel_format" Or key = "x_offset" Or key = "y_offset" Or ..
-			key = "rotation" Or key = "backlight"
+			key = "rotation" Or key = "backlight" Or key = "pixel_clock" Or ..
+			key = "pixel_clock_pin" Or key = "data_enable" Or key = "display_enable" Or ..
+			key = "hsync" Or key = "vsync" Or key = "hsync_pulse" Or ..
+			key = "hsync_back_porch" Or key = "hsync_front_porch" Or ..
+			key = "vsync_pulse" Or key = "vsync_back_porch" Or ..
+			key = "vsync_front_porch" Or key = "pixel_clock_active" Or ..
+			key = "framebuffer"
 	Else If section.StartsWith("constraint.")
 		Return key = "pins" Or key = "status" Or key = "reason"
 	End If
@@ -316,6 +327,8 @@ Function ValidateEsp32BoardPinReferences(profile:TEsp32BoardProfile, source:Stri
 		If bus.length And Not profile.buses.Contains(bus.ToLower()) Then Throw "ESP32 board profile '" + profile.name + "' " + section + " references unknown bus '" + bus + "' in " + source
 		For Local key:String = EachIn values.Keys()
 			If key <> "pin" And key <> "clock" And key <> "command" And key <> "backlight" And ..
+				key <> "pixel_clock_pin" And key <> "data_enable" And key <> "display_enable" And ..
+				key <> "hsync" And key <> "vsync" And ..
 				key <> "mdc" And key <> "mdio" And key <> "reset" And key <> "interrupt" And ..
 				key <> "tx_clock" And key <> "rx_clock" And key <> "phy_ref_clock" And ..
 				key <> "tx_control" And key <> "rx_control" And ..
@@ -335,11 +348,15 @@ Function ValidateEsp32BoardPinReferences(profile:TEsp32BoardProfile, source:Stri
 	For Local section:String = EachIn profile.resources.Keys()
 		Local values:TMap = TMap(profile.resources.ValueForKey(section))
 		If String(values.ValueForKey("type")).ToLower() <> "display" Then Continue
-		For Local key:String = EachIn ["driver", "bus", "width", "height", "pixel_format"]
+		For Local key:String = EachIn ["driver", "width", "height", "pixel_format"]
 			If Not String(values.ValueForKey(key)).length Then
 				Throw "ESP32 board profile '" + profile.name + "' " + section + " is missing '" + key + "' in " + source
 			End If
 		Next
+		Local interfaceName:String = String(values.ValueForKey("interface")).ToLower()
+		If interfaceName <> "rgb" And Not String(values.ValueForKey("bus")).length Then
+			Throw "ESP32 board profile '" + profile.name + "' " + section + " is missing 'bus' in " + source
+		End If
 		Local width:Int = Esp32ProfileUnsigned(String(values.ValueForKey("width")))
 		Local height:Int = Esp32ProfileUnsigned(String(values.ValueForKey("height")))
 		If width <= 0 Or height <= 0 Then
@@ -358,6 +375,19 @@ Function ValidateEsp32BoardPinReferences(profile:TEsp32BoardProfile, source:Stri
 		Local rotation:String = String(values.ValueForKey("rotation"))
 		If rotation.length And rotation <> "0" And rotation <> "90" And rotation <> "180" And rotation <> "270" Then
 			Throw "ESP32 board profile '" + profile.name + "' " + section + " has invalid rotation '" + rotation + "' in " + source
+		End If
+		If interfaceName = "rgb" Then
+			For Local key:String = EachIn ["pixel_clock", "hsync_pulse", "hsync_back_porch", ..
+					"hsync_front_porch", "vsync_pulse", "vsync_back_porch", "vsync_front_porch"]
+				If Esp32ProfileUnsigned(String(values.ValueForKey(key))) <= 0 Then
+					Throw "ESP32 board profile '" + profile.name + "' " + section + " has invalid " + key + " in " + source
+				End If
+			Next
+			For Local key:String = EachIn ["pixel_clock_pin", "data_enable", "display_enable", "hsync", "vsync"]
+				If Not String(values.ValueForKey(key)).length Then
+					Throw "ESP32 board profile '" + profile.name + "' " + section + " is missing '" + key + "' in " + source
+				End If
+			Next
 		End If
 	Next
 	Local ethernet:TMap = TMap(profile.resources.ValueForKey("resource.ethernet"))

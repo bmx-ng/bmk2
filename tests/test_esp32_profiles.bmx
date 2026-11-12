@@ -171,4 +171,14 @@ Catch failure:Object
 End Try
 Check(rejected, "unsupported display pixel formats are rejected")
 
+Local rgbDisplay:TEsp32BoardProfile = ParseEsp32BoardProfile("format=1~n[board]~nname=RGB Display~nkind=board~ntarget=esp32s31~n" + ..
+	"[resource.display]~ntype=display~ndriver=st7262e43~ninterface=rgb~nwidth=800~nheight=480~npixel_format=rgb565~n" + ..
+	"pixel_clock=18000000~npixel_clock_pin=PCLK~ndata_enable=DE~ndisplay_enable=DISP~nhsync=HSYNC~nvsync=VSYNC~n" + ..
+	"hsync_pulse=40~nhsync_back_porch=40~nhsync_front_porch=48~nvsync_pulse=23~nvsync_back_porch=32~nvsync_front_porch=13~n" + ..
+	"data0=D0~ndata1=D1~n", "rgb_display", "fixture")
+ParseEsp32BoardPins("name,gpio,connector,position~nPCLK,40,,~nDE,43,,~nDISP,38,,~nHSYNC,44,,~nVSYNC,45,,~nD0,8,,~nD1,9,,~n", rgbDisplay, "pin fixture")
+ValidateEsp32BoardPinReferences(rgbDisplay, "fixture")
+Check(String(TMap(rgbDisplay.resources.ValueForKey("resource.display")).ValueForKey("interface")) = "rgb", ..
+	"RGB display metadata is loaded")
+
 Print "bmk ESP32 board-profile tests passed"
