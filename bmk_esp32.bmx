@@ -192,9 +192,18 @@ Function GenerateEsp32BoardHeader:String(profile:TEsp32BoardProfile, buildDir:St
 	Return includeDirectory
 End Function
 
-Function GenerateEsp32SdkconfigDefaults:String(profile:TEsp32BoardProfile, buildDir:String, bleEnabled:Int = False, ethernetEnabled:Int = False)
+Function GenerateEsp32SdkconfigDefaults:String(profile:TEsp32BoardProfile, buildDir:String, mainTaskStackSize:String, bleEnabled:Int = False, ethernetEnabled:Int = False)
 	Local source:String
 	If profile.sdkconfigDefaults.length Then source = LoadText(profile.directory + "/" + profile.sdkconfigDefaults)
+	' A BlitzMax call frame also carries precise-GC roots. ESP-IDF's 4 KiB
+	' default is therefore too small for ordinary event/UI call chains.
+	Local filtered:String
+	For Local line:String = EachIn source.Replace("~r", "").Split("~n")
+		If Not line.StartsWith("CONFIG_ESP_MAIN_TASK_STACK_SIZE=") Then filtered :+ line + "~n"
+	Next
+	source = filtered
+	If source.length And Not source.EndsWith("~n") Then source :+ "~n"
+	source :+ "CONFIG_ESP_MAIN_TASK_STACK_SIZE=" + mainTaskStackSize + "~n"
 	If bleEnabled
 		If source.length And Not source.EndsWith("~n") Then source :+ "~n"
 		source :+ "CONFIG_BT_ENABLED=y~n"
@@ -211,10 +220,6 @@ Function GenerateEsp32SdkconfigDefaults:String(profile:TEsp32BoardProfile, build
 		If source.length And Not source.EndsWith("~n") Then source :+ "~n"
 		source :+ "CONFIG_ETH_USE_ESP32_EMAC=y~n"
 	End If
-	If Not profile.partitions.length And Not bleEnabled And Not ethernetEnabled Then
-		If profile.sdkconfigDefaults.length Then Return profile.directory + "/" + profile.sdkconfigDefaults
-		Return ""
-	End If
 	If profile.partitions.length
 		Local partitionPath:String = RealPath(profile.directory + "/" + profile.partitions).Replace("\", "/")
 		If source.length And Not source.EndsWith("~n") Then source :+ "~n"
@@ -222,8 +227,22 @@ Function GenerateEsp32SdkconfigDefaults:String(profile:TEsp32BoardProfile, build
 		source :+ "CONFIG_PARTITION_TABLE_CUSTOM_FILENAME=~q" + partitionPath + "~q~n"
 	End If
 	Local path:String = buildDir + "/sdkconfig.board.defaults"
+	Local changed:Int = FileType(path) <> FILETYPE_FILE Or LoadText(path) <> source
 	If Not SaveText(source, path) Then Throw "Unable to write ESP32 board sdkconfig defaults: " + path
+	If changed And FileType(buildDir + "/sdkconfig") = FILETYPE_FILE Then
+		If Not DeleteFile(buildDir + "/sdkconfig") Then Throw "Unable to refresh ESP32 sdkconfig"
+	End If
 	Return path
+End Function
+
+Function Esp32MainTaskStackSize:String()
+	Local configured:String = processor.Option("esp32.stack", "16k").Trim()
+	Local parsed:String = ParsePicoHeapSize(configured)
+	If parsed = "auto" Then Throw "ESP32 main task stack size cannot be 'auto'"
+	Local bytes:Long = Long(parsed)
+	If bytes < 4096 Then Throw "ESP32 main task stack size must be at least 4 KiB"
+	If bytes & 15 Then bytes = (bytes + 15) & ~15:Long
+	Return String(bytes)
 End Function
 
 Function Esp32ToolchainBin:String(idfToolsPath:String, targetArchitecture:String, idfTarget:String)
@@ -290,6 +309,7 @@ Function MakeEsp32Application(mainSource:String, outputPath:String, compileOnly:
 	End If
 	arenaSize = String(arenaBytes)
 	Local arenaInPSRAM:Int = arenaRegion = "psram"
+	Local mainTaskStackSize:String = Esp32MainTaskStackSize()
 	Local sdk:String = BlitzMaxPath()
 	Local esp32ModuleRoot:String = sdk + "/mod/esp32.mod"
 	Local blitzModuleRoot:String = sdk + "/mod/brl.mod/blitz.mod"
@@ -353,7 +373,7 @@ Function MakeEsp32Application(mainSource:String, outputPath:String, compileOnly:
 	Local applicationBundle:TPicoBuildBundle = GeneratePicoBuildBundle(bcc, sdk, mainSource, compilerBuildRoot + "/application", "application.c", "", "", "", applicationIdentity, False, "", PicoRuntimeHeaderPath(mainSource))
 	AppendPicoBundleSources(applicationBundle, generatedApplicationSources, specializationOwners)
 	Local nativeCMake:String = GeneratePicoNativeCMake(nativeImports, nativeLinkOptions, buildDir)
-	Local sdkconfigDefaults:String = GenerateEsp32SdkconfigDefaults(profile, buildDir, bleEnabled, ethernetEnabled)
+	Local sdkconfigDefaults:String = GenerateEsp32SdkconfigDefaults(profile, buildDir, mainTaskStackSize, bleEnabled, ethernetEnabled)
 
 	Local idfEnvironment:String = "PATH=" + CQuote(toolchainBin + PicoPathSeparator(PicoHostPlatform()) + getenv_("PATH")) + " IDF_PATH=" + CQuote(idfPath) + " IDF_TOOLS_PATH=" + CQuote(idfToolsRoot) + " IDF_PYTHON_ENV_PATH=" + CQuote(pythonEnvironment) + " ESP_IDF_VERSION=" + idfVersion + " IDF_VERSION=" + idfVersion + " "
 	Local idfCommand:String = idfEnvironment + CQuote(python) + " " + CQuote(idfPy) + ..
@@ -386,6 +406,7 @@ Function MakeEsp32Application(mainSource:String, outputPath:String, compileOnly:
 	Print "ESP32 IDF target: " + idfTarget
 	Print "ESP32 board profile: " + boardProfile
 	Print "ESP32 managed heap: " + arenaSize + " bytes (" + arenaRegion.ToUpper() + ")"
+	Print "ESP32 main task stack: " + mainTaskStackSize + " bytes"
 	Print "ESP32 ELF: " + outputBase + ".elf"
 	If FileType(outputBase + ".bin") = FILETYPE_FILE Then Print "ESP32 application image: " + outputBase + ".bin"
 	If opt_execute Then
