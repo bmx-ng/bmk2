@@ -4,6 +4,7 @@
  - Board-driven target inference, build, upload, device inspection, and board information for generic ESP-12F D1 Mini boards.
  - Configurable ESP8266 SDK, tools, Python environment, toolchain, serial port, and managed-heap settings.
  - A generated ESP8266 partition table with a 3 MiB persistent storage volume, FAT file locking, and long-filename support.
+ - Configurable ESP32 main-task stack size through the `esp32.stack` build option.
 ### Fixed
  - ESP8266 applications enable lwIP receive-byte accounting for portable socket availability queries.
  - Changed generated ESP8266 SDK defaults invalidate stale application configuration before rebuilding.

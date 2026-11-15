@@ -84,3 +84,5 @@
 #addoption esp32.target "esp32s3"
 #addoption esp32.port "/dev/cu.usbmodem..."
 #addoption esp32.board.dirs "/PATH/TO/CUSTOM/ESP32/BOARDS"
+#addoption esp32.heap.region "psram"
+#addoption esp32.stack "16k"

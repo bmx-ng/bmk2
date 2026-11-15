@@ -768,6 +768,24 @@ and `esp32.python`. A configured Python value may name either its virtual
 environment directory or the Python executable itself. Configuration options
 take precedence over their corresponding environment variables.
 
+The ESP32 runtime also accepts persistent build defaults in `custom.bmk`:
+
+```text
+addoption esp32.target "baguette_s3"
+addoption esp32.port "/dev/cu.usbmodem101"
+addoption esp32.board.dirs "/path/to/custom/board/profiles"
+addoption esp32.heap.region "psram"
+addoption esp32.stack "16k"
+```
+
+`esp32.stack` sets the ESP-IDF main-task stack used to run the BlitzMax
+application. It defaults to `16k`, accepts byte counts or `k`/`m` size suffixes,
+must be at least 4 KiB, and cannot be `auto`. bmk rounds the requested size up
+to the next 16-byte boundary. A source-directory `pre.bmk` can override the
+machine-wide default for applications in that directory; use
+`<output-name>.pre.bmk` to limit it to one application output. In either file,
+write `setoption esp32.stack 32k`.
+
 For nRF52, `bmk` builds against Zephyr 4.5.0 and Zephyr SDK 1.0.1 on the
 `promicro_nrf52840/nrf52840/uf2` board profile. Set `nrf52.zephyr` to the
 Zephyr checkout and `nrf52.sdk` to the Zephyr SDK root in `bin/custom.bmk`.
