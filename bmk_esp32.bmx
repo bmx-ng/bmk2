@@ -350,6 +350,7 @@ Function MakeEsp32Application(mainSource:String, outputPath:String, compileOnly:
 	Local moduleInitializers:String = JoinPicoModuleField(units, "initialize")
 	Local bleEnabled:Int = moduleInitializers.Find("__bb_embedded_network_ble_ble") >= 0
 	Local ethernetEnabled:Int = moduleInitializers.Find("__bb_embedded_network_ethernet_ethernet") >= 0
+	Local zigbeeEnabled:Int = moduleInitializers.Find("__bb_esp32_network_zigbee_zigbee") >= 0
 	Local nativeLinkOptions:TList
 	Local nativeImports:TList = DiscoverPicoNativeImports(mainSource, units, nativeLinkOptions)
 	Local generatedModuleSources:String[] = New String[0]
@@ -374,6 +375,11 @@ Function MakeEsp32Application(mainSource:String, outputPath:String, compileOnly:
 	AppendPicoBundleSources(applicationBundle, generatedApplicationSources, specializationOwners)
 	Local nativeCMake:String = GeneratePicoNativeCMake(nativeImports, nativeLinkOptions, buildDir)
 	Local sdkconfigDefaults:String = GenerateEsp32SdkconfigDefaults(profile, buildDir, mainTaskStackSize, bleEnabled, ethernetEnabled)
+	Local zigbeeStackMode:String = processor.Option("esp32.zigbee.stack", "").Trim().ToLower()
+	If zigbeeEnabled And zigbeeStackMode.length And zigbeeStackMode <> "zczr" And zigbeeStackMode <> "zed" Then
+		Throw "esp32.zigbee.stack must be zczr or zed"
+	End If
+	Local zigbeePartitions:String = processor.Option("esp32.zigbee.partitions", "").Trim()
 
 	Local idfEnvironment:String = "PATH=" + CQuote(toolchainBin + PicoPathSeparator(PicoHostPlatform()) + getenv_("PATH")) + " IDF_PATH=" + CQuote(idfPath) + " IDF_TOOLS_PATH=" + CQuote(idfToolsRoot) + " IDF_PYTHON_ENV_PATH=" + CQuote(pythonEnvironment) + " ESP_IDF_VERSION=" + idfVersion + " IDF_VERSION=" + idfVersion + " "
 	Local idfCommand:String = idfEnvironment + CQuote(python) + " " + CQuote(idfPy) + ..
@@ -393,6 +399,9 @@ Function MakeEsp32Application(mainSource:String, outputPath:String, compileOnly:
 	If opt_embedded_gc_multicore Then command :+ " -DBLITZMAX_ESP32_GC_MULTICORE=ON"
 	command :+ " -DBLITZMAX_ESP32_BOARD_INCLUDE=" + CQuote(boardInclude)
 	If sdkconfigDefaults.length Then command :+ " -DSDKCONFIG_DEFAULTS=" + CQuote(sdkconfigDefaults)
+	' Always pass both values so removing a pre.bmk override clears CMake's cache.
+	command :+ " -DBLITZMAX_ESP32_ZIGBEE_STACK_MODE=" + CQuote(zigbeeStackMode)
+	command :+ " -DBLITZMAX_ESP32_ZIGBEE_PARTITIONS=" + CQuote(zigbeePartitions)
 	command :+ " build"
 	RunPicoCommand(command, "Building ESP-IDF application")
 

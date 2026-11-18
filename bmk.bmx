@@ -458,6 +458,8 @@ Function MakeApplication( args$[],makelib:Int,compileOnly:Int = False )
 	End If
 	If processor.Platform() = "esp32" Then
 		If opt_source_root.length Then CmdError TBmkMessages.OptionSourceRootUnsupportedTarget(processor.Platform()).Render()
+		LoadBMK(ExtractDir(Main) + "/pre.bmk")
+		LoadBMK(ExtractDir(Main) + "/" + StripDir(opt_outfile) + ".pre.bmk")
 		MakeEsp32Application(Main, opt_outfile, compileOnly)
 		Return
 	End If

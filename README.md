@@ -786,6 +786,15 @@ machine-wide default for applications in that directory; use
 `<output-name>.pre.bmk` to limit it to one application output. In either file,
 write `setoption esp32.stack 32k`.
 
+For Zigbee applications, `esp32.zigbee.stack` selects `zczr` for coordinator or
+router roles and `zed` for end devices. The H2 defaults to `zczr` and the C6
+to `zed`. Set a global default with `addoption esp32.zigbee.stack "zczr"` in
+`custom.bmk`, or use `setoption esp32.zigbee.stack zed` in a source-directory
+`pre.bmk` or an `<output-name>.pre.bmk` for one application. The optional
+`esp32.zigbee.partitions` key selects a custom Zigbee partition table; relative
+paths are resolved from the application's source directory. Both keys take
+precedence over their `BMX_ESP32_ZIGBEE_*` environment equivalents.
+
 For nRF52, `bmk` builds against Zephyr 4.5.0 and Zephyr SDK 1.0.1. Board
 profiles in `mod/nrf52.mod/boards` select the Zephyr target, UF2 ID, and pin
 overlay for the Tenstar ProMicro or Seeed XIAO nRF52840 variants. Set `nrf52.zephyr` to the
