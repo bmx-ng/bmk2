@@ -786,8 +786,18 @@ machine-wide default for applications in that directory; use
 `<output-name>.pre.bmk` to limit it to one application output. In either file,
 write `setoption esp32.stack 32k`.
 
-For nRF52, `bmk` builds against Zephyr 4.5.0 and Zephyr SDK 1.0.1 on the
-`promicro_nrf52840/nrf52840/uf2` board profile. Set `nrf52.zephyr` to the
+For Zigbee applications, `esp32.zigbee.stack` selects `zczr` for coordinator or
+router roles and `zed` for end devices. The H2 defaults to `zczr` and the C6
+to `zed`. Set a global default with `addoption esp32.zigbee.stack "zczr"` in
+`custom.bmk`, or use `setoption esp32.zigbee.stack zed` in a source-directory
+`pre.bmk` or an `<output-name>.pre.bmk` for one application. The optional
+`esp32.zigbee.partitions` key selects a custom Zigbee partition table; relative
+paths are resolved from the application's source directory. Both keys take
+precedence over their `BMX_ESP32_ZIGBEE_*` environment equivalents.
+
+For nRF52, `bmk` builds against Zephyr 4.5.0 and Zephyr SDK 1.0.1. Board
+profiles in `mod/nrf52.mod/boards` select the Zephyr target, UF2 ID, and pin
+overlay for the Tenstar ProMicro or Seeed XIAO nRF52840 variants. Set `nrf52.zephyr` to the
 Zephyr checkout and `nrf52.sdk` to the Zephyr SDK root in `bin/custom.bmk`.
 Their environment equivalents are `ZEPHYR_BASE` and
 `ZEPHYR_SDK_INSTALL_DIR`. If the Zephyr workspace contains a sibling `.venv`
@@ -797,6 +807,8 @@ Otherwise set `nrf52.venv` (`NRF52_VENV`) to the virtual environment root or
 Set `nrf52.overlay` (`BMX_NRF52_EXTRA_OVERLAY_FILE`) to an additional
 devicetree overlay when a build needs a different board pin route; it is
 applied after the nRF52 module's built-in overlay.
+If a board's `INFO_UF2.TXT` reports a different `Board-ID`, set
+`nrf52.uf2.boardid` (`NRF52_UF2_BOARD_ID`) to that exact value for upload.
 Configured options take precedence over environment variables. The pinned
 macOS, Linux, and Windows setup and UF2 instructions are in
 `mod/nrf52.mod/README.md`.

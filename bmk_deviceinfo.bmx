@@ -292,6 +292,8 @@ Function Nrf52UsbModeFromIoreg:Int(output:String)
 			If line.Find("~qidProduct~q") >= 0 Then product = Int(line[equals + 1..].Trim())
 			If vendor = 12259 And product = 4 Then Return 1
 			If vendor = 9114 And product = 179 Then Return 2
+			If vendor = 10374 And product = 32837 Then Return 3
+			If vendor = 10374 And (product = 68 Or product = 69 Or product = 100 Or product = 101) Then Return 4
 		End If
 	Next
 	Return 0
@@ -309,14 +311,25 @@ Function ReportNrf52DeviceInfo()
 			Case 2
 				Print "  USB: nice!nano UF2 bootloader (239A:00B3)"
 				observed = True
+			Case 3
+				Print "  USB: Seeed XIAO nRF52840 application (2886:8045; shared USB name does not identify the variant)"
+				observed = True
+			Case 4
+				Print "  USB: Seeed XIAO nRF52840 UF2 bootloader (2886:0044/0045/0064/0065)"
+				observed = True
 		End Select
 	End If
 	Local uf2Root:String = PicoConfiguredPath("nrf52.uf2", "NRF52_UF2_PATH")
-	If Not uf2Root.length And PicoHostPlatform() = "macos" Then uf2Root = "/Volumes/NICENANO"
+	If Not uf2Root.length And PicoHostPlatform() = "macos" Then
+		uf2Root = "/Volumes/NICENANO"
+		If FileType(uf2Root + "/INFO_UF2.TXT") <> FILETYPE_FILE Then uf2Root = "/Volumes/XIAO-BOOT"
+		If FileType(uf2Root + "/INFO_UF2.TXT") <> FILETYPE_FILE Then uf2Root = "/Volumes/XIAO-SENSE"
+		If FileType(uf2Root + "/INFO_UF2.TXT") <> FILETYPE_FILE Then uf2Root = "/Volumes/XIAO BLE"
+	End If
 	If uf2Root.length And FileType(uf2Root + "/INFO_UF2.TXT") = FILETYPE_FILE Then
 		Local info:String = LoadText(uf2Root + "/INFO_UF2.TXT")
 		Local boardId:String = EmbeddedDeviceInfoField(info, "Board-ID")
-		If boardId = "nRF52840-nicenano" Then
+		If boardId = "nRF52840-nicenano" Or boardId.Find("nRF52840-SeeedXiao") >= 0 Or boardId = "Seeed_XIAO_nRF52840_Sense" Then
 			Print "  UF2 drive: " + uf2Root
 			Print "  Board-ID: " + boardId
 			PrintEmbeddedDeviceInfoField("Model", EmbeddedDeviceInfoField(info, "Model"))

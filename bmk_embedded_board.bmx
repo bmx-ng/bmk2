@@ -3,6 +3,7 @@ SuperStrict
 Import "bmk_pico.bmx"
 Import "bmk_esp32.bmx"
 Import "bmk_esp8266.bmx"
+Import "bmk_nrf52.bmx"
 
 Function ConfiguredPicoBoardRoot:String()
 	Local sdk:String = PicoConfiguredPath("pico.sdk", "PICO_SDK_PATH")
@@ -63,7 +64,7 @@ Function ResolveExplicitBoardTarget:Int()
 			Case "pico"
 				ApplyInferredEmbeddedTarget("pico", "arm", board)
 			Case "nrf52"
-				If board <> "promicro_nrf52840" Then Throw "Unsupported nRF52 board: " + board
+				Local zephyrBoard:String = Nrf52ZephyrBoard(board)
 				ApplyInferredEmbeddedTarget("nrf52", "arm", board)
 			Default
 				Throw "The -board option selects embedded hardware and cannot be used with the " + opt_target_platform + " platform."
@@ -74,7 +75,7 @@ Function ResolveExplicitBoardTarget:Int()
 			ApplyInferredEmbeddedTarget("esp8266", "xtensa", board)
 			Return True
 		End If
-		If board = "promicro_nrf52840" Then
+		If Nrf52BoardProfileExists(board) Then
 			ApplyInferredEmbeddedTarget("nrf52", "arm", board)
 			Return True
 		End If

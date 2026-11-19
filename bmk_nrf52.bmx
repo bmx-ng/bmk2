@@ -2,6 +2,56 @@ SuperStrict
 
 Import "bmk_pico.bmx"
 
+Type TNrf52BoardProfile
+	Field zephyrBoard:String
+	Field uf2BoardId:String
+	Field overlay:String
+End Type
+
+Function Nrf52BoardProfileExists:Int(board:String)
+	Local name:String = ValidatePicoBoardName(board)
+	Return FileType(BlitzMaxPath() + "/mod/nrf52.mod/boards/" + name + "/board.ini") = FILETYPE_FILE
+End Function
+
+Function Nrf52BoardProfile:TNrf52BoardProfile(board:String)
+	Local name:String = ValidatePicoBoardName(board)
+	Local path:String = BlitzMaxPath() + "/mod/nrf52.mod/boards/" + name + "/board.ini"
+	If FileType(path) <> FILETYPE_FILE Then Throw "Unsupported nRF52 board: " + board + ". See nrf52.mod/boards for available profiles."
+	Local profile:TNrf52BoardProfile = New TNrf52BoardProfile
+	For Local line:String = EachIn LoadText(path).Replace("~r", "").Split("~n")
+		line = line.Trim()
+		If Not line.length Or line[..1] = "#" Then Continue
+		Local equals:Int = line.Find("=")
+		If equals < 1 Then Throw "Invalid nRF52 board profile line in " + path + ": " + line
+		Local key:String = line[..equals].Trim()
+		Local value:String = line[equals + 1..].Trim()
+		Select key
+			Case "zephyr_board"
+				profile.zephyrBoard = value
+			Case "uf2_board_id"
+				profile.uf2BoardId = value
+			Case "overlay"
+				profile.overlay = value
+			Default
+				Throw "Unknown nRF52 board profile key in " + path + ": " + key
+		End Select
+	Next
+	If Not profile.zephyrBoard.length Or Not profile.uf2BoardId.length Or Not profile.overlay.length Then Throw "Incomplete nRF52 board profile: " + path
+	If profile.overlay <> StripDir(profile.overlay) Or profile.overlay.Find("..") >= 0 Then Throw "Invalid nRF52 board overlay name: " + profile.overlay
+	If FileType(BlitzMaxPath() + "/mod/nrf52.mod/cmake/application/" + profile.overlay) <> FILETYPE_FILE Then Throw "Missing nRF52 board overlay: " + profile.overlay
+	Return profile
+End Function
+
+Function Nrf52ZephyrBoard:String(board:String)
+	Return Nrf52BoardProfile(board).zephyrBoard
+End Function
+
+Function Nrf52Uf2BoardId:String(board:String)
+	Local overrideId:String = PicoConfiguredPath("nrf52.uf2.boardid", "NRF52_UF2_BOARD_ID")
+	If overrideId.length Then Return overrideId
+	Return Nrf52BoardProfile(board).uf2BoardId
+End Function
+
 Function Nrf52VirtualEnvironmentBin:String(zephyrBase:String)
 	Local configured:String = PicoConfiguredPath("nrf52.venv", "NRF52_VENV")
 	Local environment:String = configured
@@ -34,14 +84,19 @@ Function ReportNrf52BoardInfo(args:String[])
 	If args.length Then CmdError "boardinfo does not accept a source file"
 	Local board:String = "promicro_nrf52840"
 	If opt_target_board_set Then board = ValidatePicoBoardName(opt_target_board)
-	If board <> "promicro_nrf52840" Then Throw "Unsupported nRF52 board: " + board
+	Local zephyrBoard:String = Nrf52ZephyrBoard(board)
 	Print "Board: " + board
 	Print "SoC: nRF52840 (Cortex-M4F, 1 MiB flash, 256 KiB RAM)"
-	Print "Zephyr target: promicro_nrf52840/nrf52840/uf2"
-	Print "Expected UF2 bootloader: nRF52840-nicenano (verified on one Tenstar Robot test unit)"
-	Print "Application partition: 0x26000-0xEC000 (S140 v6 UF2 layout)"
+	Print "Zephyr target: " + zephyrBoard
+	Print "Pin overlay: " + Nrf52BoardProfile(board).overlay
+	Print "Expected UF2 Board-ID: " + Nrf52Uf2BoardId(board)
+	If board = "promicro_nrf52840" Then
+		Print "Application partition: 0x26000-0xEC000 (S140 v6 UF2 layout)"
+	Else
+		Print "Application partition: S140 v7 UF2 layout"
+	End If
 	Print "Managed arena: 65536 bytes; main stack: 16384 bytes"
-	Print "Carrier pin map, SWD access and battery circuitry: unverified"
+	If board = "promicro_nrf52840" Then Print "Carrier pin map, SWD access and battery circuitry: unverified"
 End Function
 
 Function MakeNrf52Application(mainSource:String, outputPath:String, compileOnly:Int)
@@ -52,7 +107,8 @@ Function MakeNrf52Application(mainSource:String, outputPath:String, compileOnly:
 	If opt_embedded_gc_multicore Then Throw "The nRF52 target currently supports one managed thread"
 	Local board:String = "promicro_nrf52840"
 	If opt_target_board_set Then board = ValidatePicoBoardName(opt_target_board)
-	If board <> "promicro_nrf52840" Then Throw "Unsupported nRF52 board: " + board + ". Available board: promicro_nrf52840"
+	Local zephyrBoard:String = Nrf52ZephyrBoard(board)
+	Local boardOverlay:String = BlitzMaxPath() + "/mod/nrf52.mod/cmake/application/" + Nrf52BoardProfile(board).overlay
 
 	Local sdk:String = BlitzMaxPath()
 	Local bcc:String = EmbeddedBccExecutablePath(sdk, PicoHostPlatform())
@@ -115,8 +171,9 @@ Function MakeNrf52Application(mainSource:String, outputPath:String, compileOnly:
 	Local nativeCmake:String = GeneratePicoNativeCMake(nativeImports, nativeLinkOptions, buildDir)
 
 	Local zephyrBuildDir:String = buildDir + "/zephyr-build"
-	Local command:String = CQuote(west) + " build -p always -b promicro_nrf52840/nrf52840/uf2 -d " + CQuote(zephyrBuildDir) + " " + CQuote(template) + " --" + ..
+	Local command:String = CQuote(west) + " build -p always -b " + CQuote(zephyrBoard) + " -d " + CQuote(zephyrBuildDir) + " " + CQuote(template) + " --" + ..
 		" -DBLITZMAX_SDK=" + CQuote(sdk) + ..
+		" -DBMX_NRF52_BOARD_OVERLAY=" + CQuote(boardOverlay) + ..
 		" -DBLITZMAX_APPLICATION_ROOT=" + CQuote(ExtractDir(mainSource)) + ..
 		" -DBLITZMAX_OUTPUT_NAME=" + CQuote(StripDir(outputBase)) + ..
 		" -DBLITZMAX_GENERATED_C=" + CQuote(JoinPicoPaths(applicationSources)) + ..
@@ -130,5 +187,5 @@ Function MakeNrf52Application(mainSource:String, outputPath:String, compileOnly:
 		If FileType(built + "." + extension) = FILETYPE_FILE Then CopyFile(built + "." + extension, outputBase + "." + extension)
 	Next
 	Print "nRF52 UF2: " + outputBase + ".uf2"
-	If opt_execute Then RunPicoCommand(CQuote(west) + " flash -d " + CQuote(zephyrBuildDir) + " -r uf2 --board-id nRF52840-nicenano", "Uploading nRF52 UF2")
+	If opt_execute Then RunPicoCommand(CQuote(west) + " flash -d " + CQuote(zephyrBuildDir) + " -r uf2 --board-id " + CQuote(Nrf52Uf2BoardId(board)), "Uploading nRF52 UF2")
 End Function
